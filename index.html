@@ -64,6 +64,41 @@
         }
 
 
+        #video-container {
+      position: relative;
+      width: 80%;
+      max-width: 800px;
+    }
+
+    video {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .custom-controls {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: space-between;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+
+    .custom-controls button {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .custom-controls button:focus {
+      outline: none;
+    }
 /* You can adjust the animation properties (duration, easing function, etc.) to suit your needs */
 </style>
 
@@ -103,8 +138,65 @@
          
        
      </div>
+
+     <div id="video-container">
+      <video controls>
+        <source src="video.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+      <div class="custom-controls">
+        <button id="play-pause">Play</button>
+        <span id="time-display">0:00</span>
+        <button id="mute">Mute</button>
+        <input type="range" id="volume" min="0" max="1" step="0.1" value="1">
+      </div>
+    </div>
+    
+    <script>
+      const video = document.querySelector('video');
+      const playPauseButton = document.getElementById('play-pause');
+      const muteButton = document.getElementById('mute');
+      const volumeControl = document.getElementById('volume');
+      const timeDisplay = document.getElementById('time-display');
+    
+      playPauseButton.addEventListener('click', togglePlay);
+      muteButton.addEventListener('click', toggleMute);
+      volumeControl.addEventListener('input', updateVolume);
+      video.addEventListener('timeupdate', updateTime);
+    
+      function togglePlay() {
+        if (video.paused || video.ended) {
+          video.play();
+          playPauseButton.textContent = 'Pause';
+        } else {
+          video.pause();
+          playPauseButton.textContent = 'Play';
+        }
+      }
+    
+      function toggleMute() {
+        if (video.muted) {
+          video.muted = false;
+          muteButton.textContent = 'Mute';
+        } else {
+          video.muted = true;
+          muteButton.textContent = 'Unmute';
+        }
+      }
+    
+      function updateVolume() {
+        video.volume = volumeControl.value;
+      }
+    
+      function updateTime() {
+        const minutes = Math.floor(video.currentTime / 60);
+        const seconds = Math.floor(video.currentTime % 60);
+        timeDisplay.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+      }
+    </script>
+
   </div>
-  <video src="Color Matte.mp4"></video>
+  
   <p class="text-center mb-3">&copy; 2023
  </p>
   <script>
