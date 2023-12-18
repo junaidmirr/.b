@@ -173,20 +173,20 @@
   function togglePlay() {
     if (video.paused || video.ended) {
       video.play();
-      playPauseButton.textContent = '<i class=\'bx bx-play\' ></i>';
+      playPauseButton.innerHTML = '<i class=\'bx bx-play\' ></i>';
     } else {
       video.pause();
-      playPauseButton.textContent = '<i class=\'bx bx-pause\' ></i>';
+      playPauseButton.innerHTML = '<i class=\'bx bx-pause\' ></i>';
     }
   }
 
   function toggleMute() {
     if (video.muted) {
       video.muted = false;
-      muteButton.textContent = '<i class=\'bx bx-volume-full\' ></i>';
+      muteButton.innerHTML = '<i class=\'bx bx-volume-full\' ></i>';
     } else {
       video.muted = true;
-      muteButton.textContent = '<i class=\'bx bx-volume-mute\' ></i>';
+      muteButton.innerHTML = '<i class=\'bx bx-volume-mute\' ></i>';
     }
   }
 
