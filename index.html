@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome-JunaidMir</title>
+    <link rel="stylesheet" href="output.css">
+    <!-- <link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css" /> -->
+    <!-- Include Boxicons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/boxicons/2.1.0/css/boxicons.min.css">
+    <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha512-jDU6e2v5z5U5g5N5z5HG1v5X9O5p6U5O6U5l6e5v5a5E5z5M5z5j5v5G5v5H5z5y5x5y5v5A5w5b5j5q5e5p5o5g==" crossorigin="anonymous" /> -->
+    <script src="darkmode-js.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+
+.image-container {
+      position: relative;
+      display: inline-block;
+    }
+
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: transparent;
+      z-index: 2;
+      pointer-events: none; /* Allow click-through */
+    }
+
+    .image-container:hover .overlay {
+      background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent white overlay on hover */
+    }
+
+    .image-container img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+
+    body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000; /* Set background color to black */
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background-color: #fff; /* Set star color to white */
+            border-radius: 50%;
+            animation: twinkle 2s infinite; /* Apply twinkling animation */
+        }
+
+        @keyframes twinkle {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0;
+            }
+        }
+
+
+/* You can adjust the animation properties (duration, easing function, etc.) to suit your needs */
+</style>
+
+</head>
+<body class="font-poppins bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 transition duration-300 ease-in-out">
+ 
+  <div class="flex flex-col min-h-screen justify-center items-center">
+   
+     <div class="relative flex items-center justify-center">
+       <div class="image-container">
+         
+         <img style="background-color: #fff;" class="h-40 w-40 rounded-full object-cover" src="https://pbs.twimg.com/profile_images/1705870433084706816/-gqKogEp_400x400.jpg" alt="Profile picture">
+       </div>
+      
+     </div>
+     
+     <h1 class="text-4xl font-bold mt-6">Junaid Mir</h1>
+     <h2 class="text-xl mt-1">geek</h2>
+     <div class="flex justify-center items-center my-3 bg-gray-100">
+       <div class="max-w-sm w-full p-4 bg-white shadow-md rounded-lg">
+         <p class="text-gray-600 text-sm">Dedicated to the world of bits and bytes, constantly learning and adapting.</p>
+       
+       </div>
+     </div>
+     
+     <div class="mt-8">
+       <a href="https://www.linkedin.com/in/junaid-mir-68b87b1b9?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app" class="mx-2 text-xl">
+         <i class="bx bxl-linkedin"></i>
+       </a>
+       <a href="https://github.com/junaid051" class="mx-2 text-xl">
+         <i class="bx bxl-github"></i>
+       </a>
+       <a href="https://twitter.com/t_mirjunaid" class="mx-2 text-xl">
+         <i class="bx bxl-twitter"></i>
+       </a>
+       
+         
+       
+     </div>
+  </div>
+  <p class="text-center mb-3">&copy; 2023
+ </p>
+  <script>
+    // Include Boxicons library
+ document.head.innerHTML += '<link rel="stylesheet" href="https://cdn.jsdelivr.net/boxicons/2.0.7/css/boxicons.min.css">';
+ 
+ // Function to toggle dark mode
+ function toggleDarkMode() {
+   var darkmode = new Darkmode();
+   darkmode.toggle();
+   updateToggleIcon(darkmode.isActivated());
+ }
+ 
+ // Function to update the toggle button icon based on dark mode status
+ function updateToggleIcon(isDarkMode) {
+   var iconElement = document.getElementById('dark-light-toggle-icon');
+ 
+   // Use Boxicons for sun and moon icons
+   var iconClass = isDarkMode ? 'bx-moon' : 'bx-sun';
+ 
+   // Update the icon
+   iconElement.className = 'icon ' + iconClass;
+ }
+ 
+ // Show the dark mode widget
+ new Darkmode().showWidget();
+ 
+ // Attach event listener to the toggle button
+ document.getElementById('dark-light-toggle').addEventListener('click', function () {
+   toggleDarkMode();
+ });
+ 
+ // Create and append the icon element to the toggle button
+ var iconElement = document.createElement('i');
+ iconElement.id = 'dark-light-toggle-icon';
+ iconElement.className = 'icon bx-sun'; // Initial icon is the sun
+ document.getElementById('dark-light-toggle').appendChild(iconElement);
+ 
+  </script>
+ 
+ <script>
+   document.addEventListener("DOMContentLoaded", function () {
+       const body = document.body;
+ 
+       // Function to generate random number within a range
+       function getRandom(min, max) {
+           return Math.random() * (max - min) + min;
+       }
+ 
+       // Function to create stars
+       function createStars() {
+           for (let i = 0; i < 100; i++) {
+               const star = document.createElement("div");
+               star.className = "star";
+               star.style.left = `${getRandom(0, 800)}vw`;
+               star.style.top = `${getRandom(0, 20)}vh`;
+               body.appendChild(star);
+           }
+       }
+ 
+       createStars();
+   });
+ </script>
+    <script>
+//       window.onload = function() {
+//   // Function to remove the specified script from the head
+//   function removeScript() {
+//     var scriptToRemove = document.querySelector('head script[src="https://tiiny.host/ad-script.js"]');
+//     if (scriptToRemove) {
+//       scriptToRemove.parentNode.removeChild(scriptToRemove);
+//     }
+//   }
+
+//   // Initial removal on window load
+//   removeScript();
+
+//   // Set interval to check every 5 minutes
+//   setInterval(removeScript, 5 * 60 * 1000); // 5 minutes in milliseconds
+// };
+
+    </script>
+</body>
+</html>
