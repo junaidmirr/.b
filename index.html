@@ -63,44 +63,7 @@
             }
         }
 
-        #video-container {
-      position: relative;
-      width: 80%;
-      max-width: 800px;
-      overflow: hidden; /* Hide overflow to prevent scroll bars when controls are hidden */
-    }
 
-    video {
-      width: 100%;
-      height: auto;
-      display: block;
-    }
-
-    .custom-controls {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
-      display: flex;
-      justify-content: space-between;
-      padding: 8px;
-      box-sizing: border-box;
-      opacity: 1;
-      transition: opacity 0.5s; /* Add smooth transition for opacity */
-    }
-
-    .custom-controls button {
-      background: none;
-      border: none;
-      color: white;
-      cursor: pointer;
-      font-size: 16px;
-    }
-
-    .custom-controls button:focus {
-      outline: none;
-    }
 /* You can adjust the animation properties (duration, easing function, etc.) to suit your needs */
 </style>
 
@@ -141,82 +104,10 @@
        
      </div>
 <br>
-<div id="video-container">
-  <video>
-    <source src="http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
-    Your browser does not support the video tag.
-  </video>
-  <div class="custom-controls">
-    <button id="play-pause"><i class='bx bx-pause'></i></button>
-    <span id="time-display">0:00</span>
-    <button id="mute"><i class='bx bx-volume-full' ></i></button>
-    <input type="range" id="volume" min="0" max="1" step="0.1" value="1">
-  </div>
-</div>
 
-<script>
-  const video = document.querySelector('video');
-  const controls = document.querySelector('.custom-controls');
-  const playPauseButton = document.getElementById('play-pause');
-  const muteButton = document.getElementById('mute');
-  const volumeControl = document.getElementById('volume');
-  const timeDisplay = document.getElementById('time-display');
-  let controlsVisible = true;
 
-  playPauseButton.addEventListener('click', togglePlay);
-  muteButton.addEventListener('click', toggleMute);
-  volumeControl.addEventListener('input', updateVolume);
-  video.addEventListener('timeupdate', updateTime);
-  video.addEventListener('mousemove', showControls);
-  video.addEventListener('touchstart', showControls);
 
-  function togglePlay() {
-    if (video.paused || video.ended) {
-      video.play();
-      playPauseButton.innerHTML = '<i class=\'bx bx-play\' ></i>';
-    } else {
-      video.pause();
-      playPauseButton.innerHTML = '<i class=\'bx bx-pause\' ></i>';
-    }
-  }
 
-  function toggleMute() {
-    if (video.muted) {
-      video.muted = false;
-      muteButton.innerHTML = '<i class=\'bx bx-volume-full\' ></i>';
-    } else {
-      video.muted = true;
-      muteButton.innerHTML = '<i class=\'bx bx-volume-mute\' ></i>';
-    }
-  }
-
-  function updateVolume() {
-    video.volume = volumeControl.value;
-  }
-
-  function updateTime() {
-    const minutes = Math.floor(video.currentTime / 60);
-    const seconds = Math.floor(video.currentTime % 60);
-    timeDisplay.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-  }
-
-  function showControls() {
-    if (!controlsVisible) {
-      controls.style.opacity = '1';
-      controlsVisible = true;
-      setTimeout(() => {
-        hideControls();
-      }, 2000); // Hide controls after 2 seconds of inactivity
-    }
-  }
-
-  function hideControls() {
-    if (controlsVisible) {
-      controls.style.opacity = '0';
-      controlsVisible = false;
-    }
-  }
-</script>
 
   </div>
   
