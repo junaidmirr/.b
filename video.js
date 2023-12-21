@@ -5,6 +5,19 @@ function appendCustomCode() {
     link.href = 'https://cdnjs.cloudflare.com/ajax/libs/boxicons/2.1.0/css/boxicons.min.css';
     document.body.appendChild(link);
 
+    const pegtrol = document.createElement('div')
+    div.innerHTML = `
+    <div class="custom-controls">
+    <a id="custom-watermark" style="font-weight: bold;" href="https://pegihost.free.nf" target="_blank">PEGI</a>
+    <button id="play-pause"><i class='bx bx-play'></i></button>
+    <input type="range" id="seek-bar" min="0" value="0">
+    <span id="time-display">0:00</span>
+    <button id="mute"><i class='bx bx-volume-full'></i></button>
+    <input type="range" id="volume" min="0" max="1" step="0.1" value="1">
+  </div>
+    `;
+    document.getElementById('video-container').appendChild(pegtrol);
+
     // Create style element for the inline styles
     const style = document.createElement('style');
     style.innerHTML = `
@@ -82,18 +95,6 @@ function appendCustomCode() {
     document.body.appendChild(style);
 
     // Create script element for the JavaScript code
-    const pegtrol = document.createElement('div')
-    div.innerHTML = `
-    <div class="custom-controls">
-    <a id="custom-watermark" style="font-weight: bold;" href="https://pegihost.free.nf" target="_blank">PEGI</a>
-    <button id="play-pause"><i class='bx bx-play'></i></button>
-    <input type="range" id="seek-bar" min="0" value="0">
-    <span id="time-display">0:00</span>
-    <button id="mute"><i class='bx bx-volume-full'></i></button>
-    <input type="range" id="volume" min="0" max="1" step="0.1" value="1">
-  </div>
-    `;
-    document.getElementById('video-container').appendChild(pegtrol);
     const script = document.createElement('script');
     script.innerHTML = `
     const video = document.querySelector('video');
