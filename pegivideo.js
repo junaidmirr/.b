@@ -2,11 +2,13 @@ window.onload = function () {
   // Create link element for the stylesheet
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&amp;display=swap';
+  link.href = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap';
   document.body.appendChild(link);
+
   const script = document.createElement('script');
   script.src = 'https://cdnjs.cloudflare.com/ajax/libs/vue/3.2.37/vue.global.prod.min.js';
   document.body.appendChild(script);
+
 
 
 
