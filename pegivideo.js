@@ -2,9 +2,16 @@ window.onload = function () {
   // Create link element for the stylesheet
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&amp;display=swap">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.2.37/vue.global.prod.min.js" charset="utf-8"></script>
+  link.href = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&amp;display=swap';
   document.body.appendChild(link);
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/vue/3.2.37/vue.global.prod.min.js';
+  document.body.appendChild(script);
+
+
+
+
+
 
   // Create style element for the inline styles
   const style = document.createElement('style');
