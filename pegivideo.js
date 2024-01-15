@@ -5,9 +5,9 @@ window.onload = function () {
   link.href = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap';
   document.body.appendChild(link);
 
-  const script = document.createElement('script');
+  const script2 = document.createElement('script');
   script.src = 'https://cdnjs.cloudflare.com/ajax/libs/vue/3.2.37/vue.global.prod.min.js';
-  document.body.appendChild(script);
+  document.body.appendChild(script2);
 
 
 
