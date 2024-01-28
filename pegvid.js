@@ -95,7 +95,18 @@ window.onload = function () {
   `;
   
   // Assuming 'video-container' is the correct ID, replace it with the actual ID if needed
-  document.getElementById('video-container').appendChild(pegtrol);
+  // Get all video elements on the page
+var videoElements = document.querySelectorAll('video');
+
+// Loop through each video element
+videoElements.forEach(function(videoElement) {
+    // Create and append pegtrol to each video element
+    var pegtrol = document.createElement('div');
+    // Customize pegtrol or add content as needed
+
+    videoElement.appendChild(pegtrol);
+});
+
 
   // Create script element for the JavaScript code
   const script = document.createElement('script');
