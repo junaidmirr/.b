@@ -95,13 +95,15 @@ window.onload = function () {
   `;
   
   // Assuming 'video-container' is the correct ID, replace it with the actual ID if needed
-var videoElements = document.querySelectorAll('video');
+// Get all div elements with class "video" on the page
+var videoContainers = document.querySelectorAll('.video');
 
-// Loop through each video element
-videoElements.forEach(function(videoElement) {
-    if (videoElement) { // Check if the videoElement is not null
-        // Append the previously created pegtrol to each video element
-        videoElement.appendChild(pegtrol);
+// Loop through each video container
+videoContainers.forEach(function(videoContainer) {
+    // Check if the videoContainer is not null
+    if (videoContainer) {
+        // Append the previously created pegtrol to each video container
+        videoContainer.appendChild(pegtrol.cloneNode(true));
     }
 });
 
