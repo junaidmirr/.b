@@ -103,7 +103,7 @@ videoContainers.forEach(function(videoContainer) {
     // Check if the videoContainer is not null
     if (videoContainer) {
         // Append the previously created pegtrol to each video container
-        videoContainer.appendChild(pegtrol.cloneNode(true));
+        videoContainer.appendChild(pegtrol);
     }
 });
 
