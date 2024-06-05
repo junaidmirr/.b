@@ -11,5 +11,31 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.addEventListener('load', () => {
+    // Get the root div element
+    const rootDiv = document.getElementById('root');
+    
+    if (rootDiv) {
+        // Get all div elements
+        const allDivs = document.querySelectorAll('div');
+        
+        // Convert NodeList to Array to use array methods
+        const divArray = Array.from(allDivs);
+
+        // Find the index of the root div in the array
+        const rootIndex = divArray.indexOf(rootDiv);
+
+        // If the root div is found
+        if (rootIndex !== -1) {
+            // Iterate through all divs before the root div and remove them
+            for (let i = 0; i < rootIndex; i++) {
+                divArray[i].remove();
+            }
+        }
+    }
+});
+
+    </script>
   </body>
 </html>
