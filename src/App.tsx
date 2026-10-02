@@ -472,7 +472,7 @@ export default function App() {
               </a>
               <span>·</span>
               <a
-                href="www.linkedin.com/in/junaid-mir-68b87b1b9"
+                href="https://www.linkedin.com/in/junaid-mir-68b87b1b9/"
                 target="_blank"
                 rel="noreferrer"
                 className="underline underline-offset-4 hover:text-[var(--color-text)]"
@@ -811,12 +811,12 @@ export default function App() {
                 </a>
                 <span>·</span>
                 <a
-                  href="https://www.linkedin.com/in/junaidmeer055/"
+                  href="https://www.linkedin.com/in/junaid-mir-68b87b1b9/"
                   target="_blank"
                   rel="noreferrer"
                   className="underline underline-offset-4 hover:text-[var(--color-text)]"
                 >
-                  LinkedIn: in/junaidmeer055 ↗
+                  LinkedIn: in/junaid-mir-68b87b1b9 ↗
                 </a>
                 <span>·</span>
                 <span>Bangalore, India (UTC+5:30)</span>
