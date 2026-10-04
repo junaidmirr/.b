@@ -10,8 +10,8 @@ const skillCategories: SkillCategory[] = [
     skills: [
       'Kotlin',
       'Jetpack Compose',
-      'Coroutines & Flow',
-      'Android Jetpack & MVVM',
+      'Coroutines and Flow',
+      'Android Jetpack and MVVM',
       'Room Database',
       'Foreground Services',
       'MediaProjection API',
@@ -21,38 +21,38 @@ const skillCategories: SkillCategory[] = [
   },
   {
     title: 'Frontend Development',
-    description: 'Accessible, responsive, and performance-focused web apps',
+    description: 'Accessible, responsive, and performance focused web apps',
     skills: [
       'React 19',
       'TypeScript',
       'Tailwind CSS',
       'Vite',
-      'HTML5 & Web APIs',
+      'HTML5 and Web APIs',
       'Component Architecture',
       'State Management',
     ],
   },
   {
-    title: 'Backend & AI Systems',
+    title: 'Backend and AI Systems',
     description: 'Server development, AI model integration, and cloud services',
     skills: [
-      'Python & FastAPI',
-      'Node.js & Flask',
+      'Python and FastAPI',
+      'Node.js and Flask',
       'Google Gemini AI SDK',
       'REST API Design',
-      'Firebase Auth & Firestore',
+      'Firebase Auth and Firestore',
       'Cloudflare Turnstile',
     ],
   },
   {
-    title: 'Tooling & Data',
+    title: 'Tooling and Data',
     description: 'Build tooling, spatial data, and deployment workflows',
     skills: [
-      'Git & GitHub',
+      'Git and GitHub',
       'Android Studio',
-      'Shapely & Spatial Indexing',
-      'OpenCV & Pillow',
-      'PDF 1.7 Spec & Vector Layout',
+      'Shapely and Spatial Indexing',
+      'OpenCV and Pillow',
+      'PDF 1.7 Spec and Vector Layout',
       'Vercel Deployment',
     ],
   },
@@ -176,19 +176,27 @@ export default function App() {
     }
   }
 
-  const ossCount = projects.filter((p) => p.category.toLowerCase().includes('open source') || p.title === 'doc-engine').length
+  const ossCount = projects.filter(
+    (p) =>
+      p.category.toLowerCase().includes('open source') ||
+      p.title === 'doc-engine' ||
+      p.title.includes('Tauri')
+  ).length
+
   const androidCount = projects.filter(
     (p) =>
       p.category.toLowerCase().includes('android') ||
       p.stack.includes('Kotlin') ||
       p.stack.includes('Jetpack Compose')
   ).length
+
   const webCount = projects.filter(
     (p) =>
       p.title !== 'doc-engine' &&
+      !p.title.includes('Tauri') &&
       (p.category.toLowerCase().includes('web') ||
         p.category.toLowerCase().includes('full stack') ||
-        p.category.toLowerCase().includes('ai &') ||
+        p.category.toLowerCase().includes('ai') ||
         p.stack.includes('React 19') ||
         p.stack.includes('Python') ||
         p.stack.includes('JavaScript'))
@@ -198,6 +206,7 @@ export default function App() {
     if (selectedFilter === 'oss') {
       return (
         project.title.toLowerCase().includes('doc-engine') ||
+        project.title.toLowerCase().includes('tauri') ||
         project.category.toLowerCase().includes('open source')
       )
     }
@@ -211,9 +220,10 @@ export default function App() {
     if (selectedFilter === 'web') {
       return (
         project.title !== 'doc-engine' &&
+        !project.title.includes('Tauri') &&
         (project.category.toLowerCase().includes('web') ||
           project.category.toLowerCase().includes('full stack') ||
-          project.category.toLowerCase().includes('ai &') ||
+          project.category.toLowerCase().includes('ai') ||
           project.stack.includes('React 19') ||
           project.stack.includes('Python') ||
           project.stack.includes('JavaScript'))
@@ -431,23 +441,17 @@ export default function App() {
       <main className="mx-auto max-w-4xl px-6 py-12 md:py-16">
         {/* Hero Section */}
         <section className="mb-20">
-          <div className="mb-4 inline-flex items-center gap-2 rounded border border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-1 text-xs font-mono text-[var(--color-muted)]">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            Available for new opportunities · Bangalore, India
-          </div>
-
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl lg:text-5xl text-[var(--color-text)]">
-            Native Android and full-stack web developer.
+            Native Android and full stack web developer.
           </h1>
 
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted)] sm:text-lg">
             I'm Junaid, a software engineer with 3+ years of experience building applications.
             Creator of <span className="font-medium text-[var(--color-text)]">doc-engine</span>, an open source vector PDF engine,
-            and developer of production Android apps with Kotlin and Jetpack Compose.
+            contributor to <span className="font-medium text-[var(--color-text)]">Tauri</span>, and developer of production Android apps with Kotlin and Jetpack Compose.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-4 text-sm">
-            {/* Get in touch button with solid theme behavior */}
             <button
               type="button"
               onClick={() => setContactModalOpen(true)}
@@ -491,65 +495,118 @@ export default function App() {
           </div>
         </section>
 
-        {/* Featured Open Source Project Showcase */}
+        {/* Featured Open Source Showcase */}
         <section id="open-source" className="mb-20 scroll-mt-20">
           <div className="border-b border-[var(--color-border)] pb-4">
             <div className="flex items-center gap-2">
               <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-xs font-mono font-medium text-emerald-600 dark:text-emerald-400">
                 Open Source
               </span>
-              <span className="text-xs font-mono text-[var(--color-muted)]">Featured Project</span>
+              <span className="text-xs font-mono text-[var(--color-muted)]">Featured Projects and Upstream Contributions</span>
             </div>
             <h2 className="mt-2 text-xl font-semibold tracking-tight text-[var(--color-text)]">
-              doc-engine — High Performance PDF Engine
+              Open Source Work
             </h2>
             <p className="mt-1 text-sm text-[var(--color-muted)]">
-              A headless document layout and vector rendering engine for React and TypeScript.
+              Original open source software engines and official upstream contributions to major developer platforms.
             </p>
           </div>
 
-          <div className="mt-6 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
-            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-              <div>
-                <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-[var(--color-muted)]">
-                  <span className="font-semibold text-[var(--color-text)]">@worklabs05/doc-engine</span>
-                  <span>·</span>
-                  <span>TypeScript & React</span>
-                  <span>·</span>
-                  <span>PDF 1.7 Spec</span>
+          <div className="mt-6 space-y-6">
+            {/* Card 1: doc-engine */}
+            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-[var(--color-muted)]">
+                    <span className="font-semibold text-[var(--color-text)]">@worklabs05/doc-engine</span>
+                    <span>·</span>
+                    <span>TypeScript and React</span>
+                    <span>·</span>
+                    <span>PDF 1.7 Spec</span>
+                  </div>
+                  <h3 className="mt-1 text-base font-semibold text-[var(--color-text)]">
+                    doc-engine: High Performance PDF Engine
+                  </h3>
+                  <p className="mt-3 text-sm leading-relaxed text-[var(--color-muted)] max-w-2xl">
+                    Compiles React JSX components or serializable JSON AST directly to real, searchable vector PDFs
+                    and 60 FPS HTML5 Canvas previews. Zero heavyweight Python daemons, zero Puppeteer headless browsers.
+                    Emits native vector PDF 1.7 paths, text operators, and multi page flows.
+                  </p>
                 </div>
-                <p className="mt-3 text-sm leading-relaxed text-[var(--color-muted)] max-w-2xl">
-                  Compiles React JSX components or serializable JSON AST directly to real, searchable vector PDFs
-                  and 60 FPS HTML5 Canvas previews. Zero heavyweight Python daemons, zero Puppeteer headless browsers.
-                  Emits native vector PDF 1.7 paths, text operators, and multi-page flows.
-                </p>
+
+                <div className="flex flex-wrap gap-2 text-xs font-mono sm:flex-col sm:items-end">
+                  <a
+                    href="https://docengine.worklabs.studio"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-primary px-3 py-1.5"
+                  >
+                    docengine.worklabs.studio ↗
+                  </a>
+                  <a
+                    href="https://github.com/junaidmirr/doc-engine.git"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-secondary px-3 py-1.5"
+                  >
+                    GitHub Repository ↗
+                  </a>
+                </div>
               </div>
 
-              <div className="flex flex-wrap gap-2 text-xs font-mono sm:flex-col sm:items-end">
-                <a
-                  href="https://docengine.worklabs.studio"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-primary px-3 py-1.5"
-                >
-                  docengine.worklabs.studio ↗
-                </a>
-                <a
-                  href="https://github.com/junaidmirr/doc-engine.git"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-secondary px-3 py-1.5"
-                >
-                  GitHub Repository ↗
-                </a>
+              <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-[var(--color-border)] pt-4 text-xs font-mono text-[var(--color-muted)]">
+                <span className="text-[var(--color-text)] font-semibold">Install:</span>
+                <code className="rounded bg-[var(--color-panel)] px-2 py-0.5 text-[var(--color-text)]">
+                  npm install @worklabs05/doc-engine pdf-lib
+                </code>
               </div>
             </div>
 
-            <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-[var(--color-border)] pt-4 text-xs font-mono text-[var(--color-muted)]">
-              <span className="text-[var(--color-text)] font-semibold">Install:</span>
-              <code className="rounded bg-[var(--color-panel)] px-2 py-0.5 text-[var(--color-text)]">
-                npm install @worklabs05/doc-engine pdf-lib
-              </code>
+            {/* Card 2: Tauri Contribution */}
+            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-[var(--color-muted)]">
+                    <span className="font-semibold text-[var(--color-text)]">tauri-apps/tauri</span>
+                    <span>·</span>
+                    <span>Rust and Cargo</span>
+                    <span>·</span>
+                    <span>Pull Request #15634</span>
+                  </div>
+                  <h3 className="mt-1 text-base font-semibold text-[var(--color-text)]">
+                    Tauri: Official Upstream CLI Contribution
+                  </h3>
+                  <p className="mt-3 text-sm leading-relaxed text-[var(--color-muted)] max-w-2xl">
+                    Upstream contribution merged into official Tauri 2 release. Enhanced the tauri init command
+                    so that when stdin is not a terminal, the CLI automatically skips interactive prompts,
+                    preventing IO blocking in CI workflows and non interactive test scripts.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2 text-xs font-mono sm:flex-col sm:items-end">
+                  <a
+                    href="https://github.com/tauri-apps/tauri/pull/15634"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-primary px-3 py-1.5"
+                  >
+                    View Pull Request ↗
+                  </a>
+                  <a
+                    href="https://github.com/tauri-apps/tauri"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-secondary px-3 py-1.5"
+                  >
+                    tauri-apps/tauri ↗
+                  </a>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-[var(--color-border)] pt-4 text-xs font-mono text-[var(--color-muted)]">
+                <span className="text-[var(--color-text)] font-semibold">Release:</span>
+                <span className="text-[var(--color-muted)]">Official Tauri 2.12 Release Changelog (#15634)</span>
+              </div>
             </div>
           </div>
         </section>
@@ -562,7 +619,7 @@ export default function App() {
                 Selected Projects
               </h2>
               <p className="mt-1 text-sm text-[var(--color-muted)]">
-                Real-world Android, AI navigation, and full-stack systems built from concept to deployment.
+                Real world Android, AI navigation, and full stack systems built from concept to deployment.
               </p>
             </div>
 
@@ -610,7 +667,7 @@ export default function App() {
                     : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
                 }`}
               >
-                Web & AI ({webCount})
+                Web and AI ({webCount})
               </button>
             </div>
           </div>
@@ -636,10 +693,10 @@ export default function App() {
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 font-mono text-[var(--color-muted)] underline underline-offset-4 hover:text-[var(--color-text)]"
                       >
-                        GitHub ↗
+                        {project.title.includes('Tauri') ? 'Pull Request ↗' : 'GitHub ↗'}
                       </a>
                     )}
-                    {project.liveUrl && project.liveUrl !== '#' && (
+                    {project.liveUrl && project.liveUrl !== '#' && !project.title.includes('Tauri') && (
                       <a
                         href={project.liveUrl}
                         target="_blank"
@@ -654,7 +711,7 @@ export default function App() {
                       onClick={() => setActiveModalProject(project)}
                       className="inline-flex items-center gap-1 font-mono font-medium text-[var(--color-text)] underline underline-offset-4 hover:opacity-80 cursor-pointer"
                     >
-                      Architecture & Details →
+                      Architecture and Details →
                     </button>
                   </div>
                 </div>
@@ -678,11 +735,11 @@ export default function App() {
           </div>
         </section>
 
-        {/* Technical Skills & Architecture */}
+        {/* Technical Skills and Architecture */}
         <section id="skills" className="mb-20 scroll-mt-20">
           <div className="border-b border-[var(--color-border)] pb-4">
             <h2 className="text-xl font-semibold tracking-tight text-[var(--color-text)]">
-              Technical Skills & Tooling
+              Technical Skills and Tooling
             </h2>
             <p className="mt-1 text-sm text-[var(--color-muted)]">
               Technologies and platforms I use to build robust software systems.
@@ -731,18 +788,22 @@ export default function App() {
           <div className="mt-6 space-y-4 text-sm leading-relaxed text-[var(--color-muted)] max-w-3xl">
             <p>
               I am a software engineer focused on building clean, reliable applications. My work spans
-              native Android engineering—leveraging Kotlin, Jetpack Compose, Room, and foreground services—to
-              full-stack web development with React, TypeScript, and Python.
+              native Android engineering leveraging Kotlin, Jetpack Compose, Room, and foreground services to
+              full stack web development with React, TypeScript, and Python.
             </p>
             <p>
               I author open source software including <span className="text-[var(--color-text)] font-medium">doc-engine</span>,
-              a high-performance headless PDF and layout engine that compiles React JSX and AST into vector PDF 1.7 streams without
-              relying on headless browsers or server daemons.
+              a high performance headless PDF and layout engine that compiles React JSX and AST into vector PDF 1.7 streams without
+              relying on headless browsers or server daemons. I also contribute upstream to developer tools including <span className="text-[var(--color-text)] font-medium">Tauri</span>.
             </p>
             <p>
               When engineering native Android applications, I prioritize reactive state management (Coroutines, Flow,
               StateFlow), clean separation of concerns via MVVM, and deep integration with device APIs such as
               MediaProjection for screen sharing, Agora SDK for RTC video conferencing, and Room for offline persistence.
+            </p>
+            <p>
+              On the web, I build accessible, fast loading user interfaces paired with secure, pragmatic backends.
+              I avoid unnecessary architectural overhead, focusing instead on clarity, speed, and code maintainability.
             </p>
           </div>
 
@@ -760,7 +821,7 @@ export default function App() {
               <span className="font-medium text-[var(--color-text)]">Kotlin / Compose</span>
             </div>
             <div>
-              <span className="text-[var(--color-muted)] block">Web & Systems</span>
+              <span className="text-[var(--color-muted)] block">Web and Systems</span>
               <span className="font-medium text-[var(--color-text)]">TS / React / Python</span>
             </div>
           </div>
@@ -773,7 +834,7 @@ export default function App() {
               Contact
             </h2>
             <p className="mt-1 text-sm text-[var(--color-muted)]">
-              Reach out for contracts, full-time engineering roles, or collaboration.
+              Reach out for contracts, full time engineering roles, or collaboration.
             </p>
           </div>
 
@@ -839,7 +900,7 @@ export default function App() {
       {/* Footer */}
       <footer className="border-t border-[var(--color-border)] bg-[var(--color-surface)] py-8 text-xs font-mono text-[var(--color-muted)]">
         <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-4 px-6 sm:flex-row">
-          <p>© {new Date().getFullYear()} Junaid. Minimal portfolio.</p>
+          <p>© {new Date().getFullYear()} Junaid.</p>
           <div className="flex items-center gap-4">
             <a href="#open-source" className="hover:text-[var(--color-text)]">
               Open Source
@@ -986,7 +1047,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Architecture & Case Study Modal */}
+      {/* Architecture and Case Study Modal */}
       {activeModalProject && (
         <div
           role="dialog"
@@ -1048,7 +1109,7 @@ export default function App() {
 
               <div>
                 <h4 className="text-xs font-mono uppercase tracking-wider text-[var(--color-muted)]">
-                  Architecture & Technologies
+                  Architecture and Technologies
                 </h4>
                 <div className="mt-2 divide-y divide-[var(--color-border)] rounded border border-[var(--color-border)] bg-[var(--color-panel)] text-xs">
                   {activeModalProject.technologies.map((tech) => (
@@ -1071,17 +1132,17 @@ export default function App() {
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 font-medium text-[var(--color-text)] underline underline-offset-4 hover:opacity-80"
                   >
-                    GitHub Repository ↗
+                    {activeModalProject.title.includes('Tauri') ? 'Pull Request ↗' : 'GitHub Repository ↗'}
                   </a>
                 )}
-                {activeModalProject.liveUrl && activeModalProject.liveUrl !== '#' && (
+                {activeModalProject.liveUrl && activeModalProject.liveUrl !== '#' && !activeModalProject.title.includes('Tauri') && (
                   <a
                     href={activeModalProject.liveUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 font-medium text-[var(--color-text)] underline underline-offset-4 hover:opacity-80"
                   >
-                    {activeModalProject.title === 'doc-engine' ? 'Documentation & Workbench ↗' : 'Live Deployment ↗'}
+                    {activeModalProject.title === 'doc-engine' ? 'Documentation and Workbench ↗' : 'Live Deployment ↗'}
                   </a>
                 )}
               </div>
