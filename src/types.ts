@@ -22,3 +22,21 @@ export type SkillCategory = {
   description: string
   skills: string[]
 }
+
+export type ProfileData = {
+  name: string
+  role: string
+  headline: string
+  bio: string
+  location: string
+  email: string
+  github: string
+  linkedin: string
+  twitter?: string
+}
+
+export type PortfolioData = {
+  profile: ProfileData
+  categories: string[]
+  projects: Project[]
+}

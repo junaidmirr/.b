@@ -1,7 +1,8 @@
 import { useState, useEffect, useId, type FormEvent } from 'react'
 import { TurnstileCaptcha } from './components/TurnstileCaptcha'
-import { projects } from './projectsData'
-import type { Theme, Project, SkillCategory } from './types'
+import { getPortfolioData } from './portfolioDataManager'
+import { AdminPage } from './components/AdminPage'
+import type { Theme, Project, SkillCategory, PortfolioData } from './types'
 
 const skillCategories: SkillCategory[] = [
   {
@@ -67,6 +68,15 @@ function getInitialTheme(): Theme {
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
+  const [portfolioData, setPortfolioData] = useState<PortfolioData>(getPortfolioData)
+  const [isAdminOpen, setIsAdminOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return (
+      window.location.pathname === '/iam_admin' ||
+      window.location.pathname.startsWith('/iam_admin') ||
+      window.location.hash === '#iam_admin'
+    )
+  })
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'oss' | 'android' | 'web'>('all')
   const [activeModalProject, setActiveModalProject] = useState<Project | null>(null)
@@ -82,6 +92,35 @@ export default function App() {
 
   const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY
   const formId = useId()
+
+  const projects = portfolioData.projects
+
+  // Listen to browser navigation for /iam_admin
+  useEffect(() => {
+    const handleRouteCheck = () => {
+      const isTarget =
+        window.location.pathname === '/iam_admin' ||
+        window.location.pathname.startsWith('/iam_admin') ||
+        window.location.hash === '#iam_admin'
+      setIsAdminOpen(isTarget)
+    }
+
+    window.addEventListener('popstate', handleRouteCheck)
+    window.addEventListener('hashchange', handleRouteCheck)
+    return () => {
+      window.removeEventListener('popstate', handleRouteCheck)
+      window.removeEventListener('hashchange', handleRouteCheck)
+    }
+  }, [])
+
+  const handleCloseAdmin = () => {
+    setIsAdminOpen(false)
+    if (window.location.pathname.includes('iam_admin')) {
+      window.history.pushState(null, '', '/')
+    } else if (window.location.hash.includes('iam_admin')) {
+      window.location.hash = ''
+    }
+  }
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -108,7 +147,7 @@ export default function App() {
 
   // Lock body scroll when a modal is open
   useEffect(() => {
-    if (activeModalProject || contactModalOpen) {
+    if (activeModalProject || contactModalOpen || isAdminOpen) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
@@ -116,10 +155,10 @@ export default function App() {
     return () => {
       document.body.style.overflow = ''
     }
-  }, [activeModalProject, contactModalOpen])
+  }, [activeModalProject, contactModalOpen, isAdminOpen])
 
   const copyEmail = () => {
-    navigator.clipboard.writeText('junaidmeer055@gmail.com')
+    navigator.clipboard.writeText(portfolioData.profile.email || 'junaidmeer055@gmail.com')
     setCopiedEmail(true)
     setTimeout(() => setCopiedEmail(false), 2000)
   }
@@ -239,10 +278,10 @@ export default function App() {
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
           <a href="#" className="group flex flex-col">
             <span className="text-base font-semibold tracking-tight text-[var(--color-text)]">
-              Junaid
+              {portfolioData.profile.name}
             </span>
             <span className="text-xs text-[var(--color-muted)]">
-              Software Developer
+              {portfolioData.profile.role}
             </span>
           </a>
 
@@ -442,13 +481,11 @@ export default function App() {
         {/* Hero Section */}
         <section className="mb-20">
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl lg:text-5xl text-[var(--color-text)]">
-            Native Android and full stack web developer.
+            {portfolioData.profile.headline || 'Native Android and full stack web developer.'}
           </h1>
 
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted)] sm:text-lg">
-            I'm Junaid, a software engineer with 3+ years of experience building applications.
-            Creator of <span className="font-medium text-[var(--color-text)]">doc-engine</span>, an open source vector PDF engine,
-            contributor to <span className="font-medium text-[var(--color-text)]">Tauri</span>, and developer of production Android apps with Kotlin and Jetpack Compose.
+            {portfolioData.profile.bio || "I'm Junaid, a software engineer with 3+ years of experience building applications. Creator of doc-engine, an open source vector PDF engine, contributor to Tauri, and developer of production Android apps with Kotlin and Jetpack Compose."}
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-4 text-sm">
@@ -466,30 +503,38 @@ export default function App() {
               View projects
             </a>
             <div className="flex items-center gap-3 pl-1 text-xs font-mono text-[var(--color-muted)]">
-              <a
-                href="https://github.com/junaidmirr"
-                target="_blank"
-                rel="noreferrer"
-                className="underline underline-offset-4 hover:text-[var(--color-text)]"
-              >
-                GitHub ↗
-              </a>
-              <span>·</span>
-              <a
-                href="https://www.linkedin.com/in/junaid-mir-68b87b1b9/"
-                target="_blank"
-                rel="noreferrer"
-                className="underline underline-offset-4 hover:text-[var(--color-text)]"
-              >
-                LinkedIn ↗
-              </a>
-              <span>·</span>
+              {portfolioData.profile.github && (
+                <>
+                  <a
+                    href={portfolioData.profile.github}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-4 hover:text-[var(--color-text)]"
+                  >
+                    GitHub ↗
+                  </a>
+                  <span>·</span>
+                </>
+              )}
+              {portfolioData.profile.linkedin && (
+                <>
+                  <a
+                    href={portfolioData.profile.linkedin}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-4 hover:text-[var(--color-text)]"
+                  >
+                    LinkedIn ↗
+                  </a>
+                  <span>·</span>
+                </>
+              )}
               <button
                 type="button"
                 onClick={copyEmail}
                 className="underline underline-offset-4 hover:text-[var(--color-text)] cursor-pointer"
               >
-                {copiedEmail ? 'Copied to clipboard' : 'junaidmeer055@gmail.com'}
+                {copiedEmail ? 'Copied to clipboard' : (portfolioData.profile.email || 'junaidmeer055@gmail.com')}
               </button>
             </div>
           </div>
@@ -846,10 +891,10 @@ export default function App() {
                 </span>
                 <div className="mt-1 flex items-center gap-3">
                   <a
-                    href="mailto:junaidmeer055@gmail.com"
+                    href={`mailto:${portfolioData.profile.email || 'junaidmeer055@gmail.com'}`}
                     className="text-base font-medium text-[var(--color-text)] hover:underline"
                   >
-                    junaidmeer055@gmail.com
+                    {portfolioData.profile.email || 'junaidmeer055@gmail.com'}
                   </a>
                   <button
                     type="button"
@@ -862,25 +907,33 @@ export default function App() {
               </div>
 
               <div className="flex flex-wrap gap-4 text-xs font-mono text-[var(--color-muted)]">
-                <a
-                  href="https://github.com/junaidmirr"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline underline-offset-4 hover:text-[var(--color-text)]"
-                >
-                  GitHub: github.com/junaidmirr ↗
-                </a>
-                <span>·</span>
-                <a
-                  href="https://www.linkedin.com/in/junaid-mir-68b87b1b9/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline underline-offset-4 hover:text-[var(--color-text)]"
-                >
-                  LinkedIn: in/junaid-mir-68b87b1b9 ↗
-                </a>
-                <span>·</span>
-                <span>Bangalore, India (UTC+5:30)</span>
+                {portfolioData.profile.github && (
+                  <>
+                    <a
+                      href={portfolioData.profile.github}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline underline-offset-4 hover:text-[var(--color-text)]"
+                    >
+                      GitHub: {portfolioData.profile.github.replace('https://', '')} ↗
+                    </a>
+                    <span>·</span>
+                  </>
+                )}
+                {portfolioData.profile.linkedin && (
+                  <>
+                    <a
+                      href={portfolioData.profile.linkedin}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline underline-offset-4 hover:text-[var(--color-text)]"
+                    >
+                      LinkedIn: {portfolioData.profile.linkedin.replace('https://www.linkedin.com/', '')} ↗
+                    </a>
+                    <span>·</span>
+                  </>
+                )}
+                <span>{portfolioData.profile.location || 'Bangalore, India (UTC+5:30)'}</span>
               </div>
             </div>
 
@@ -900,7 +953,7 @@ export default function App() {
       {/* Footer */}
       <footer className="border-t border-[var(--color-border)] bg-[var(--color-surface)] py-8 text-xs font-mono text-[var(--color-muted)]">
         <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-4 px-6 sm:flex-row">
-          <p>© {new Date().getFullYear()} Junaid.</p>
+          <p>© {new Date().getFullYear()} {portfolioData.profile.name || 'Junaid'}.</p>
           <div className="flex items-center gap-4">
             <a href="#open-source" className="hover:text-[var(--color-text)]">
               Open Source
@@ -918,6 +971,17 @@ export default function App() {
             >
               Contact
             </button>
+            <a
+              href="/iam_admin"
+              onClick={(e) => {
+                e.preventDefault()
+                window.history.pushState(null, '', '/iam_admin')
+                setIsAdminOpen(true)
+              }}
+              className="hover:text-[var(--color-text)] transition-colors"
+            >
+              iam_admin
+            </a>
             <a href="#" className="hover:text-[var(--color-text)]">
               Back to top ↑
             </a>
@@ -1157,6 +1221,14 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+      {/* Admin Management Portal */}
+      {isAdminOpen && (
+        <AdminPage
+          initialData={portfolioData}
+          onClose={handleCloseAdmin}
+          onDataUpdated={(updated) => setPortfolioData(updated)}
+        />
       )}
     </div>
   )
