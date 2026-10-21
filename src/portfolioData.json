@@ -144,6 +144,52 @@
       ]
     },
     {
+      "title": "ResuMagic",
+      "category": "Full Stack AI App",
+      "description": "An on the go easy AI resume builder and editor with Gemini integration.",
+      "icon": "spark",
+      "stack": [
+        "React 19",
+        "Flask",
+        "Gemini AI",
+        "Firebase"
+      ],
+      "linkLabel": "View case study",
+      "fullDescription": "ResuMagic is a modern AI powered resume builder designed to simplify the professional document creation process. It leverages Google Gemini AI to parse existing resumes, generate professional summaries, and provide real time editing suggestions. The app features a high fidelity editor with real time PDF preview and background removal for profile photos.",
+      "features": [
+        "AI powered resume parsing and generation",
+        "Real time PDF preview and printing",
+        "Integrated background remover for profile photos",
+        "Secure authentication with Firebase",
+        "Responsive design with Tailwind CSS 4",
+        "Captcha protection with Cloudflare Turnstile"
+      ],
+      "githubUrl": "",
+      "liveUrl": "https://resumagic-ai-resume-builder.vercel.app",
+      "technologies": [
+        {
+          "name": "Frontend",
+          "details": "React 19, TypeScript, Vite, Tailwind CSS 4, React Router DOM 7, Lucide React, react-to-print"
+        },
+        {
+          "name": "AI Engine",
+          "details": "@google/generative-ai (Gemini AI SDK), google-generativeai"
+        },
+        {
+          "name": "Backend",
+          "details": "Flask (Python), ReportLab (PDF Gen), PyMuPDF (PDF Parsing), python-docx (Word support)"
+        },
+        {
+          "name": "Image Processing",
+          "details": "OpenCV (cv2), Pillow (PIL) for Background Remover"
+        },
+        {
+          "name": "Services & Infra",
+          "details": "Firebase Auth & Firestore, Vercel, Cloudflare Turnstile, SMTP Integration (Mailjet)"
+        }
+      ]
+    },
+    {
       "title": "Edugate",
       "category": "Virtual Classroom App",
       "description": "A feature rich Android app for real time video conferencing, screen sharing, and educational resource management.",
@@ -187,52 +233,6 @@
         {
           "name": "System Integration",
           "details": "Foreground Services, Custom FileProvider (EdugateFileProvider)"
-        }
-      ]
-    },
-    {
-      "title": "ResuMagic",
-      "category": "Full Stack AI App",
-      "description": "An on the go easy AI resume builder and editor with Gemini integration.",
-      "icon": "spark",
-      "stack": [
-        "React 19",
-        "Flask",
-        "Gemini AI",
-        "Firebase"
-      ],
-      "linkLabel": "View case study",
-      "fullDescription": "ResuMagic is a modern AI powered resume builder designed to simplify the professional document creation process. It leverages Google Gemini AI to parse existing resumes, generate professional summaries, and provide real time editing suggestions. The app features a high fidelity editor with real time PDF preview and background removal for profile photos.",
-      "features": [
-        "AI powered resume parsing and generation",
-        "Real time PDF preview and printing",
-        "Integrated background remover for profile photos",
-        "Secure authentication with Firebase",
-        "Responsive design with Tailwind CSS 4",
-        "Captcha protection with Cloudflare Turnstile"
-      ],
-      "githubUrl": "",
-      "liveUrl": "https://resumagic-ai-resume-builder.vercel.app",
-      "technologies": [
-        {
-          "name": "Frontend",
-          "details": "React 19, TypeScript, Vite, Tailwind CSS 4, React Router DOM 7, Lucide React, react-to-print"
-        },
-        {
-          "name": "AI Engine",
-          "details": "@google/generative-ai (Gemini AI SDK), google-generativeai"
-        },
-        {
-          "name": "Backend",
-          "details": "Flask (Python), ReportLab (PDF Gen), PyMuPDF (PDF Parsing), python-docx (Word support)"
-        },
-        {
-          "name": "Image Processing",
-          "details": "OpenCV (cv2), Pillow (PIL) for Background Remover"
-        },
-        {
-          "name": "Services & Infra",
-          "details": "Firebase Auth & Firestore, Vercel, Cloudflare Turnstile, SMTP Integration (Mailjet)"
         }
       ]
     },
@@ -325,42 +325,6 @@
         {
           "name": "Architecture",
           "details": "Clean Architecture, Jetpack Navigation, Gradle (Kotlin DSL), Version Catalog"
-        }
-      ]
-    },
-    {
-      "title": "JR Player",
-      "category": "Web Media Tool",
-      "description": "A custom built high performance video player for the web.",
-      "icon": "code",
-      "stack": [
-        "JavaScript",
-        "Tailwind CSS",
-        "HTML5 Video"
-      ],
-      "linkLabel": "View case study",
-      "fullDescription": "JR Player is a custom video player built from the ground up to provide a premium viewing experience. It features a sleek interface, custom controls, and support for various media formats, all while maintaining a tiny footprint.",
-      "features": [
-        "Custom UI controls with sleek animations",
-        "Keyboard shortcuts support",
-        "Responsive design for all screen sizes",
-        "High performance media handling",
-        "Dynamic theme support"
-      ],
-      "githubUrl": "https://github.com/junaidmirr/simple-responsive-custom-js-video-player.git",
-      "liveUrl": "https://jr-player.vercel.app",
-      "technologies": [
-        {
-          "name": "Core",
-          "details": "JavaScript (ES6+), HTML5 Video API"
-        },
-        {
-          "name": "Styling",
-          "details": "Tailwind CSS"
-        },
-        {
-          "name": "Icons",
-          "details": "Lucide React / Heroicons"
         }
       ]
     }
