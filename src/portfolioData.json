@@ -4,7 +4,7 @@
     "role": "Software Developer",
     "headline": "Hello :)",
     "bio": "A tech enthusiast focused on software development, artificial intelligence, and building innovative digital solutions. Passionate about turning complex ideas into practical applications, exploring emerging technologies, and creating projects that combine functionality, creativity, and real world impact. Always driven by curiosity, problem solving, and the pursuit of building something meaningful.",
-    "location": "Bangalore, India (UTC+5:30)",
+    "location": "Bangalore, India",
     "email": "junaidmeer055@gmail.com",
     "github": "https://github.com/junaidmirr",
     "linkedin": "https://www.linkedin.com/in/junaid-mir-68b87b1b9/",
@@ -21,6 +21,31 @@
     "Web Media Tool"
   ],
   "projects": [
+    {
+      "title": "Layer",
+      "category": "opensource",
+      "description": "Tree sitter AST code navigation, static call graph analysis, and Model Context Protocol (MCP) server for AI coding agents.",
+      "icon": "rocket",
+      "stack": [
+        "Rust"
+      ],
+      "linkLabel": "View case study",
+      "fullDescription": "Why Layer\n\nIf you use coding agents like Claude Code, Cursor, Windsurf, Codex or OpenCode on real projects, you have probably seen these problems:\n\n1. The agent can't see the big picture. On a repo with thousands of files, agents fall back to grep and dump whole files into the prompt. They read 1,500 line files, burn 100k+ tokens just scanning, lose the thread and go in circles.\n\n2. Fixes turn into guessing games. The agent edits something, breaks a caller it never read, then spends five turns guessing how to repair it.\n\n3. New projects get hallucinated APIs. When starting from scratch, agents invent package functions or get stuck in broken config.\n\nLayer sits between your agent and your code and talks over the standard Model Context Protocol. Instead of raw file dumps, the agent gets symbol outlines, exact function slices, impact graphs and compile checks in milliseconds.\n\n",
+      "features": [
+        "Instant syntax checks (under 15ms)",
+        "Safe multi file refactors",
+        "Full compiler checks and an error circuit breaker",
+        "Task aware context"
+      ],
+      "githubUrl": "https://github.com/junaidmirr/layer.git",
+      "liveUrl": "",
+      "technologies": [
+        {
+          "name": "",
+          "details": ""
+        }
+      ]
+    },
     {
       "title": "doc-engine",
       "category": "Featured Open Source, Vector PDF Engine",
