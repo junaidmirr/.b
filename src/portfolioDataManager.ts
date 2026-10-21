@@ -4,23 +4,32 @@ import type { PortfolioData } from './types'
 const STORAGE_KEY = 'junaid_portfolio_override'
 
 export function getPortfolioData(): PortfolioData {
+  const fallback = defaultPortfolioData as unknown as PortfolioData
+
   if (typeof window === 'undefined') {
-    return defaultPortfolioData as PortfolioData
+    return fallback
   }
 
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY)
     if (saved) {
       const parsed = JSON.parse(saved)
-      if (parsed && parsed.projects && parsed.profile) {
-        return parsed as PortfolioData
+      if (parsed && typeof parsed === 'object' && Array.isArray(parsed.projects) && parsed.profile) {
+        return {
+          profile: {
+            ...fallback.profile,
+            ...parsed.profile,
+          },
+          categories: Array.isArray(parsed.categories) ? parsed.categories : fallback.categories,
+          projects: parsed.projects,
+        }
       }
     }
   } catch (err) {
     console.warn('Failed to parse local portfolio data, falling back to bundled data:', err)
   }
 
-  return defaultPortfolioData as PortfolioData
+  return fallback
 }
 
 export function savePortfolioDataLocal(data: PortfolioData): void {
