@@ -22,6 +22,28 @@
   ],
   "projects": [
     {
+      "title": "Layer",
+      "category": "Open Source Contribution",
+      "description": "Tree-sitter AST code navigation, static call-graph analysis, and Model Context Protocol (MCP) server for AI coding agents.",
+      "icon": "spark",
+      "stack": [
+        "Rust"
+      ],
+      "linkLabel": "View case study",
+      "fullDescription": "Why Layer\n\nIf you use coding agents like Claude Code, Cursor, Windsurf, Codex or OpenCode on real projects, you have probably seen these problems:\n\n1. The agent can't see the big picture. On a repo with thousands of files, agents fall back to grep and dump whole files into the prompt. They read 1,500 line files, burn 100k+ tokens just scanning, lose the thread and go in circles.\n\n2. Fixes turn into guessing games. The agent edits something, breaks a caller it never read, then spends five turns guessing how to repair it.\n\n3. New projects get hallucinated APIs. When starting from scratch, agents invent package functions or get stuck in broken config.\n\nLayer sits between your agent and your code and talks over the standard Model Context Protocol. Instead of raw file dumps, the agent gets symbol outlines, exact function slices, impact graphs and compile checks in milliseconds.\n\nHow it works\n\nLayer does four main things.\n1. Instant syntax checks (under 15ms)\n\nEvery edit is checked in memory using compiled Tree sitter syntax trees. Layer validates grammar, balanced brackets, strings and imports without waiting for a slow compiler to start (tsc alone takes 400 to 800ms to boot).\n2. Safe multi file refactors\n\nWhen an agent changes a shared interface like src/types.ts, Layer separates errors in the file you edited from errors in files that simply haven't been updated yet. Good interface edits are kept, and the agent gets a pending_downstream_updates checklist instead of a rollback.\n3. Full compiler checks and an error circuit breaker\n\nLayer plugs into your real toolchain (tsc, cargo check, pyright, go vet, clang++, dotnet, javac, mvn) and sorts every diagnostic into new, persistent or resolved. If the same error survives two or more turns, the circuit breaker steps in and feeds the agent verified type signatures and definitions so it stops guessing.\n4. Task aware context\n\nInstead of reading whole files, Layer ranks code using BM25F scoring, Personalized PageRank and test pairing. It returns small slices with exact line numbers, saving three to five wasted grep and read turns per task.\nBuilt to scale (v1.3)\n\n    No lock contention. Indexing runs in the background and swaps in atomically, so agent queries never wait on a big scan.\n    Fast cold starts. A seed scanner capped at 250ms handles the first query on a fresh repo.\n    Constant time lookups. Hash indexes replace full repo scans, so 10,000+ symbols are searched in under 40ms with a hard 450ms deadline.\n    Do no harm by default. auto_rollback_on_cascade is off, so modern syntax (Python 3.12, TypeScript 5.x) never triggers a false rollback.\n",
+      "features": [
+        ""
+      ],
+      "githubUrl": "https://github.com/junaidmirr/layer",
+      "liveUrl": "",
+      "technologies": [
+        {
+          "name": "",
+          "details": ""
+        }
+      ]
+    },
+    {
       "title": "doc-engine",
       "category": "Featured Open Source, Vector PDF Engine",
       "description": "A high performance headless document layout and vector rendering engine for React and TypeScript. Renders searchable vector PDF 1.7 streams and 60 FPS HTML5 Canvas previews without headless browsers or server daemons.",
