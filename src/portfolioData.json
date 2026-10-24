@@ -2,8 +2,8 @@
   "profile": {
     "name": "Junaid",
     "role": "Software Developer",
-    "headline": "Hello :)",
-    "bio": "A tech enthusiast focused on software development, artificial intelligence, and building innovative digital solutions. Passionate about turning complex ideas into practical applications, exploring emerging technologies, and creating projects that combine functionality, creativity, and real world impact. Always driven by curiosity, problem solving, and the pursuit of building something meaningful.",
+    "headline": "Hello,",
+    "bio": "I’m a Computer Engineering student interested in software development and AI, always looking to learn new things and build projects that solve real world problems.",
     "location": "Bangalore, India",
     "email": "junaidmeer055@gmail.com",
     "github": "https://github.com/junaidmirr",
@@ -21,31 +21,6 @@
     "Web Media Tool"
   ],
   "projects": [
-    {
-      "title": "Layer",
-      "category": "opensource",
-      "description": "Tree sitter AST code navigation, static call graph analysis, and Model Context Protocol (MCP) server for AI coding agents.",
-      "icon": "rocket",
-      "stack": [
-        "Rust"
-      ],
-      "linkLabel": "View case study",
-      "fullDescription": "Why Layer\n\nIf you use coding agents like Claude Code, Cursor, Windsurf, Codex or OpenCode on real projects, you have probably seen these problems:\n\n1. The agent can't see the big picture. On a repo with thousands of files, agents fall back to grep and dump whole files into the prompt. They read 1,500 line files, burn 100k+ tokens just scanning, lose the thread and go in circles.\n\n2. Fixes turn into guessing games. The agent edits something, breaks a caller it never read, then spends five turns guessing how to repair it.\n\n3. New projects get hallucinated APIs. When starting from scratch, agents invent package functions or get stuck in broken config.\n\nLayer sits between your agent and your code and talks over the standard Model Context Protocol. Instead of raw file dumps, the agent gets symbol outlines, exact function slices, impact graphs and compile checks in milliseconds.\n\n",
-      "features": [
-        "Instant syntax checks (under 15ms)",
-        "Safe multi file refactors",
-        "Full compiler checks and an error circuit breaker",
-        "Task aware context"
-      ],
-      "githubUrl": "https://github.com/junaidmirr/layer.git",
-      "liveUrl": "",
-      "technologies": [
-        {
-          "name": "",
-          "details": ""
-        }
-      ]
-    },
     {
       "title": "doc-engine",
       "category": "Featured Open Source, Vector PDF Engine",
@@ -169,52 +144,6 @@
       ]
     },
     {
-      "title": "ResuMagic",
-      "category": "Full Stack AI App",
-      "description": "An on the go easy AI resume builder and editor with Gemini integration.",
-      "icon": "spark",
-      "stack": [
-        "React 19",
-        "Flask",
-        "Gemini AI",
-        "Firebase"
-      ],
-      "linkLabel": "View case study",
-      "fullDescription": "ResuMagic is a modern AI powered resume builder designed to simplify the professional document creation process. It leverages Google Gemini AI to parse existing resumes, generate professional summaries, and provide real time editing suggestions. The app features a high fidelity editor with real time PDF preview and background removal for profile photos.",
-      "features": [
-        "AI powered resume parsing and generation",
-        "Real time PDF preview and printing",
-        "Integrated background remover for profile photos",
-        "Secure authentication with Firebase",
-        "Responsive design with Tailwind CSS 4",
-        "Captcha protection with Cloudflare Turnstile"
-      ],
-      "githubUrl": "",
-      "liveUrl": "https://resumagic-ai-resume-builder.vercel.app",
-      "technologies": [
-        {
-          "name": "Frontend",
-          "details": "React 19, TypeScript, Vite, Tailwind CSS 4, React Router DOM 7, Lucide React, react-to-print"
-        },
-        {
-          "name": "AI Engine",
-          "details": "@google/generative-ai (Gemini AI SDK), google-generativeai"
-        },
-        {
-          "name": "Backend",
-          "details": "Flask (Python), ReportLab (PDF Gen), PyMuPDF (PDF Parsing), python-docx (Word support)"
-        },
-        {
-          "name": "Image Processing",
-          "details": "OpenCV (cv2), Pillow (PIL) for Background Remover"
-        },
-        {
-          "name": "Services & Infra",
-          "details": "Firebase Auth & Firestore, Vercel, Cloudflare Turnstile, SMTP Integration (Mailjet)"
-        }
-      ]
-    },
-    {
       "title": "Edugate",
       "category": "Virtual Classroom App",
       "description": "A feature rich Android app for real time video conferencing, screen sharing, and educational resource management.",
@@ -258,6 +187,52 @@
         {
           "name": "System Integration",
           "details": "Foreground Services, Custom FileProvider (EdugateFileProvider)"
+        }
+      ]
+    },
+    {
+      "title": "ResuMagic",
+      "category": "Full Stack AI App",
+      "description": "An on the go easy AI resume builder and editor with Gemini integration.",
+      "icon": "spark",
+      "stack": [
+        "React 19",
+        "Flask",
+        "Gemini AI",
+        "Firebase"
+      ],
+      "linkLabel": "View case study",
+      "fullDescription": "ResuMagic is a modern AI powered resume builder designed to simplify the professional document creation process. It leverages Google Gemini AI to parse existing resumes, generate professional summaries, and provide real time editing suggestions. The app features a high fidelity editor with real time PDF preview and background removal for profile photos.",
+      "features": [
+        "AI powered resume parsing and generation",
+        "Real time PDF preview and printing",
+        "Integrated background remover for profile photos",
+        "Secure authentication with Firebase",
+        "Responsive design with Tailwind CSS 4",
+        "Captcha protection with Cloudflare Turnstile"
+      ],
+      "githubUrl": "",
+      "liveUrl": "https://resumagic-ai-resume-builder.vercel.app",
+      "technologies": [
+        {
+          "name": "Frontend",
+          "details": "React 19, TypeScript, Vite, Tailwind CSS 4, React Router DOM 7, Lucide React, react-to-print"
+        },
+        {
+          "name": "AI Engine",
+          "details": "@google/generative-ai (Gemini AI SDK), google-generativeai"
+        },
+        {
+          "name": "Backend",
+          "details": "Flask (Python), ReportLab (PDF Gen), PyMuPDF (PDF Parsing), python-docx (Word support)"
+        },
+        {
+          "name": "Image Processing",
+          "details": "OpenCV (cv2), Pillow (PIL) for Background Remover"
+        },
+        {
+          "name": "Services & Infra",
+          "details": "Firebase Auth & Firestore, Vercel, Cloudflare Turnstile, SMTP Integration (Mailjet)"
         }
       ]
     },
@@ -308,7 +283,7 @@
       ]
     },
     {
-      "title": "Fapper AI",
+      "title": "Ai assistant app",
       "category": "Android AI Assistant",
       "description": "An on screen AI assistant app for Android providing seamless interaction.",
       "icon": "layout",
