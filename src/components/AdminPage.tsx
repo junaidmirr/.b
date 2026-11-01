@@ -8,7 +8,13 @@ import {
   logoutFirebase,
   subscribeToAuth,
 } from '../services/portfolioService'
-import { isFirebaseConfigured, firebaseConfig } from '../firebase'
+import {
+  isFirebaseConfigured,
+  firebaseConfig,
+  saveCustomFirebaseConfig,
+  clearCustomFirebaseConfig,
+  type FirebaseConfig,
+} from '../firebase'
 import type { User } from 'firebase/auth'
 
 type AdminTab = 'projects' | 'profile' | 'firebase' | 'backup'
@@ -81,6 +87,7 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
   }>({ type: null, message: '' })
 
   const isConfigured = isFirebaseConfigured()
+  const [configDraft, setConfigDraft] = useState<FirebaseConfig>({ ...firebaseConfig })
 
   // Track Firebase Auth user
   useEffect(() => {
@@ -204,6 +211,32 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     const result = await testFirestoreConnection()
     setTestFeedback(result)
     setIsTesting(false)
+  }
+
+  const handleSaveFirebaseConfig = () => {
+    if (!configDraft.apiKey.trim() || !configDraft.projectId.trim()) {
+      alert('API Key and Project ID are required.')
+      return
+    }
+    const ok = saveCustomFirebaseConfig(configDraft)
+    if (ok) {
+      setTestFeedback({
+        ok: true,
+        message: 'Firebase configuration saved locally and initialized successfully! Testing connection...',
+      })
+      handleTestConnection()
+    } else {
+      setTestFeedback({
+        ok: false,
+        message: 'Failed to initialize Firebase with provided credentials. Please double check values.',
+      })
+    }
+  }
+
+  const handleResetFirebaseConfig = () => {
+    clearCustomFirebaseConfig()
+    setConfigDraft({ ...firebaseConfig })
+    setTestFeedback(null)
   }
 
   // Profile fields helper
@@ -1156,6 +1189,116 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                 >
                   {isSeeding ? 'Syncing...' : 'Sync to Firestore Now'}
                 </button>
+              </div>
+            </div>
+
+            {/* Direct In-Browser Firebase Config Setup */}
+            <div className="rounded border border-[var(--color-border)] bg-[var(--color-bg)] p-4 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--color-border)] pb-3">
+                <div>
+                  <h4 className="text-sm font-semibold text-[var(--color-text)]">
+                    Direct Firebase Configuration (Instant Setup)
+                  </h4>
+                  <p className="text-xs text-[var(--color-muted)] mt-0.5">
+                    Paste your Firebase credentials here to connect immediately without waiting for redeploys.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleResetFirebaseConfig}
+                    className="border border-[var(--color-border)] px-2.5 py-1 text-[11px] font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveFirebaseConfig}
+                    className="btn-primary px-3.5 py-1 text-xs font-mono cursor-pointer"
+                  >
+                    Save & Connect Now
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-xs font-mono">
+                <div>
+                  <label className="block text-[11px] text-[var(--color-muted)] mb-1">
+                    apiKey *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="AIzaSy..."
+                    value={configDraft.apiKey}
+                    onChange={(e) => setConfigDraft({ ...configDraft, apiKey: e.target.value.trim() })}
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-1.5 text-xs text-[var(--color-text)] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-[var(--color-muted)] mb-1">
+                    projectId *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="your-project-id"
+                    value={configDraft.projectId}
+                    onChange={(e) => setConfigDraft({ ...configDraft, projectId: e.target.value.trim() })}
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-1.5 text-xs text-[var(--color-text)] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-[var(--color-muted)] mb-1">
+                    authDomain
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="your-project-id.firebaseapp.com"
+                    value={configDraft.authDomain}
+                    onChange={(e) => setConfigDraft({ ...configDraft, authDomain: e.target.value.trim() })}
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-1.5 text-xs text-[var(--color-text)] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-[var(--color-muted)] mb-1">
+                    storageBucket
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="your-project-id.firebasestorage.app"
+                    value={configDraft.storageBucket}
+                    onChange={(e) => setConfigDraft({ ...configDraft, storageBucket: e.target.value.trim() })}
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-1.5 text-xs text-[var(--color-text)] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-[var(--color-muted)] mb-1">
+                    messagingSenderId
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="123456789012"
+                    value={configDraft.messagingSenderId}
+                    onChange={(e) => setConfigDraft({ ...configDraft, messagingSenderId: e.target.value.trim() })}
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-1.5 text-xs text-[var(--color-text)] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-[var(--color-muted)] mb-1">
+                    appId
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="1:123456789012:web:abcdef"
+                    value={configDraft.appId}
+                    onChange={(e) => setConfigDraft({ ...configDraft, appId: e.target.value.trim() })}
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-1.5 text-xs text-[var(--color-text)] focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
 
