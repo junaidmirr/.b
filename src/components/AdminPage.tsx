@@ -13,6 +13,7 @@ import {
   firebaseConfig,
   saveCustomFirebaseConfig,
   clearCustomFirebaseConfig,
+  ensureFirebaseInitialized,
   type FirebaseConfig,
 } from '../firebase'
 import type { User } from 'firebase/auth'
@@ -91,6 +92,11 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
 
   // Track Firebase Auth user
   useEffect(() => {
+    ensureFirebaseInitialized().then((ready) => {
+      if (ready) {
+        setConfigDraft({ ...firebaseConfig })
+      }
+    })
     const unsub = subscribeToAuth((user) => {
       setFirebaseUser(user)
     })

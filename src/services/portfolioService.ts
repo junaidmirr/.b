@@ -11,7 +11,7 @@ import {
   onAuthStateChanged,
   type User,
 } from 'firebase/auth'
-import { db, auth, isFirebaseConfigured } from '../firebase'
+import { db, auth, isFirebaseConfigured, ensureFirebaseInitialized } from '../firebase'
 import { getPortfolioData, savePortfolioDataLocal } from '../portfolioDataManager'
 import type { PortfolioData } from '../types'
 
@@ -31,21 +31,15 @@ function sanitizePortfolioData(data: unknown, fallback: PortfolioData): Portfoli
   }
 }
 
-/**
- * Subscribes to real-time updates from Firebase Firestore.
- * Automatically updates whenever changes are made in the admin panel.
- */
-export function subscribeToPortfolio(onData: (data: PortfolioData) => void): Unsubscribe {
-  const fallback = getPortfolioData()
-
-  if (!isFirebaseConfigured() || !db) {
+function attachListener(onData: (data: PortfolioData) => void, fallback: PortfolioData): Unsubscribe {
+  if (!db) {
     onData(fallback)
     return () => {}
   }
 
   try {
     const docRef = doc(db, COLLECTION_NAME, DOCUMENT_ID)
-    const unsubscribe = onSnapshot(
+    return onSnapshot(
       docRef,
       (snapshot) => {
         if (snapshot.exists()) {
@@ -62,12 +56,40 @@ export function subscribeToPortfolio(onData: (data: PortfolioData) => void): Uns
         onData(fallback)
       }
     )
-
-    return unsubscribe
   } catch (err) {
     console.warn('Could not establish Firestore subscription:', err)
     onData(fallback)
     return () => {}
+  }
+}
+
+/**
+ * Subscribes to real-time updates from Firebase Firestore.
+ * Automatically updates whenever changes are made in the admin panel.
+ */
+export function subscribeToPortfolio(onData: (data: PortfolioData) => void): Unsubscribe {
+  const fallback = getPortfolioData()
+  let liveUnsub: Unsubscribe = () => {}
+
+  if (isFirebaseConfigured() && db) {
+    return attachListener(onData, fallback)
+  }
+
+  // Asynchronously resolve serverless /api/firebase-config if build variables were not inlined
+  ensureFirebaseInitialized()
+    .then((ready) => {
+      if (ready && db) {
+        liveUnsub = attachListener(onData, fallback)
+      } else {
+        onData(fallback)
+      }
+    })
+    .catch(() => {
+      onData(fallback)
+    })
+
+  return () => {
+    liveUnsub()
   }
 }
 
@@ -77,6 +99,10 @@ export function subscribeToPortfolio(onData: (data: PortfolioData) => void): Uns
 export async function savePortfolioToFirebase(data: PortfolioData): Promise<{ success: boolean; message: string }> {
   // Always update local cache for instant UI responsiveness
   savePortfolioDataLocal(data)
+
+  if (!isFirebaseConfigured() || !db) {
+    await ensureFirebaseInitialized()
+  }
 
   if (!isFirebaseConfigured() || !db) {
     return {
@@ -108,6 +134,10 @@ export async function savePortfolioToFirebase(data: PortfolioData): Promise<{ su
  * Performs a live ping/read test to Firestore to verify credentials and rules.
  */
 export async function testFirestoreConnection(): Promise<{ ok: boolean; message: string }> {
+  if (!isFirebaseConfigured() || !db) {
+    await ensureFirebaseInitialized()
+  }
+
   if (!isFirebaseConfigured() || !db) {
     return {
       ok: false,
@@ -145,6 +175,9 @@ export async function testFirestoreConnection(): Promise<{ ok: boolean; message:
  * Checks if the Firestore portfolio document exists, and seeds it with default data if empty.
  */
 export async function seedFirestoreIfEmpty(): Promise<boolean> {
+  if (!isFirebaseConfigured() || !db) {
+    await ensureFirebaseInitialized()
+  }
   if (!isFirebaseConfigured() || !db) return false
 
   try {
@@ -167,6 +200,9 @@ export async function seedFirestoreIfEmpty(): Promise<boolean> {
  */
 export async function loginWithFirebase(email: string, pass: string): Promise<User> {
   if (!isFirebaseConfigured() || !auth) {
+    await ensureFirebaseInitialized()
+  }
+  if (!isFirebaseConfigured() || !auth) {
     throw new Error('Firebase Authentication is not configured yet. Please check your environment variables.')
   }
   const credential = await signInWithEmailAndPassword(auth, email, pass)
@@ -181,7 +217,13 @@ export async function logoutFirebase(): Promise<void> {
 
 export function subscribeToAuth(onUserChange: (user: User | null) => void): Unsubscribe {
   if (!isFirebaseConfigured() || !auth) {
-    onUserChange(null)
+    ensureFirebaseInitialized().then((ready) => {
+      if (ready && auth) {
+        onAuthStateChanged(auth, onUserChange)
+      } else {
+        onUserChange(null)
+      }
+    })
     return () => {}
   }
   return onAuthStateChanged(auth, onUserChange)

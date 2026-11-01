@@ -13,7 +13,7 @@ export type FirebaseConfig = {
 
 const STORAGE_KEY = 'junaid_firebase_config'
 
-function loadConfig(): FirebaseConfig {
+function loadConfigSync(): FirebaseConfig {
   if (typeof window !== 'undefined') {
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY)
@@ -36,7 +36,7 @@ function loadConfig(): FirebaseConfig {
   }
 }
 
-export let firebaseConfig: FirebaseConfig = loadConfig()
+export let firebaseConfig: FirebaseConfig = loadConfigSync()
 
 export function isFirebaseConfigured(): boolean {
   return Boolean(
@@ -51,11 +51,7 @@ export let db: Firestore | null = null
 export let auth: Auth | null = null
 
 export function initFirebaseInstances(): boolean {
-  firebaseConfig = loadConfig()
   if (!isFirebaseConfigured()) {
-    app = null
-    db = null
-    auth = null
     return false
   }
 
@@ -71,12 +67,42 @@ export function initFirebaseInstances(): boolean {
   }
 }
 
-// Initial initialization attempt
+// Initial sync attempt
 initFirebaseInstances()
+
+/**
+ * Asynchronously ensures Firebase is initialized, fetching from /api/firebase-config
+ * if client-side build variables are not yet present.
+ */
+export async function ensureFirebaseInitialized(): Promise<boolean> {
+  if (isFirebaseConfigured() && db) {
+    return true
+  }
+
+  // Attempt to fetch from serverless runtime API
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/firebase-config')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.isConfigured && data.config) {
+          firebaseConfig = data.config
+          saveCustomFirebaseConfig(data.config)
+          return initFirebaseInstances()
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch serverless /api/firebase-config:', err)
+    }
+  }
+
+  return isFirebaseConfigured() && Boolean(db)
+}
 
 export function saveCustomFirebaseConfig(config: FirebaseConfig): boolean {
   if (typeof window === 'undefined') return false
   try {
+    firebaseConfig = config
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
     return initFirebaseInstances()
   } catch (err) {
@@ -88,5 +114,8 @@ export function saveCustomFirebaseConfig(config: FirebaseConfig): boolean {
 export function clearCustomFirebaseConfig(): void {
   if (typeof window === 'undefined') return
   window.localStorage.removeItem(STORAGE_KEY)
-  initFirebaseInstances()
+  firebaseConfig = loadConfigSync()
+  app = null
+  db = null
+  auth = null
 }
