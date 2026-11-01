@@ -1,8 +1,12 @@
-import { useState, useEffect, useId, type FormEvent } from 'react'
+import { useState, useEffect, useId, lazy, Suspense, type FormEvent } from 'react'
 import { TurnstileCaptcha } from './components/TurnstileCaptcha'
 import { getPortfolioData } from './portfolioDataManager'
-import { AdminPage } from './components/AdminPage'
+import { subscribeToPortfolio } from './services/portfolioService'
 import type { Theme, Project, SkillCategory, PortfolioData } from './types'
+
+const AdminPage = lazy(() =>
+  import('./components/AdminPage').then((m) => ({ default: m.AdminPage }))
+)
 
 const skillCategories: SkillCategory[] = [
   {
@@ -94,6 +98,16 @@ export default function App() {
   const formId = useId()
 
   const projects = portfolioData.projects
+
+  // Subscribe to real-time updates from Firebase
+  useEffect(() => {
+    const unsubscribe = subscribeToPortfolio((liveData) => {
+      setPortfolioData(liveData)
+    })
+    return () => {
+      unsubscribe()
+    }
+  }, [])
 
   // Listen to browser navigation for /iam_admin
   useEffect(() => {
@@ -1224,11 +1238,13 @@ export default function App() {
       )}
       {/* Admin Management Portal */}
       {isAdminOpen && (
-        <AdminPage
-          initialData={portfolioData}
-          onClose={handleCloseAdmin}
-          onDataUpdated={(updated) => setPortfolioData(updated)}
-        />
+        <Suspense fallback={null}>
+          <AdminPage
+            initialData={portfolioData}
+            onClose={handleCloseAdmin}
+            onDataUpdated={(updated) => setPortfolioData(updated)}
+          />
+        </Suspense>
       )}
     </div>
   )

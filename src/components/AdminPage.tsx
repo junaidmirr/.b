@@ -1,8 +1,16 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import type { PortfolioData, Project, ProfileData } from '../types'
 import { savePortfolioDataLocal } from '../portfolioDataManager'
+import {
+  savePortfolioToFirebase,
+  loginWithFirebase,
+  logoutFirebase,
+  subscribeToAuth,
+} from '../services/portfolioService'
+import { isFirebaseConfigured, firebaseConfig } from '../firebase'
+import type { User } from 'firebase/auth'
 
-type AdminTab = 'projects' | 'profile' | 'categories' | 'backup'
+type AdminTab = 'projects' | 'profile' | 'firebase' | 'backup'
 
 type AdminPageProps = {
   initialData: PortfolioData
@@ -45,7 +53,10 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
   const [authToken, setAuthToken] = useState<string>(() => {
     return sessionStorage.getItem('junaid_admin_token') || ''
   })
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null)
+  const [authMode, setAuthMode] = useState<'password' | 'firebase'>('password')
   const [passwordInput, setPasswordInput] = useState('')
+  const [emailInput, setEmailInput] = useState('')
   const [authError, setAuthError] = useState('')
   const [isAuthenticating, setIsAuthenticating] = useState(false)
 
@@ -60,12 +71,23 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
 
   // Save states
   const [isSaving, setIsSaving] = useState(false)
+  const [isSeeding, setIsSeeding] = useState(false)
   const [saveStatus, setSaveStatus] = useState<{
     type: 'success' | 'error' | 'info' | null
     message: string
   }>({ type: null, message: '' })
 
-  // Verify stored token on mount
+  const isConfigured = isFirebaseConfigured()
+
+  // Track Firebase Auth user
+  useEffect(() => {
+    const unsub = subscribeToAuth((user) => {
+      setFirebaseUser(user)
+    })
+    return () => unsub()
+  }, [])
+
+  // Sync token in sessionStorage
   useEffect(() => {
     if (authToken) {
       sessionStorage.setItem('junaid_admin_token', authToken)
@@ -81,67 +103,95 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     setIsAuthenticating(true)
 
     try {
-      const res = await fetch('/api/admin-auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: passwordInput }),
-      })
+      if (authMode === 'firebase' && isConfigured) {
+        if (!emailInput.trim() || !passwordInput.trim()) {
+          throw new Error('Please enter both email and password.')
+        }
+        await loginWithFirebase(emailInput.trim(), passwordInput.trim())
+        setAuthToken('firebase_session_' + Date.now())
+        setPasswordInput('')
+      } else {
+        // Master password authentication
+        const res = await fetch('/api/admin-auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: passwordInput }),
+        })
 
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.error || 'Authentication failed.')
+        const result = await res.json()
+        if (!res.ok) {
+          throw new Error(result.error || 'Invalid password.')
+        }
+
+        setAuthToken(result.token)
+        setPasswordInput('')
       }
-
-      setAuthToken(result.token)
-      setPasswordInput('')
     } catch (err) {
-      setAuthError(err instanceof Error ? err.message : 'Invalid password.')
+      setAuthError(err instanceof Error ? err.message : 'Authentication failed.')
     } finally {
       setIsAuthenticating(false)
     }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setAuthToken('')
     sessionStorage.removeItem('junaid_admin_token')
+    await logoutFirebase()
   }
 
-  // Save changes to backend & local storage
+  // Save changes to Firebase & local storage (zero redeploy required!)
   const handleSaveAll = async () => {
     setIsSaving(true)
     setSaveStatus({ type: null, message: '' })
 
     try {
-      // 1. Instantly persist to local storage for immediate preview
-      savePortfolioDataLocal(data)
+      // 1. Instantly save to Firebase Firestore
+      const res = await savePortfolioToFirebase(data)
       onDataUpdated(data)
 
-      // 2. Transmit to secure backend API
-      const res = await fetch('/api/admin-save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify(data),
-      })
-
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.error || 'Failed to save changes to server.')
+      // 2. Also inform serverless backup if token exists
+      if (authToken && !authToken.startsWith('firebase_session_')) {
+        fetch('/api/admin-save', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify(data),
+        }).catch(() => {})
       }
 
       setSaveStatus({
         type: 'success',
-        message: result.message || 'Changes saved successfully.',
+        message: res.message,
       })
     } catch (err) {
       setSaveStatus({
         type: 'error',
-        message: err instanceof Error ? err.message : 'An error occurred while saving.',
+        message: err instanceof Error ? err.message : 'An error occurred while saving to Firebase.',
       })
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  // 1-Click seed current data to Firestore
+  const handleSeedFirebase = async () => {
+    setIsSeeding(true)
+    setSaveStatus({ type: null, message: '' })
+    try {
+      await savePortfolioToFirebase(data)
+      setSaveStatus({
+        type: 'success',
+        message: `Successfully synchronized all ${data.projects.length} projects and profile data to Firebase Firestore!`,
+      })
+    } catch (err) {
+      setSaveStatus({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Failed to sync data to Firebase.',
+      })
+    } finally {
+      setIsSeeding(false)
     }
   }
 
@@ -222,8 +272,10 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     onDataUpdated(updatedData)
   }
 
+  const isAuthenticated = Boolean(authToken || firebaseUser)
+
   // --- Render Authentication Prompt if not logged in ---
-  if (!authToken) {
+  if (!isAuthenticated) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-bg)]/90 p-4 backdrop-blur-md">
         <div className="w-full max-w-md border border-[var(--color-border)] bg-[var(--color-panel)] p-8">
@@ -233,7 +285,7 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                 Admin Authentication
               </h2>
               <p className="mt-1 text-xs font-mono text-[var(--color-muted)]">
-                Protected portfolio management portal
+                {isConfigured ? 'Firebase Cloud Connected' : 'Local / Master Password Mode'}
               </p>
             </div>
             <button
@@ -245,20 +297,68 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
             </button>
           </div>
 
+          {/* Mode Switcher */}
+          {isConfigured && (
+            <div className="mb-4 flex border border-[var(--color-border)] text-xs font-mono">
+              <button
+                type="button"
+                onClick={() => setAuthMode('password')}
+                className={`flex-1 py-1.5 transition-colors cursor-pointer ${
+                  authMode === 'password'
+                    ? 'bg-[var(--color-text)] text-[var(--color-bg)] font-semibold'
+                    : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+                }`}
+              >
+                Master Password
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthMode('firebase')}
+                className={`flex-1 py-1.5 transition-colors cursor-pointer ${
+                  authMode === 'firebase'
+                    ? 'bg-[var(--color-text)] text-[var(--color-bg)] font-semibold'
+                    : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+                }`}
+              >
+                Firebase Auth
+              </button>
+            </div>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-4">
+            {authMode === 'firebase' && isConfigured && (
+              <div>
+                <label
+                  htmlFor="admin-email"
+                  className="block text-xs font-mono text-[var(--color-muted)] mb-1.5"
+                >
+                  Firebase Admin Email
+                </label>
+                <input
+                  id="admin-email"
+                  type="email"
+                  required
+                  placeholder="admin@example.com"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] placeholder-[var(--color-muted)] focus:border-[var(--color-border-hover)] focus:outline-none font-mono"
+                />
+              </div>
+            )}
+
             <div>
               <label
                 htmlFor="admin-password"
                 className="block text-xs font-mono text-[var(--color-muted)] mb-1.5"
               >
-                Master Password
+                {authMode === 'firebase' ? 'Firebase Password' : 'Master Password'}
               </label>
               <input
                 id="admin-password"
                 type="password"
                 required
                 autoFocus
-                placeholder="Enter admin password..."
+                placeholder="Enter password..."
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
                 className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] placeholder-[var(--color-muted)] focus:border-[var(--color-border-hover)] focus:outline-none font-mono"
@@ -275,14 +375,14 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
               <button
                 type="submit"
                 disabled={isAuthenticating}
-                className="btn-primary w-full py-2 text-xs font-mono tracking-wide"
+                className="btn-primary w-full py-2 text-xs font-mono tracking-wide cursor-pointer"
               >
                 {isAuthenticating ? 'Verifying...' : 'Unlock Portal'}
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="btn-secondary w-full py-2 text-xs font-mono tracking-wide"
+                className="btn-secondary w-full py-2 text-xs font-mono tracking-wide cursor-pointer"
               >
                 Cancel
               </button>
@@ -290,8 +390,7 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
           </form>
 
           <p className="mt-6 text-[11px] font-mono text-[var(--color-muted)] border-t border-[var(--color-border)] pt-4 leading-relaxed">
-            Note: Set <span className="text-[var(--color-text)]">ADMIN_PASSWORD</span> in your Vercel
-            environment variables for production security.
+            Instant updates with Firebase Cloud Firestore. Zero redeployment needed.
           </p>
         </div>
       </div>
@@ -304,13 +403,27 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
       {/* Top Bar */}
       <header className="sticky top-0 z-40 border-b border-[var(--color-border)] bg-[var(--color-bg)]/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <span className="font-mono text-sm font-semibold tracking-tight text-[var(--color-text)]">
               /iam_admin
             </span>
-            <span className="text-xs text-[var(--color-muted)] font-mono">
-              Database Free Git Automation
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className={`inline-block h-2 w-2 rounded-full ${
+                  isConfigured ? 'bg-emerald-500' : 'bg-amber-500'
+                }`}
+              />
+              <span className="text-xs font-mono text-[var(--color-muted)]">
+                {isConfigured
+                  ? `Firebase Firestore Live (${firebaseConfig.projectId || 'Connected'})`
+                  : 'Firebase Pending Config (Local Mode)'}
+              </span>
+            </div>
+            {firebaseUser && (
+              <span className="text-[11px] font-mono text-emerald-500 border border-emerald-500/30 px-2 py-0.5 rounded">
+                User: {firebaseUser.email}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -318,21 +431,21 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
               type="button"
               onClick={handleSaveAll}
               disabled={isSaving}
-              className="btn-primary px-4 py-1.5 text-xs font-mono"
+              className="btn-primary px-4 py-1.5 text-xs font-mono cursor-pointer"
             >
-              {isSaving ? 'Deploying...' : 'Save & Deploy'}
+              {isSaving ? 'Saving to Firebase...' : 'Save to Firebase'}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="btn-secondary px-3 py-1.5 text-xs font-mono"
+              className="btn-secondary px-3 py-1.5 text-xs font-mono cursor-pointer"
             >
               Exit to Portfolio
             </button>
             <button
               type="button"
               onClick={handleLogout}
-              className="border border-[var(--color-border)] px-3 py-1.5 text-xs font-mono text-[var(--color-muted)] hover:text-red-400 hover:border-red-500/40"
+              className="border border-[var(--color-border)] px-3 py-1.5 text-xs font-mono text-[var(--color-muted)] hover:text-red-400 hover:border-red-500/40 cursor-pointer"
             >
               Log Out
             </button>
@@ -340,14 +453,14 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
         </div>
 
         {/* Navigation Tabs */}
-        <div className="mx-auto flex max-w-6xl border-t border-[var(--color-border)] px-6 text-xs font-mono">
+        <div className="mx-auto flex max-w-6xl border-t border-[var(--color-border)] px-6 text-xs font-mono overflow-x-auto">
           <button
             type="button"
             onClick={() => {
               setCurrentTab('projects')
               cancelProjectEdit()
             }}
-            className={`border-b-2 px-4 py-3 cursor-pointer transition-colors ${
+            className={`border-b-2 px-4 py-3 cursor-pointer transition-colors whitespace-nowrap ${
               currentTab === 'projects'
                 ? 'border-[var(--color-text)] text-[var(--color-text)] font-semibold'
                 : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-text)]'
@@ -358,7 +471,7 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
           <button
             type="button"
             onClick={() => setCurrentTab('profile')}
-            className={`border-b-2 px-4 py-3 cursor-pointer transition-colors ${
+            className={`border-b-2 px-4 py-3 cursor-pointer transition-colors whitespace-nowrap ${
               currentTab === 'profile'
                 ? 'border-[var(--color-text)] text-[var(--color-text)] font-semibold'
                 : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-text)]'
@@ -368,8 +481,19 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
           </button>
           <button
             type="button"
+            onClick={() => setCurrentTab('firebase')}
+            className={`border-b-2 px-4 py-3 cursor-pointer transition-colors whitespace-nowrap ${
+              currentTab === 'firebase'
+                ? 'border-[var(--color-text)] text-[var(--color-text)] font-semibold'
+                : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-text)]'
+            }`}
+          >
+            Firebase Cloud Sync
+          </button>
+          <button
+            type="button"
             onClick={() => setCurrentTab('backup')}
-            className={`border-b-2 px-4 py-3 cursor-pointer transition-colors ${
+            className={`border-b-2 px-4 py-3 cursor-pointer transition-colors whitespace-nowrap ${
               currentTab === 'backup'
                 ? 'border-[var(--color-text)] text-[var(--color-text)] font-semibold'
                 : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-text)]'
@@ -411,14 +535,14 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                     <button
                       type="button"
                       onClick={commitProjectDraft}
-                      className="btn-primary px-3 py-1.5 text-xs font-mono"
+                      className="btn-primary px-3 py-1.5 text-xs font-mono cursor-pointer"
                     >
                       Apply To In Memory List
                     </button>
                     <button
                       type="button"
                       onClick={cancelProjectEdit}
-                      className="btn-secondary px-3 py-1.5 text-xs font-mono"
+                      className="btn-secondary px-3 py-1.5 text-xs font-mono cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -643,7 +767,7 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                             const updated = activeProjectDraft.features.filter((_, i) => i !== fi)
                             setActiveProjectDraft({ ...activeProjectDraft, features: updated })
                           }}
-                          className="px-2 py-1 text-xs font-mono text-red-400 hover:text-red-300 border border-[var(--color-border)]"
+                          className="px-2 py-1 text-xs font-mono text-red-400 hover:text-red-300 border border-[var(--color-border)] cursor-pointer"
                         >
                           Remove
                         </button>
@@ -710,7 +834,7 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                               technologies: updated,
                             })
                           }}
-                          className="col-span-1 px-1 py-1 text-xs font-mono text-red-400 hover:text-red-300 border border-[var(--color-border)]"
+                          className="col-span-1 px-1 py-1 text-xs font-mono text-red-400 hover:text-red-300 border border-[var(--color-border)] cursor-pointer"
                         >
                           ✕
                         </button>
@@ -723,14 +847,14 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                   <button
                     type="button"
                     onClick={cancelProjectEdit}
-                    className="btn-secondary px-4 py-2 text-xs font-mono"
+                    className="btn-secondary px-4 py-2 text-xs font-mono cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
                     onClick={commitProjectDraft}
-                    className="btn-primary px-5 py-2 text-xs font-mono"
+                    className="btn-primary px-5 py-2 text-xs font-mono cursor-pointer"
                   >
                     Apply To Project List
                   </button>
@@ -745,13 +869,13 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                       Current Projects ({data.projects.length})
                     </h3>
                     <p className="text-xs font-mono text-[var(--color-muted)] mt-1">
-                      Manage order, content, and links. Changes persist when you click Save & Deploy.
+                      Manage order, content, and links. Changes persist directly to Firebase with zero redeployment.
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={startAddNewProject}
-                    className="btn-primary px-4 py-2 text-xs font-mono"
+                    className="btn-primary px-4 py-2 text-xs font-mono cursor-pointer"
                   >
                     + Add New Project
                   </button>
@@ -788,7 +912,7 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                           onClick={() => moveProject(idx, 'up')}
                           disabled={idx === 0}
                           title="Move up"
-                          className="px-2 py-1 text-xs font-mono border border-[var(--color-border)] disabled:opacity-30 hover:border-[var(--color-border-hover)]"
+                          className="px-2 py-1 text-xs font-mono border border-[var(--color-border)] disabled:opacity-30 hover:border-[var(--color-border-hover)] cursor-pointer"
                         >
                           ↑
                         </button>
@@ -797,21 +921,21 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                           onClick={() => moveProject(idx, 'down')}
                           disabled={idx === data.projects.length - 1}
                           title="Move down"
-                          className="px-2 py-1 text-xs font-mono border border-[var(--color-border)] disabled:opacity-30 hover:border-[var(--color-border-hover)]"
+                          className="px-2 py-1 text-xs font-mono border border-[var(--color-border)] disabled:opacity-30 hover:border-[var(--color-border-hover)] cursor-pointer"
                         >
                           ↓
                         </button>
                         <button
                           type="button"
                           onClick={() => startEditProject(idx)}
-                          className="btn-secondary px-3 py-1 text-xs font-mono"
+                          className="btn-secondary px-3 py-1 text-xs font-mono cursor-pointer"
                         >
                           Edit
                         </button>
                         <button
                           type="button"
                           onClick={() => deleteProject(idx)}
-                          className="px-3 py-1 text-xs font-mono text-red-400 hover:text-red-300 border border-[var(--color-border)]"
+                          className="px-3 py-1 text-xs font-mono text-red-400 hover:text-red-300 border border-[var(--color-border)] cursor-pointer"
                         >
                           Delete
                         </button>
@@ -939,15 +1063,115 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                 type="button"
                 onClick={handleSaveAll}
                 disabled={isSaving}
-                className="btn-primary px-5 py-2 text-xs font-mono"
+                className="btn-primary px-5 py-2 text-xs font-mono cursor-pointer"
               >
-                {isSaving ? 'Deploying...' : 'Save & Deploy Changes'}
+                {isSaving ? 'Saving to Firebase...' : 'Save to Firebase'}
               </button>
             </div>
           </div>
         )}
 
-        {/* ================= TAB 3: RAW JSON & BACKUP ================= */}
+        {/* ================= TAB 3: FIREBASE CLOUD SYNC ================= */}
+        {currentTab === 'firebase' && (
+          <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-4">
+              <div>
+                <h3 className="text-base font-semibold text-[var(--color-text)]">
+                  Firebase Cloud Connection
+                </h3>
+                <p className="text-xs font-mono text-[var(--color-muted)] mt-1">
+                  Real-time database integration: instant live updates without Git commits or Vercel rebuilds.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-block h-2.5 w-2.5 rounded-full ${
+                    isConfigured ? 'bg-emerald-500' : 'bg-amber-500'
+                  }`}
+                />
+                <span className="text-xs font-mono font-medium">
+                  {isConfigured ? 'Connected' : 'Configuration Required'}
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Sync Action */}
+            <div className="rounded border border-[var(--color-border)] bg-[var(--color-bg)] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-sm font-semibold text-[var(--color-text)]">
+                  Synchronize Current Data to Firestore
+                </h4>
+                <p className="text-xs text-[var(--color-muted)] mt-1 leading-relaxed">
+                  Upload all current {data.projects.length} projects, categories, and profile details to your Firebase database in a single click.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleSeedFirebase}
+                disabled={isSeeding || !isConfigured}
+                className="btn-primary px-4 py-2 text-xs font-mono shrink-0 cursor-pointer disabled:opacity-40"
+              >
+                {isSeeding ? 'Syncing...' : 'Sync to Firestore Now'}
+              </button>
+            </div>
+
+            {/* Environment Variables Status */}
+            <div>
+              <h4 className="text-xs font-mono uppercase tracking-wider text-[var(--color-muted)] mb-3">
+                Firebase Environment Configuration
+              </h4>
+              <div className="space-y-2 font-mono text-xs">
+                {[
+                  { key: 'VITE_FIREBASE_API_KEY', val: firebaseConfig.apiKey },
+                  { key: 'VITE_FIREBASE_AUTH_DOMAIN', val: firebaseConfig.authDomain },
+                  { key: 'VITE_FIREBASE_PROJECT_ID', val: firebaseConfig.projectId },
+                  { key: 'VITE_FIREBASE_STORAGE_BUCKET', val: firebaseConfig.storageBucket },
+                  { key: 'VITE_FIREBASE_MESSAGING_SENDER_ID', val: firebaseConfig.messagingSenderId },
+                  { key: 'VITE_FIREBASE_APP_ID', val: firebaseConfig.appId },
+                ].map((item) => (
+                  <div
+                    key={item.key}
+                    className="flex items-center justify-between border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5"
+                  >
+                    <span className="text-[var(--color-text)]">{item.key}</span>
+                    <span
+                      className={`text-[11px] ${
+                        item.val ? 'text-emerald-400' : 'text-amber-400'
+                      }`}
+                    >
+                      {item.val ? '✓ Set' : '✗ Missing in .env'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Recommended Firestore Security Rules */}
+            <div>
+              <h4 className="text-xs font-mono uppercase tracking-wider text-[var(--color-muted)] mb-2">
+                Recommended Firestore Security Rules
+              </h4>
+              <p className="text-xs text-[var(--color-muted)] mb-2">
+                Paste these rules in your Firebase Console under <strong>Firestore Database → Rules</strong>:
+              </p>
+              <pre className="overflow-auto border border-[var(--color-border)] bg-[var(--color-bg)] p-4 text-xs font-mono text-[var(--color-text)] leading-relaxed">
+{`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /portfolio/{document} {
+      // Anyone can read portfolio projects and profile info
+      allow read: if true;
+      // Only authenticated admin can update
+      allow write: if request.auth != null;
+    }
+  }
+}`}
+              </pre>
+            </div>
+          </div>
+        )}
+
+        {/* ================= TAB 4: RAW JSON & BACKUP ================= */}
         {currentTab === 'backup' && (
           <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -966,7 +1190,7 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                     navigator.clipboard.writeText(JSON.stringify(data, null, 2))
                     alert('Configuration copied to clipboard!')
                   }}
-                  className="btn-secondary px-3 py-1.5 text-xs font-mono"
+                  className="btn-secondary px-3 py-1.5 text-xs font-mono cursor-pointer"
                 >
                   Copy JSON
                 </button>
@@ -983,7 +1207,7 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                     a.click()
                     URL.revokeObjectURL(url)
                   }}
-                  className="btn-primary px-3 py-1.5 text-xs font-mono"
+                  className="btn-primary px-3 py-1.5 text-xs font-mono cursor-pointer"
                 >
                   Download .json
                 </button>
