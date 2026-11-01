@@ -2,6 +2,7 @@ import { useState, useEffect, useId, lazy, Suspense, type FormEvent } from 'reac
 import { TurnstileCaptcha } from './components/TurnstileCaptcha'
 import { getPortfolioData } from './portfolioDataManager'
 import { subscribeToPortfolio } from './services/portfolioService'
+import { AiAssistant } from './components/AiAssistant'
 import type { Theme, Project, SkillCategory, PortfolioData } from './types'
 
 const AdminPage = lazy(() =>
@@ -1246,6 +1247,9 @@ export default function App() {
           />
         </Suspense>
       )}
+
+      {/* AI Assistant Chat Widget */}
+      <AiAssistant />
     </div>
   )
 }
