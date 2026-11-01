@@ -3,6 +3,7 @@ import type { PortfolioData, Project, ProfileData } from '../types'
 import { savePortfolioDataLocal } from '../portfolioDataManager'
 import {
   savePortfolioToFirebase,
+  testFirestoreConnection,
   loginWithFirebase,
   logoutFirebase,
   subscribeToAuth,
@@ -72,6 +73,8 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
   // Save states
   const [isSaving, setIsSaving] = useState(false)
   const [isSeeding, setIsSeeding] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
+  const [testFeedback, setTestFeedback] = useState<{ ok: boolean; message: string } | null>(null)
   const [saveStatus, setSaveStatus] = useState<{
     type: 'success' | 'error' | 'info' | null
     message: string
@@ -193,6 +196,14 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     } finally {
       setIsSeeding(false)
     }
+  }
+
+  const handleTestConnection = async () => {
+    setIsTesting(true)
+    setTestFeedback(null)
+    const result = await testFirestoreConnection()
+    setTestFeedback(result)
+    setIsTesting(false)
   }
 
   // Profile fields helper
@@ -1095,24 +1106,57 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
               </div>
             </div>
 
-            {/* Quick Sync Action */}
-            <div className="rounded border border-[var(--color-border)] bg-[var(--color-bg)] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h4 className="text-sm font-semibold text-[var(--color-text)]">
-                  Synchronize Current Data to Firestore
-                </h4>
-                <p className="text-xs text-[var(--color-muted)] mt-1 leading-relaxed">
-                  Upload all current {data.projects.length} projects, categories, and profile details to your Firebase database in a single click.
-                </p>
+            {/* Connection Test & Quick Sync Actions */}
+            <div className="space-y-4">
+              <div className="rounded border border-[var(--color-border)] bg-[var(--color-bg)] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-sm font-semibold text-[var(--color-text)]">
+                    Live Connection Test
+                  </h4>
+                  <p className="text-xs text-[var(--color-muted)] mt-1 leading-relaxed">
+                    Verify that your credentials and Firestore security rules allow active read and write operations.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleTestConnection}
+                  disabled={isTesting}
+                  className="btn-secondary px-4 py-2 text-xs font-mono shrink-0 cursor-pointer disabled:opacity-40"
+                >
+                  {isTesting ? 'Testing...' : 'Test Connection'}
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={handleSeedFirebase}
-                disabled={isSeeding || !isConfigured}
-                className="btn-primary px-4 py-2 text-xs font-mono shrink-0 cursor-pointer disabled:opacity-40"
-              >
-                {isSeeding ? 'Syncing...' : 'Sync to Firestore Now'}
-              </button>
+
+              {testFeedback && (
+                <div
+                  className={`p-3.5 text-xs font-mono border leading-relaxed ${
+                    testFeedback.ok
+                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                      : 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                  }`}
+                >
+                  <strong>{testFeedback.ok ? '✓ Status:' : '⚠ Warning:'}</strong> {testFeedback.message}
+                </div>
+              )}
+
+              <div className="rounded border border-[var(--color-border)] bg-[var(--color-bg)] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-sm font-semibold text-[var(--color-text)]">
+                    Synchronize Current Data to Firestore
+                  </h4>
+                  <p className="text-xs text-[var(--color-muted)] mt-1 leading-relaxed">
+                    Upload all current {data.projects.length} projects, categories, and profile details to your Firebase database in a single click.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSeedFirebase}
+                  disabled={isSeeding || !isConfigured}
+                  className="btn-primary px-4 py-2 text-xs font-mono shrink-0 cursor-pointer disabled:opacity-40"
+                >
+                  {isSeeding ? 'Syncing...' : 'Sync to Firestore Now'}
+                </button>
+              </div>
             </div>
 
             {/* Environment Variables Status */}

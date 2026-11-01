@@ -54,12 +54,11 @@ export function subscribeToPortfolio(onData: (data: PortfolioData) => void): Uns
           savePortfolioDataLocal(sanitized)
           onData(sanitized)
         } else {
-          // Document does not exist in Firestore yet, provide local data
           onData(fallback)
         }
       },
       (error) => {
-        console.warn('Firestore subscription notice (using local cache):', error.message)
+        console.warn('Firestore subscription status:', error.code, error.message)
         onData(fallback)
       }
     )
@@ -93,9 +92,52 @@ export async function savePortfolioToFirebase(data: PortfolioData): Promise<{ su
       success: true,
       message: 'Successfully saved to Firebase Firestore. Changes are live for all visitors with zero redeploy!',
     }
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Unknown Firestore error'
+  } catch (error: unknown) {
+    const err = error as { code?: string; message?: string }
+    if (err.code === 'permission-denied') {
+      throw new Error(
+        'Permission Denied (403): Your Firestore database is in Production Mode with default blocking rules. Update your Firestore rules in Firebase Console under Firestore Database -> Rules to allow read and write access.'
+      )
+    }
+    const msg = err.message || 'Unknown Firestore error'
     throw new Error(`Failed to save to Firebase: ${msg}`)
+  }
+}
+
+/**
+ * Performs a live ping/read test to Firestore to verify credentials and rules.
+ */
+export async function testFirestoreConnection(): Promise<{ ok: boolean; message: string }> {
+  if (!isFirebaseConfigured() || !db) {
+    return {
+      ok: false,
+      message: 'Firebase configuration is incomplete. Missing VITE_FIREBASE_API_KEY or VITE_FIREBASE_PROJECT_ID.',
+    }
+  }
+
+  try {
+    const docRef = doc(db, COLLECTION_NAME, DOCUMENT_ID)
+    const snapshot = await getDoc(docRef)
+    if (snapshot.exists()) {
+      return { ok: true, message: 'Connected! Successfully read existing portfolio data from Firestore.' }
+    }
+    return {
+      ok: true,
+      message: 'Connected to Firestore! Document does not exist yet; click "Sync to Firestore Now" to upload initial data.',
+    }
+  } catch (error: unknown) {
+    const err = error as { code?: string; message?: string }
+    if (err.code === 'permission-denied') {
+      return {
+        ok: false,
+        message:
+          'Connection Failed (Permission Denied): In Production Mode, default Firestore rules reject all reads and writes. Open Firebase Console -> Firestore Database -> Rules, and set: allow read: if true; allow write: if true; (or if request.auth != null;).',
+      }
+    }
+    return {
+      ok: false,
+      message: `Connection test error: ${err.message || 'Unknown error'}`,
+    }
   }
 }
 

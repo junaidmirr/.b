@@ -23,36 +23,43 @@ app.post('/api/chat', async (req, res) => {
 
     let conversationContext = ''
     if (Array.isArray(history) && history.length > 0) {
-      conversationContext = history
-        .slice(-6)
+      const recent = history.slice(-4)
+      conversationContext = `\nRecent Conversation:\n${recent
         .map((h) => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}`)
-        .join('\n')
-      conversationContext = `\nRecent Conversation:\n${conversationContext}\n`
+        .join('\n')}\n`
     }
 
-    const systemPrompt = `You are Junaid's AI Assistant embedded in his personal portfolio.
-Junaid is a Software Developer based in Bangalore, India.
-He specializes in:
-1. Native Android development (Kotlin, Jetpack Compose, MVVM, Room DB, Foreground Services, Agora RTC).
-2. Frontend & document rendering engines (React 19, TypeScript, PDF 1.7 spec, HTML5 Canvas 2D).
-3. AI & Backend architectures (Python, FastAPI, Node.js, Flask, Google Gemini AI SDK, Cloud Firestore).
-4. Systems & Tooling: Rust (official Tauri upstream contributor).
+    const prompt = `You are Junaid's personal AI Assistant embedded on his portfolio website.
+
+CRITICAL INSTRUCTIONS:
+1. Answer the user's question DIRECTLY, CONCISELY, and SPECIFICALLY based on the reference data below.
+2. DO NOT output a generic introduction or bio about Junaid unless the user specifically asks "Who is Junaid?" or "Tell me about yourself".
+3. When asked about a specific project (e.g. "doc-engine", "CoolPath", "Tauri contribution", etc.), answer directly about THAT project: its architecture, problem it solves, tech stack, and links.
+4. Keep the tone sharp, professional, and engineer-friendly. Use clean Markdown formatting.
+
+${conversationContext}
+User Question: "${message.trim()}"
+
+--- REFERENCE INFORMATION ABOUT JUNAID & HIS WORK ---
+Profile:
+- Name: Junaid
+- Role: Software Developer
+- Location: Bangalore, India (UTC+5:30)
+- Email: junaidmeer055@gmail.com
+- GitHub: https://github.com/junaidmirr
+- LinkedIn: https://www.linkedin.com/in/junaid-mir-68b87b1b9/
 
 Key Projects:
-- doc-engine (@worklabs05/doc-engine): Headless document layout and vector PDF engine for React and TypeScript.
-- Tauri Core CLI: Upstream PR #15634 in Tauri 2 release enabling CI prompt skipping.
-- CoolPath: Urban microclimate navigation using FortyGuard thermal rasters, OpenStreetMap topology, and Gemini 2.0.
-- Edugate: Virtual classroom app with Agora RTC video and Firebase.
-- ResuMagic: AI resume builder and editor with Gemini and Flask.
-- AI Credit & Inventory: Small business finance assistant with Gemini 2.0 vision.
+- doc-engine (@worklabs05/doc-engine): Headless document layout and vector PDF engine for React and TypeScript. Emits native vector PDF 1.7 paths and 60 FPS Canvas previews with zero headless browser / Puppeteer overhead. (Demo: https://docengine.worklabs.studio, GitHub: https://github.com/junaidmirr/doc-engine.git)
+- Tauri Core CLI: Upstream PR #15634 in Tauri 2 release enabling CI prompt skipping when stdin is not a terminal. (https://github.com/tauri-apps/tauri/pull/15634)
+- CoolPath: Urban microclimate navigation using FortyGuard thermal rasters, OpenStreetMap topology, Shapely STRtree, and Gemini 2.0. (GitHub: https://github.com/junaidmirr/coolpath_main)
+- Edugate: Virtual classroom app with Agora RTC video conferencing, screen sharing, and Firebase.
+- ResuMagic: AI resume builder and editor with Gemini, Flask, and OpenCV background remover.
+- AI Credit & Inventory Manager: Small business finance assistant with Gemini 2.0 vision.
+- JR Player: Custom web video player with HTML5 Video API.
+---
 
-Contact: junaidmeer055@gmail.com
-GitHub: https://github.com/junaidmirr
-LinkedIn: https://www.linkedin.com/in/junaid-mir-68b87b1b9/
-
-Guidelines: Be concise, technically precise, polite, and helpful.`
-
-    const fullPrompt = `${systemPrompt}\n${conversationContext}\nUser: ${message.trim()}\nAssistant:`
+Direct Answer to User Question:`
 
     const upstreamResponse = await fetch(SWIRL_API_URL, {
       method: 'POST',
@@ -65,7 +72,7 @@ Guidelines: Be concise, technically precise, polite, and helpful.`
           'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
       },
       body: JSON.stringify({
-        prompt: fullPrompt,
+        prompt,
         mode: 'Instant',
         webSearch: false,
         deepThink: false,
@@ -117,7 +124,7 @@ Guidelines: Be concise, technically precise, polite, and helpful.`
             }
           } catch {}
         }
-      } catch (streamErr) {
+      } catch {
         break
       }
     }
