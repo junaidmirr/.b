@@ -22,26 +22,27 @@
   ],
   "projects": [
     {
+      "features": [
+        "Agentic optimization",
+        "cost saving on tokens"
+      ],
       "linkLabel": "View case study",
       "fullDescription": "Why Layer\n\nIf you use coding agents like Claude Code, Cursor, Windsurf, Codex or OpenCode on real projects, you have probably seen these problems:\n\n1. The agent can't see the big picture. On a repo with thousands of files, agents fall back to grep and dump whole files into the prompt. They read 1,500 line files, burn 100k+ tokens just scanning, lose the thread and go in circles.\n\n2. Fixes turn into guessing games. The agent edits something, breaks a caller it never read, then spends five turns guessing how to repair it.\n\n3. New projects get hallucinated APIs. When starting from scratch, agents invent package functions or get stuck in broken config.\n\nLayer sits between your agent and your code and talks over the standard Model Context Protocol. Instead of raw file dumps, the agent gets symbol outlines, exact function slices, impact graphs and compile checks in milliseconds.\n\nHow it works\n\nLayer does four main things.\n1. Instant syntax checks (under 15ms)\n\nEvery edit is checked in memory using compiled Tree sitter syntax trees. Layer validates grammar, balanced brackets, strings and imports without waiting for a slow compiler to start (tsc alone takes 400 to 800ms to boot).\n2. Safe multi file refactors\n\nWhen an agent changes a shared interface like src/types.ts, Layer separates errors in the file you edited from errors in files that simply haven't been updated yet. Good interface edits are kept, and the agent gets a pending_downstream_updates checklist instead of a rollback.\n3. Full compiler checks and an error circuit breaker\n\nLayer plugs into your real toolchain (tsc, cargo check, pyright, go vet, clang++, dotnet, javac, mvn) and sorts every diagnostic into new, persistent or resolved. If the same error survives two or more turns, the circuit breaker steps in and feeds the agent verified type signatures and definitions so it stops guessing.\n4. Task aware context\n\nInstead of reading whole files, Layer ranks code using BM25F scoring, Personalized PageRank and test pairing. It returns small slices with exact line numbers, saving three to five wasted grep and read turns per task.\nBuilt to scale (v1.3)\n\n    No lock contention. Indexing runs in the background and swaps in atomically, so agent queries never wait on a big scan.\n    Fast cold starts. A seed scanner capped at 250ms handles the first query on a fresh repo.\n    Constant time lookups. Hash indexes replace full repo scans, so 10,000+ symbols are searched in under 40ms with a hard 450ms deadline.\n    Do no harm by default. auto_rollback_on_cascade is off, so modern syntax (Python 3.12, TypeScript 5.x) never triggers a false rollback.\n",
       "stack": [
         "Rust"
       ],
-      "icon": "spark",
-      "description": "Tree-sitter AST code navigation, static call-graph analysis, and Model Context Protocol (MCP) server for AI coding agents.",
-      "features": [
-        ""
-      ],
       "title": "Layer",
-      "githubUrl": "https://github.com/junaidmirr/layer",
-      "liveUrl": "",
+      "description": "Tree-sitter AST code navigation, static call-graph analysis, and Model Context Protocol (MCP) server for AI coding agents.",
       "technologies": [
         {
-          "name": "",
-          "details": ""
+          "details": "",
+          "name": ""
         }
       ],
-      "category": "Open Source Contribution"
+      "category": "Featured Open Source, Vector PDF Engine",
+      "icon": "spark",
+      "githubUrl": "https://github.com/junaidmirr/layer",
+      "liveUrl": "https://layer.worklabs.studio/"
     },
     {
       "features": [
@@ -52,17 +53,8 @@
         "Zero Puppeteer, zero Chromium, and zero Python daemon dependencies",
         "Available on npm as @worklabs05/doc-engine with comprehensive documentation"
       ],
-      "title": "doc-engine",
-      "fullDescription": "doc-engine (@worklabs05/doc-engine) is an open source headless document layout and vector rendering engine for React and TypeScript. Unlike traditional approaches that depend on bloated headless Chromium instances (Puppeteer) or heavy Python daemons, doc-engine calculates document layout coordinates in pure TypeScript and emits native vector PDF 1.7 operators and 60 FPS Canvas previews with zero server side overhead.",
       "linkLabel": "View case study",
-      "category": "Featured Open Source, Vector PDF Engine",
-      "stack": [
-        "TypeScript",
-        "React",
-        "PDF 1.7 Spec",
-        "HTML5 Canvas",
-        "npm package"
-      ],
+      "fullDescription": "doc-engine (@worklabs05/doc-engine) is an open source headless document layout and vector rendering engine for React and TypeScript. Unlike traditional approaches that depend on bloated headless Chromium instances (Puppeteer) or heavy Python daemons, doc-engine calculates document layout coordinates in pure TypeScript and emits native vector PDF 1.7 operators and 60 FPS Canvas previews with zero server side overhead.",
       "description": "A high performance headless document layout and vector rendering engine for React and TypeScript. Renders searchable vector PDF 1.7 streams and 60 FPS HTML5 Canvas previews without headless browsers or server daemons.",
       "technologies": [
         {
@@ -74,8 +66,8 @@
           "name": "Vector Renderers"
         },
         {
-          "name": "React Integration",
-          "details": "React 19 Components, usePDF Hook, useDocument Hook, DocumentViewer component"
+          "details": "React 19 Components, usePDF Hook, useDocument Hook, DocumentViewer component",
+          "name": "React Integration"
         },
         {
           "details": "Published to npm (@worklabs05/doc-engine), Vite, Rollup, ESM and CJS Dual Exports",
@@ -83,32 +75,30 @@
         }
       ],
       "icon": "code",
-      "githubUrl": "https://github.com/junaidmirr/doc-engine.git",
-      "liveUrl": "https://docengine.worklabs.studio"
+      "stack": [
+        "TypeScript",
+        "React",
+        "PDF 1.7 Spec",
+        "HTML5 Canvas",
+        "npm package"
+      ],
+      "category": "Featured Open Source, Vector PDF Engine",
+      "liveUrl": "https://docengine.worklabs.studio",
+      "title": "doc-engine",
+      "githubUrl": "https://github.com/junaidmirr/doc-engine.git"
     },
     {
-      "liveUrl": "https://github.com/tauri-apps/tauri/pull/15634",
       "features": [
         "Official upstream contribution to tauri-apps/tauri merged for Tauri 2 release",
         "Automatic prompt skipping when stdin is not a terminal in tauri init",
         "Eliminated requirement for passing --ci explicitly in headless environments",
         "Prevented IO blocking and panics in automated CI test runners"
       ],
-      "linkLabel": "View contribution details",
-      "description": "Upstream contribution to the official Tauri desktop framework CLI (tauri init) enabling automatic prompt skipping in non interactive terminal and CI environments.",
-      "category": "Open Source Contribution",
-      "title": "Tauri Core CLI",
-      "stack": [
-        "Rust",
-        "Tauri CLI",
-        "Open Source",
-        "CI Workflows"
-      ],
-      "githubUrl": "https://github.com/tauri-apps/tauri/pull/15634",
+      "icon": "code",
       "technologies": [
         {
-          "details": "tauri-apps/tauri (Official Tauri Core)",
-          "name": "Repository"
+          "name": "Repository",
+          "details": "tauri-apps/tauri (Official Tauri Core)"
         },
         {
           "name": "Core Language",
@@ -119,18 +109,21 @@
           "name": "PR Reference"
         }
       ],
+      "linkLabel": "View contribution details",
+      "description": "Upstream contribution to the official Tauri desktop framework CLI (tauri init) enabling automatic prompt skipping in non interactive terminal and CI environments.",
+      "title": "Tauri Core CLI",
+      "stack": [
+        "Rust",
+        "Tauri CLI",
+        "Open Source",
+        "CI Workflows"
+      ],
       "fullDescription": "Contributed directly to the official Tauri repository (tauri-apps/tauri) in release 2.12. Enhanced the tauri init command so that when stdin is not a terminal, the CLI automatically skips interactive prompts, preventing IO errors in continuous integration scripts and automated build environments.",
-      "icon": "code"
+      "githubUrl": "https://github.com/tauri-apps/tauri/pull/15634",
+      "liveUrl": "https://github.com/tauri-apps/tauri/pull/15634",
+      "category": "Open Source Contribution"
     },
     {
-      "stack": [
-        "Python",
-        "FastAPI",
-        "React Native / Expo",
-        "Gemini 2.0",
-        "FortyGuard API"
-      ],
-      "description": "Intelligent urban heat aware route planner combining FortyGuard thermal rasters, thermodynamic physiological modeling, and Gemini 2.0 to navigate pedestrians and athletes through shade rich pathways.",
       "features": [
         "Multi objective Pareto routing solver (Fastest vs Shaded vs Balanced thermal paths)",
         "Sub millisecond spatial indexing using Shapely STRtree point in polygon bounding box search",
@@ -139,6 +132,17 @@
         "Automated route audio briefings generated via AWS Polly speech synthesis",
         "Universal frontend built with Expo React Native compiling to responsive web"
       ],
+      "stack": [
+        "Python",
+        "FastAPI",
+        "React Native / Expo",
+        "Gemini 2.0",
+        "FortyGuard API"
+      ],
+      "linkLabel": "View case study",
+      "title": "CoolPath",
+      "fullDescription": "CoolPath is an AI powered microclimate navigation engine designed to protect pedestrians, runners, and cyclists from extreme urban heat islands. By combining high resolution thermal rasters from FortyGuard with OpenStreetMap topology, Gemini 2.0 natural language parsing, and human thermodynamic physiological modeling, CoolPath routes travelers through shaded, microclimate cooled pathways.",
+      "description": "Intelligent urban heat aware route planner combining FortyGuard thermal rasters, thermodynamic physiological modeling, and Gemini 2.0 to navigate pedestrians and athletes through shade rich pathways.",
       "githubUrl": "https://github.com/junaidmirr/coolpath_main",
       "technologies": [
         {
@@ -146,12 +150,12 @@
           "name": "Spatial Backend"
         },
         {
-          "details": "Google Gemini 2.0 Flash, AWS Polly Speech Engine, Open Meteo Weather API",
-          "name": "AI & Voice Synthesis"
+          "name": "AI & Voice Synthesis",
+          "details": "Google Gemini 2.0 Flash, AWS Polly Speech Engine, Open Meteo Weather API"
         },
         {
-          "name": "Thermal Intelligence",
-          "details": "FortyGuard Spatial Heat Raster API, Core Thermodynamic Heat Storage Equations"
+          "details": "FortyGuard Spatial Heat Raster API, Core Thermodynamic Heat Storage Equations",
+          "name": "Thermal Intelligence"
         },
         {
           "name": "Universal Frontend",
@@ -159,35 +163,24 @@
         }
       ],
       "category": "AI Microclimate Navigation Engine",
-      "liveUrl": "#",
-      "title": "CoolPath",
-      "linkLabel": "View case study",
-      "fullDescription": "CoolPath is an AI powered microclimate navigation engine designed to protect pedestrians, runners, and cyclists from extreme urban heat islands. By combining high resolution thermal rasters from FortyGuard with OpenStreetMap topology, Gemini 2.0 natural language parsing, and human thermodynamic physiological modeling, CoolPath routes travelers through shaded, microclimate cooled pathways.",
-      "icon": "globe"
+      "icon": "globe",
+      "liveUrl": "#"
     },
     {
-      "features": [
-        "AI powered resume parsing and generation",
-        "Real time PDF preview and printing",
-        "Integrated background remover for profile photos",
-        "Secure authentication with Firebase",
-        "Responsive design with Tailwind CSS 4",
-        "Captcha protection with Cloudflare Turnstile"
-      ],
+      "githubUrl": "",
       "icon": "spark",
-      "title": "ResuMagic",
       "technologies": [
         {
-          "details": "React 19, TypeScript, Vite, Tailwind CSS 4, React Router DOM 7, Lucide React, react-to-print",
-          "name": "Frontend"
+          "name": "Frontend",
+          "details": "React 19, TypeScript, Vite, Tailwind CSS 4, React Router DOM 7, Lucide React, react-to-print"
         },
         {
-          "name": "AI Engine",
-          "details": "@google/generative-ai (Gemini AI SDK), google-generativeai"
+          "details": "@google/generative-ai (Gemini AI SDK), google-generativeai",
+          "name": "AI Engine"
         },
         {
-          "details": "Flask (Python), ReportLab (PDF Gen), PyMuPDF (PDF Parsing), python-docx (Word support)",
-          "name": "Backend"
+          "name": "Backend",
+          "details": "Flask (Python), ReportLab (PDF Gen), PyMuPDF (PDF Parsing), python-docx (Word support)"
         },
         {
           "details": "OpenCV (cv2), Pillow (PIL) for Background Remover",
@@ -198,29 +191,49 @@
           "details": "Firebase Auth & Firestore, Vercel, Cloudflare Turnstile, SMTP Integration (Mailjet)"
         }
       ],
-      "linkLabel": "View case study",
-      "category": "Full Stack AI App",
-      "description": "An on the go easy AI resume builder and editor with Gemini integration.",
       "fullDescription": "ResuMagic is a modern AI powered resume builder designed to simplify the professional document creation process. It leverages Google Gemini AI to parse existing resumes, generate professional summaries, and provide real time editing suggestions. The app features a high fidelity editor with real time PDF preview and background removal for profile photos.",
-      "githubUrl": "",
+      "category": "Full Stack AI App",
       "liveUrl": "https://resumagic-ai-resume-builder.vercel.app",
       "stack": [
         "React 19",
         "Flask",
         "Gemini AI",
         "Firebase"
-      ]
+      ],
+      "features": [
+        "AI powered resume parsing and generation",
+        "Real time PDF preview and printing",
+        "Integrated background remover for profile photos",
+        "Secure authentication with Firebase",
+        "Responsive design with Tailwind CSS 4",
+        "Captcha protection with Cloudflare Turnstile"
+      ],
+      "title": "ResuMagic",
+      "linkLabel": "View case study",
+      "description": "An on the go easy AI resume builder and editor with Gemini integration."
     },
     {
+      "description": "A feature rich Android app for real time video conferencing, screen sharing, and educational resource management.",
+      "features": [
+        "Real time Video Conferencing powered by Agora RTC SDK",
+        "Live Screen Sharing with foreground service integration",
+        "Secure Authentication with Google Sign In and Firebase",
+        "Comprehensive Document Management (Excel, Word, PDF)",
+        "Secure Cloud Storage for educational materials",
+        "Real time data synchronization via Firestore",
+        "Modern, responsive UI built with Jetpack Compose"
+      ],
+      "linkLabel": "View case study",
+      "icon": "rocket",
+      "fullDescription": "Edugate is a modern, feature rich Android application designed to facilitate virtual classrooms and real time collaboration. Built entirely with Jetpack Compose and powered by Agora and Firebase, it provides a seamless experience for educators and students to connect, share screens, and manage educational resources.",
+      "liveUrl": "#",
       "stack": [
         "Kotlin",
         "Jetpack Compose",
         "Agora RTC",
         "Firebase"
       ],
-      "linkLabel": "View case study",
-      "fullDescription": "Edugate is a modern, feature rich Android application designed to facilitate virtual classrooms and real time collaboration. Built entirely with Jetpack Compose and powered by Agora and Firebase, it provides a seamless experience for educators and students to connect, share screens, and manage educational resources.",
-      "description": "A feature rich Android app for real time video conferencing, screen sharing, and educational resource management.",
+      "githubUrl": "https://github.com/junaidmirr/Edugate-a-smart-classroom-app.git",
       "technologies": [
         {
           "details": "Kotlin, Jetpack Compose, MVVM Architecture, Navigation Compose, Coil, Lifecycle KTX",
@@ -239,35 +252,44 @@
           "details": "Apache POI (XLSX, DOCX), OpenPDF / LibrePDF (PDF rendering)"
         },
         {
-          "details": "Foreground Services, Custom FileProvider (EdugateFileProvider)",
-          "name": "System Integration"
+          "name": "System Integration",
+          "details": "Foreground Services, Custom FileProvider (EdugateFileProvider)"
         }
       ],
-      "features": [
-        "Real time Video Conferencing powered by Agora RTC SDK",
-        "Live Screen Sharing with foreground service integration",
-        "Secure Authentication with Google Sign In and Firebase",
-        "Comprehensive Document Management (Excel, Word, PDF)",
-        "Secure Cloud Storage for educational materials",
-        "Real time data synchronization via Firestore",
-        "Modern, responsive UI built with Jetpack Compose"
-      ],
-      "githubUrl": "https://github.com/junaidmirr/Edugate-a-smart-classroom-app.git",
       "title": "Edugate",
-      "icon": "rocket",
-      "liveUrl": "#",
       "category": "Virtual Classroom App"
     },
     {
+      "description": "AI enabled credit and inventory management app for small businesses.",
+      "fullDescription": "AI Credit and Inventory Management App is a comprehensive financial tool for small businesses, combining traditional credit management with modern AI features. It uses Gemini 2.0 Flash for real time product identification and financial data analysis, helping merchants manage their inventory and customer debts efficiently.",
+      "icon": "briefcase",
+      "linkLabel": "View case study",
+      "features": [
+        "Real time product identification via AI Vision",
+        "Automated credit tracking and reminders",
+        "Professional Excel and PDF report generation",
+        "Offline first capability with cloud sync",
+        "Dark or Light mode with Material You theme",
+        "Voice enabled chat assistant"
+      ],
       "category": "FinTech AI App",
+      "liveUrl": "#",
+      "title": "AI Credit and Inventory Management App",
+      "stack": [
+        "Kotlin",
+        "Compose",
+        "Gemini 2.0",
+        "Firebase"
+      ],
+      "githubUrl": "https://github.com/junaidmirr/Ai-integrated-credit-and-inventory-manager-app.git",
       "technologies": [
         {
           "details": "Kotlin, Jetpack Compose, Clean Architecture, Material Design 3 (Material You)",
           "name": "Core Development"
         },
         {
-          "details": "Gemini 2.0 Flash, Google Generative AI SDK, Firebase Auth, Firestore, Storage, Android BOM",
-          "name": "AI & Cloud"
+          "name": "AI & Cloud",
+          "details": "Gemini 2.0 Flash, Google Generative AI SDK, Firebase Auth, Firestore, Storage, Android BOM"
         },
         {
           "name": "Local Storage",
@@ -281,34 +303,21 @@
           "name": "Navigation & State",
           "details": "Jetpack Compose Navigation, Lifecycle, Coroutines & Flow, Version Catalogs"
         }
-      ],
-      "fullDescription": "AI Credit and Inventory Management App is a comprehensive financial tool for small businesses, combining traditional credit management with modern AI features. It uses Gemini 2.0 Flash for real time product identification and financial data analysis, helping merchants manage their inventory and customer debts efficiently.",
-      "linkLabel": "View case study",
+      ]
+    },
+    {
       "liveUrl": "#",
-      "title": "AI Credit and Inventory Management App",
-      "features": [
-        "Real time product identification via AI Vision",
-        "Automated credit tracking and reminders",
-        "Professional Excel and PDF report generation",
-        "Offline first capability with cloud sync",
-        "Dark or Light mode with Material You theme",
-        "Voice enabled chat assistant"
-      ],
-      "description": "AI enabled credit and inventory management app for small businesses.",
+      "icon": "layout",
+      "description": "An on screen AI assistant app for Android providing seamless interaction.",
+      "githubUrl": "https://github.com/junaidmirr/on-screen-Ai-assistant.git",
+      "category": "Android AI Assistant",
+      "title": "Ai assistant app",
       "stack": [
         "Kotlin",
         "Compose",
-        "Gemini 2.0",
+        "Gemini 1.5",
         "Firebase"
       ],
-      "githubUrl": "https://github.com/junaidmirr/Ai-integrated-credit-and-inventory-manager-app.git",
-      "icon": "briefcase"
-    },
-    {
-      "fullDescription": "Fapper AI is a revolutionary Android application that provides an on screen AI assistant. It allows users to interact with AI without leaving their current app, thanks to a sophisticated floating overlay menu. It features real time screen analysis, voice commands, and AI powered image editing.",
-      "icon": "layout",
-      "title": "Ai assistant app",
-      "category": "Android AI Assistant",
       "features": [
         "Floating overlay menu for instant AI access",
         "Real time screen capture and analysis",
@@ -317,37 +326,29 @@
         "Cloud sync for history and credits",
         "Offline first with Room database"
       ],
-      "githubUrl": "https://github.com/junaidmirr/on-screen-Ai-assistant.git",
-      "liveUrl": "#",
-      "description": "An on screen AI assistant app for Android providing seamless interaction.",
       "linkLabel": "View case study",
+      "fullDescription": "Fapper AI is a revolutionary Android application that provides an on screen AI assistant. It allows users to interact with AI without leaving their current app, thanks to a sophisticated floating overlay menu. It features real time screen analysis, voice commands, and AI powered image editing.",
       "technologies": [
         {
-          "details": "Kotlin, Jetpack Compose, Material Design 3 (M3), Coroutines & Flow",
-          "name": "Core Development"
+          "name": "Core Development",
+          "details": "Kotlin, Jetpack Compose, Material Design 3 (M3), Coroutines & Flow"
         },
         {
-          "details": "Gemini AI SDK (1.5-flash), gemini-3-pro-image-preview, Google Cloud STT & TTS",
-          "name": "Artificial Intelligence"
+          "name": "Artificial Intelligence",
+          "details": "Gemini AI SDK (1.5-flash), gemini-3-pro-image-preview, Google Cloud STT & TTS"
         },
         {
-          "details": "Firebase Authentication, Google Sign In, Cloud Firestore",
-          "name": "Backend & Auth"
+          "name": "Backend & Auth",
+          "details": "Firebase Authentication, Google Sign In, Cloud Firestore"
         },
         {
-          "details": "MediaProjection API, Foreground Services (FloatingService), WindowManager, Coil",
-          "name": "System Integration"
+          "name": "System Integration",
+          "details": "MediaProjection API, Foreground Services (FloatingService), WindowManager, Coil"
         },
         {
-          "name": "Architecture",
-          "details": "Clean Architecture, Jetpack Navigation, Gradle (Kotlin DSL), Version Catalog"
+          "details": "Clean Architecture, Jetpack Navigation, Gradle (Kotlin DSL), Version Catalog",
+          "name": "Architecture"
         }
-      ],
-      "stack": [
-        "Kotlin",
-        "Compose",
-        "Gemini 1.5",
-        "Firebase"
       ]
     }
   ]
