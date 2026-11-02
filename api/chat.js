@@ -1,16 +1,21 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 function getPortfolioContext() {
-  try {
-    const dataPath = path.join(process.cwd(), 'src', 'portfolioData.json')
-    if (fs.existsSync(dataPath)) {
-      const content = fs.readFileSync(dataPath, 'utf8')
-      const data = JSON.parse(content)
-      return data
-    }
-  } catch (err) {
-    console.warn('Could not read portfolioData.json for AI context:', err)
+  const possiblePaths = [
+    path.join(path.dirname(fileURLToPath(import.meta.url)), 'portfolioData.json'),
+    path.join(process.cwd(), 'api', 'portfolioData.json'),
+    path.join(process.cwd(), 'src', 'portfolioData.json'),
+  ]
+
+  for (const p of possiblePaths) {
+    try {
+      if (fs.existsSync(p)) {
+        const content = fs.readFileSync(p, 'utf8')
+        return JSON.parse(content)
+      }
+    } catch {}
   }
   return null
 }
@@ -26,19 +31,19 @@ function buildProjectReference(projects) {
         ? p.technologies.map((t) => `  * ${t.name}: ${t.details}`).join('\n')
         : ''
 
-      return `${index + 1}. ${p.title}
+      return `Project ${index + 1}: ${p.title}
 - Category: ${p.category}
 - Summary: ${p.description}
 - Technical Overview: ${p.fullDescription}
 - Tech Stack: ${stack}
 - GitHub Link: ${p.githubUrl || 'N/A'}
-- Live Link: ${p.liveUrl || 'N/A'}
+- Live Demo: ${p.liveUrl || 'N/A'}
 - Key Features:
 ${features}
 - Architecture & Technologies:
 ${tech}`
     })
-    .join('\n\n')
+    .join('\n\n---\n\n')
 }
 
 export default async function handler(req, res) {
@@ -66,9 +71,9 @@ export default async function handler(req, res) {
     const profile = portfolio?.profile || {
       name: 'Junaid',
       role: 'Software Developer',
-      headline: 'Native Android and full stack web developer.',
-      bio: "I'm Junaid, a software engineer with 3+ years of experience building applications. Creator of doc-engine, an open source vector PDF engine, contributor to Tauri, and developer of production Android apps with Kotlin and Jetpack Compose.",
-      location: 'Bangalore, India (UTC+5:30)',
+      headline: 'Software Developer',
+      bio: "Computer Engineering student and software engineer with expertise in native Android (Kotlin, Jetpack Compose), modern web engineering (React 19, TypeScript), systems tooling (Rust, Tauri upstream contributor), and AI architectures.",
+      location: 'Bangalore, India',
       email: 'junaidmeer055@gmail.com',
       github: 'https://github.com/junaidmirr',
       linkedin: 'https://www.linkedin.com/in/junaid-mir-68b87b1b9/',
@@ -86,23 +91,20 @@ export default async function handler(req, res) {
 
     const prompt = `You are Junaid Mir's portfolio AI assistant embedded on his personal engineering portfolio.
 
-STRICT SCOPE BOUNDARY RULE:
-You MUST ONLY answer questions directly related to Junaid, his background, his engineering skills, contact details, or his specific projects (doc-engine, CoolPath, Layer, Tauri CLI contribution, Edugate, ResuMagic, AI Credit & Inventory App, Fapper AI, JR Player).
-If the user asks an off-topic question (recipes, unrelated code, generic trivia, homework, politics, non-portfolio topics):
-Politely decline with:
-"I am Junaid's portfolio assistant and can only answer questions about Junaid, his engineering projects (such as doc-engine or CoolPath), technical skills, and background. Feel free to ask about any of his projects!"
+STRICT SCOPE RULE:
+Answer questions about Junaid, his background, his engineering skills, contact details, or his specific projects. If the query is off-topic (e.g. recipes, generic homework, random coding exercises, unrelated trivia), respond:
+"I am Junaid's portfolio assistant and can only answer questions about Junaid, his engineering projects, technical skills, and background. Feel free to ask about any of his projects!"
 
-CRITICAL RESPONSE GUIDELINES:
-1. Answer the user's specific question DIRECTLY and ACCURATELY based on the knowledge base below.
-2. DO NOT start your response with a generic introduction or bio about Junaid (e.g. "Junaid is a Computer Engineering student based in Bangalore...") UNLESS the user explicitly asks "Who is Junaid?" or "Tell me about yourself".
-3. When asked about a specific project (e.g. "doc-engine", "CoolPath", "Layer", "Tauri", etc.), talk EXCLUSIVELY about that project (what it does, technical architecture, tech stack, and GitHub/demo link).
-4. Keep the tone sharp, factual, and engineer-friendly. Use clean Markdown formatting with bullet points and bold text where helpful.
+CRITICAL INSTRUCTIONS:
+1. When asked about a specific project (e.g. "doc-engine", "CoolPath", "Layer", "Tauri contribution", etc.), talk EXCLUSIVELY and DIRECTLY about that project (its architecture, problem it solves, tech stack, and links). DO NOT start with Junaid's general bio or an introductory summary of who Junaid is.
+2. DO NOT output a generic bio unless the user explicitly asks "Who is Junaid?" or "Tell me about yourself".
+3. Use clean Markdown formatting with bullet points and bold text where helpful.
+4. Keep answers sharp, factual, and engineer-focused.
 
 --- KNOWLEDGE BASE ---
 Profile:
 - Name: ${profile.name}
 - Role: ${profile.role}
-- Headline: ${profile.headline}
 - Location: ${profile.location}
 - Email: ${profile.email}
 - GitHub: ${profile.github}
