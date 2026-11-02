@@ -544,19 +544,6 @@ export function ErrorPage({
                 >
                   /contact
                 </button>
-                <span className="text-[var(--color-border)]">•</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (typeof window !== 'undefined') {
-                      window.history.pushState(null, '', '/iam_admin')
-                      window.dispatchEvent(new PopStateEvent('popstate'))
-                    }
-                  }}
-                  className="text-[var(--color-muted)] hover:text-[var(--color-text)] cursor-pointer"
-                >
-                  /iam_admin
-                </button>
               </div>
             </div>
           </div>
