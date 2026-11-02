@@ -63,6 +63,15 @@ export function AiAssistant() {
     }
   }, [isOpen, messages])
 
+  // Custom event trigger to open from error pages or navigation
+  useEffect(() => {
+    const handleOpenAI = () => {
+      setIsOpen(true)
+    }
+    window.addEventListener('open-junaid-ai', handleOpenAI)
+    return () => window.removeEventListener('open-junaid-ai', handleOpenAI)
+  }, [])
+
   // ESC to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

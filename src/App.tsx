@@ -4,6 +4,7 @@ import { getPortfolioData } from './portfolioDataManager'
 import { subscribeToPortfolio } from './services/portfolioService'
 import { AiAssistant } from './components/AiAssistant'
 import { CookieConsent } from './components/CookieConsent'
+import { ErrorPage } from './components/ErrorPage'
 import type { Theme, Project, SkillCategory, PortfolioData } from './types'
 
 const AdminPage = lazy(() =>
@@ -65,6 +66,48 @@ const skillCategories: SkillCategory[] = [
   },
 ]
 
+type RouteState =
+  | { type: 'home' }
+  | { type: 'admin' }
+  | { type: 'error'; code: 404 | 403 | 500; path: string }
+
+function resolveCurrentRoute(): RouteState {
+  if (typeof window === 'undefined') return { type: 'home' }
+  const rawPath = window.location.pathname
+  const normalized = rawPath.replace(/\/+$/, '') || '/'
+  const hash = window.location.hash
+
+  if (
+    normalized === '/iam_admin' ||
+    normalized.startsWith('/iam_admin') ||
+    hash === '#iam_admin'
+  ) {
+    return { type: 'admin' }
+  }
+
+  if (
+    normalized === '/' ||
+    normalized === '/index.html' ||
+    normalized === '/7c848149d5bed83d6bced0b8f1c39d47.txt'
+  ) {
+    return { type: 'home' }
+  }
+
+  if (normalized === '/404' || normalized === '/not-found') {
+    return { type: 'error', code: 404, path: rawPath }
+  }
+
+  if (normalized === '/403' || normalized === '/forbidden') {
+    return { type: 'error', code: 403, path: rawPath }
+  }
+
+  if (normalized === '/500' || normalized === '/server-error' || normalized === '/error') {
+    return { type: 'error', code: 500, path: rawPath }
+  }
+
+  return { type: 'error', code: 404, path: rawPath }
+}
+
 function getInitialTheme(): Theme {
   if (typeof window === 'undefined') return 'light'
   const stored = window.localStorage.getItem('theme')
@@ -75,6 +118,7 @@ function getInitialTheme(): Theme {
 export default function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
   const [portfolioData, setPortfolioData] = useState<PortfolioData>(getPortfolioData)
+  const [route, setRoute] = useState<RouteState>(resolveCurrentRoute)
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
     return (
@@ -111,14 +155,12 @@ export default function App() {
     }
   }, [])
 
-  // Listen to browser navigation for /iam_admin
+  // Listen to browser navigation changes
   useEffect(() => {
     const handleRouteCheck = () => {
-      const isTarget =
-        window.location.pathname === '/iam_admin' ||
-        window.location.pathname.startsWith('/iam_admin') ||
-        window.location.hash === '#iam_admin'
-      setIsAdminOpen(isTarget)
+      const nextRoute = resolveCurrentRoute()
+      setRoute(nextRoute)
+      setIsAdminOpen(nextRoute.type === 'admin')
     }
 
     window.addEventListener('popstate', handleRouteCheck)
@@ -136,6 +178,7 @@ export default function App() {
     } else if (window.location.hash.includes('iam_admin')) {
       window.location.hash = ''
     }
+    setRoute({ type: 'home' })
   }
 
   useEffect(() => {
@@ -286,6 +329,32 @@ export default function App() {
     }
     return true
   })
+
+  // Render responsive minimalist error page if invalid route
+  if (route.type === 'error') {
+    return (
+      <div className="relative min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+        <ErrorPage
+          code={route.code}
+          requestedPath={route.path}
+          theme={theme}
+          onToggleTheme={() => setTheme((curr) => (curr === 'light' ? 'dark' : 'light'))}
+          onNavigateHome={() => {
+            window.history.pushState(null, '', '/')
+            setRoute({ type: 'home' })
+          }}
+          onOpenAssistant={() => {
+            window.dispatchEvent(new CustomEvent('open-junaid-ai'))
+          }}
+          onRetry={() => {
+            window.location.reload()
+          }}
+        />
+        <AiAssistant />
+        <CookieConsent />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] transition-colors duration-200">
