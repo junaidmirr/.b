@@ -21,7 +21,7 @@ function getPortfolioContext() {
 }
 
 function getMatchingProjects(projects, query) {
-  if (!Array.isArray(projects) || projects.length === 0) return []
+  if (!Array.isArray(projects) || projects.length === 0) return { matched: [], isExplicit: false }
   const q = (query || '').toLowerCase()
 
   const scored = projects.map((p) => {
@@ -40,17 +40,21 @@ function getMatchingProjects(projects, query) {
 
   scored.sort((a, b) => b.score - a.score)
 
-  // If a specific project was queried directly, isolate context to ONLY that project
   if (scored[0] && scored[0].score >= 15) {
-    return [scored[0].project]
+    return { matched: [scored[0].project], isExplicit: true }
   }
 
-  // Otherwise return summaries of top projects
-  return scored.slice(0, 5).map((s) => s.project)
+  return { matched: scored.slice(0, 5).map((s) => s.project), isExplicit: false }
 }
 
-function buildProjectReference(projects) {
+function buildProjectReference(projects, isExplicit) {
   if (!Array.isArray(projects) || projects.length === 0) return ''
+
+  if (!isExplicit) {
+    return projects
+      .map((p) => `- **${p.title}** (${p.category}): ${p.description}`)
+      .join('\n')
+  }
 
   return projects
     .map((p, index) => {
@@ -108,8 +112,8 @@ export default async function handler(req, res) {
       linkedin: 'https://www.linkedin.com/in/junaid-mir-68b87b1b9/',
     }
 
-    const matchedProjects = getMatchingProjects(portfolio?.projects || [], message)
-    const projectsRef = buildProjectReference(matchedProjects)
+    const { matched, isExplicit } = getMatchingProjects(portfolio?.projects || [], message)
+    const projectsRef = buildProjectReference(matched, isExplicit)
 
     let conversationFormatted = ''
     if (Array.isArray(history) && history.length > 0) {
@@ -122,14 +126,16 @@ export default async function handler(req, res) {
     const prompt = `You are Junaid Mir's portfolio AI assistant embedded on his personal engineering portfolio.
 
 STRICT SCOPE RULE:
-Answer questions about Junaid, his background, his engineering skills, contact details, or his specific projects. If the query is off-topic (e.g. recipes, generic homework, random coding exercises, unrelated trivia), respond:
-"I am Junaid's portfolio assistant and can only answer questions about Junaid, his engineering projects, technical skills, and background. Feel free to ask about any of his projects!"
+You answer questions ONLY about Junaid, his background, his engineering skills, contact details, or his software projects.
+If the user asks an off-topic question (recipes, cooking, homework, general coding questions not about Junaid's work, games, math, trivia, weather, politics):
+YOU MUST DECLINE POLITELY with:
+"I am Junaid's portfolio assistant and can only answer questions about Junaid, his engineering projects (such as doc-engine or CoolPath), technical skills, and background. Feel free to ask about any of his projects!"
+Do NOT answer off-topic questions.
 
 CRITICAL INSTRUCTIONS:
-1. Answer the question directly and specifically based on the reference projects below.
-2. DO NOT start with Junaid's general bio (e.g. "Junaid is a Computer Engineering student...") unless the user explicitly asks "Who is Junaid?" or "Tell me about yourself".
-3. When asked about a specific project, describe THAT project directly: architecture, problem it solves, tech stack, and GitHub link.
-4. Keep answers sharp, factual, and formatted cleanly with Markdown.
+1. When asked about a specific project, describe THAT project directly: architecture, problem it solves, tech stack, and links.
+2. DO NOT start with Junaid's general bio unless the user explicitly asks "Who is Junaid?" or "Tell me about yourself".
+3. Keep answers sharp, factual, and formatted cleanly with Markdown.
 
 --- REFERENCE KNOWLEDGE BASE ---
 Profile:
