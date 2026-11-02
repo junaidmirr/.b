@@ -20,6 +20,28 @@ function getPortfolioContext() {
   return null
 }
 
+function getPrioritizedProjects(projects, query) {
+  if (!Array.isArray(projects) || projects.length === 0) return []
+  const q = (query || '').toLowerCase()
+
+  const scored = projects.map((p) => {
+    let score = 0
+    const title = (p.title || '').toLowerCase()
+    if (q.includes(title) || (title.length > 3 && title.includes(q))) score += 25
+
+    const tokens = q.split(/[^a-zA-Z0-9]+/).filter((t) => t.length > 2)
+    for (const t of tokens) {
+      if (title.includes(t)) score += 15
+      if ((p.description || '').toLowerCase().includes(t)) score += 5
+      if (Array.isArray(p.stack) && p.stack.some((s) => s.toLowerCase().includes(t))) score += 5
+    }
+    return { project: p, score }
+  })
+
+  scored.sort((a, b) => b.score - a.score)
+  return scored.map((s) => s.project)
+}
+
 function buildProjectReference(projects) {
   if (!Array.isArray(projects) || projects.length === 0) return ''
 
@@ -79,7 +101,9 @@ export default async function handler(req, res) {
       linkedin: 'https://www.linkedin.com/in/junaid-mir-68b87b1b9/',
     }
 
-    const projectsRef = buildProjectReference(portfolio?.projects || [])
+    const prioritizedProjects = getPrioritizedProjects(portfolio?.projects || [], message)
+    // Keep the most relevant projects first, capped to keep prompt focused
+    const projectsRef = buildProjectReference(prioritizedProjects.slice(0, 4))
 
     let conversationFormatted = ''
     if (Array.isArray(history) && history.length > 0) {
@@ -96,12 +120,12 @@ Answer questions about Junaid, his background, his engineering skills, contact d
 "I am Junaid's portfolio assistant and can only answer questions about Junaid, his engineering projects, technical skills, and background. Feel free to ask about any of his projects!"
 
 CRITICAL INSTRUCTIONS:
-1. When asked about a specific project (e.g. "doc-engine", "CoolPath", "Layer", "Tauri contribution", etc.), talk EXCLUSIVELY and DIRECTLY about that project (its architecture, problem it solves, tech stack, and links). DO NOT start with Junaid's general bio or an introductory summary of who Junaid is.
-2. DO NOT output a generic bio unless the user explicitly asks "Who is Junaid?" or "Tell me about yourself".
-3. Use clean Markdown formatting with bullet points and bold text where helpful.
-4. Keep answers sharp, factual, and engineer-focused.
+1. Identify the specific project or subject the user is asking about and answer ONLY about that topic.
+2. DO NOT start with Junaid's general bio or an intro summary (e.g. "Junaid is a Computer Engineering student...") unless the user explicitly asks "Who is Junaid?" or "Tell me about yourself".
+3. When asked about a specific project (e.g. doc-engine, CoolPath, Layer, Tauri contribution, etc.), describe THAT project directly: problem statement, architecture, tech stack, and GitHub link.
+4. Keep the answer crisp, engineer-focused, and formatted cleanly with Markdown.
 
---- KNOWLEDGE BASE ---
+--- REFERENCE KNOWLEDGE BASE ---
 Profile:
 - Name: ${profile.name}
 - Role: ${profile.role}
@@ -109,7 +133,7 @@ Profile:
 - Email: ${profile.email}
 - GitHub: ${profile.github}
 - LinkedIn: ${profile.linkedin}
-- Bio Summary: ${profile.bio}
+- Bio: ${profile.bio}
 
 Core Engineering Focus:
 - Native Android: Kotlin, Jetpack Compose, Coroutines & Flow, MVVM, Room Database, Foreground Services, MediaProjection API, CameraX, Agora RTC.
@@ -117,9 +141,9 @@ Core Engineering Focus:
 - Backend & AI: Python, FastAPI, Node.js, Flask, Google Gemini AI SDK, Cloud Firestore, Firebase Auth.
 - Systems & Tooling: Rust (official Tauri framework upstream contributor), spatial indexing (Shapely STRtree, OpenStreetMap), OpenCV, Pillow.
 
-Projects & Open Source Repositories:
+Projects & Repositories:
 ${projectsRef}
------------------------
+--------------------------------
 
 Conversation:
 ${conversationFormatted}User: ${message.trim()}
