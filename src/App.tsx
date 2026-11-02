@@ -3,6 +3,7 @@ import { TurnstileCaptcha } from './components/TurnstileCaptcha'
 import { getPortfolioData } from './portfolioDataManager'
 import { subscribeToPortfolio } from './services/portfolioService'
 import { AiAssistant } from './components/AiAssistant'
+import { CookieConsent } from './components/CookieConsent'
 import type { Theme, Project, SkillCategory, PortfolioData } from './types'
 
 const AdminPage = lazy(() =>
@@ -1250,6 +1251,9 @@ export default function App() {
 
       {/* AI Assistant Chat Widget */}
       <AiAssistant />
+
+      {/* Cookie Consent Banner for First-time Visitors */}
+      <CookieConsent />
     </div>
   )
 }

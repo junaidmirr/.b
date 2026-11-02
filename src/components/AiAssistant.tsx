@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react'
+import { saveChatSession } from '../services/chatLogService'
+import type { ChatSession } from '../types'
 
 type Message = {
   id: string
@@ -13,6 +15,25 @@ const SUGGESTED_PROMPTS = [
   'What is your Android stack?',
   'How can I contact Junaid?',
 ]
+
+const SESSION_STORAGE_KEY = 'junaid_chat_session_id'
+const SESSION_START_KEY = 'junaid_chat_session_start'
+
+function getOrCreateSessionId(): { id: string; createdAt: string } {
+  if (typeof window === 'undefined') {
+    const now = new Date().toISOString()
+    return { id: `sess_${Date.now()}`, createdAt: now }
+  }
+  let id = sessionStorage.getItem(SESSION_STORAGE_KEY)
+  let createdAt = sessionStorage.getItem(SESSION_START_KEY)
+  if (!id || !createdAt) {
+    id = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+    createdAt = new Date().toISOString()
+    sessionStorage.setItem(SESSION_STORAGE_KEY, id)
+    sessionStorage.setItem(SESSION_START_KEY, createdAt)
+  }
+  return { id, createdAt }
+}
 
 export function AiAssistant() {
   const [isOpen, setIsOpen] = useState(false)
@@ -53,6 +74,38 @@ export function AiAssistant() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen])
 
+  const persistSession = async (allMessages: Message[]) => {
+    const chatTurns = allMessages.filter((m) => m.id !== 'welcome')
+    if (chatTurns.length === 0) return
+
+    const { id: sessionId, createdAt } = getOrCreateSessionId()
+    const firstUserMsg = chatTurns.find((m) => m.role === 'user')
+    const summary = firstUserMsg
+      ? firstUserMsg.content.slice(0, 100)
+      : 'Visitor conversation'
+
+    const sessionData: ChatSession = {
+      id: sessionId,
+      createdAt,
+      updatedAt: new Date().toISOString(),
+      summary,
+      messageCount: chatTurns.length,
+      messages: chatTurns.map((m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        timestamp: new Date().toISOString(),
+      })),
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+    }
+
+    try {
+      await saveChatSession(sessionData)
+    } catch (err) {
+      console.warn('Could not persist chat session:', err)
+    }
+  }
+
   const handleSend = async (userPrompt?: string) => {
     const text = (userPrompt || input).trim()
     if (!text || isStreaming) return
@@ -73,8 +126,11 @@ export function AiAssistant() {
       content: '',
     }
 
-    setMessages((prev) => [...prev, userMessage, initialAssistantMessage])
+    const updatedWithUser = [...messages, userMessage, initialAssistantMessage]
+    setMessages(updatedWithUser)
     setIsStreaming(true)
+
+    let finalReply = ''
 
     try {
       // Build conversation history (excluding welcome message)
@@ -105,7 +161,6 @@ export function AiAssistant() {
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      let accumulatedReply = ''
 
       while (true) {
         const { done, value } = await reader.read()
@@ -125,17 +180,17 @@ export function AiAssistant() {
           try {
             const parsed = JSON.parse(raw)
             if (parsed.text) {
-              accumulatedReply += parsed.text
+              finalReply += parsed.text
               setMessages((prev) =>
                 prev.map((msg) =>
-                  msg.id === assistantMsgId ? { ...msg, content: accumulatedReply } : msg
+                  msg.id === assistantMsgId ? { ...msg, content: finalReply } : msg
                 )
               )
             } else if (parsed.error) {
-              accumulatedReply += `\n[Error: ${parsed.error}]`
+              finalReply += `\n[Error: ${parsed.error}]`
               setMessages((prev) =>
                 prev.map((msg) =>
-                  msg.id === assistantMsgId ? { ...msg, content: accumulatedReply } : msg
+                  msg.id === assistantMsgId ? { ...msg, content: finalReply } : msg
                 )
               )
             }
@@ -144,15 +199,21 @@ export function AiAssistant() {
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to connect to AI Assistant'
+      finalReply = `I'm currently unable to reply: ${errorMsg}`
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.id === assistantMsgId
-            ? { ...msg, content: `I'm currently unable to reply: ${errorMsg}` }
-            : msg
+          msg.id === assistantMsgId ? { ...msg, content: finalReply } : msg
         )
       )
     } finally {
       setIsStreaming(false)
+      // Save completed conversation to Firestore / local storage
+      const finalTurnMessages = [
+        ...messages,
+        userMessage,
+        { id: assistantMsgId, role: 'assistant' as const, content: finalReply },
+      ]
+      persistSession(finalTurnMessages)
     }
   }
 
@@ -162,6 +223,8 @@ export function AiAssistant() {
   }
 
   const clearChat = () => {
+    sessionStorage.removeItem(SESSION_STORAGE_KEY)
+    sessionStorage.removeItem(SESSION_START_KEY)
     setMessages([
       {
         id: 'welcome',

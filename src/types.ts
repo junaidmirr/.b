@@ -40,3 +40,20 @@ export type PortfolioData = {
   categories: string[]
   projects: Project[]
 }
+
+export type ChatMessage = {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  timestamp?: string
+}
+
+export type ChatSession = {
+  id: string
+  createdAt: string
+  updatedAt: string
+  summary: string
+  messageCount: number
+  messages: ChatMessage[]
+  userAgent?: string
+}

@@ -19,26 +19,26 @@ function buildProjectReference(projects) {
   if (!Array.isArray(projects) || projects.length === 0) return ''
 
   return projects
-    .map((p) => {
+    .map((p, index) => {
       const stack = Array.isArray(p.stack) ? p.stack.join(', ') : ''
       const features = Array.isArray(p.features) ? p.features.map((f) => `  * ${f}`).join('\n') : ''
       const tech = Array.isArray(p.technologies)
         ? p.technologies.map((t) => `  * ${t.name}: ${t.details}`).join('\n')
         : ''
 
-      return `Project Title: ${p.title}
-Category: ${p.category}
-Summary: ${p.description}
-Technical Overview: ${p.fullDescription}
-Tech Stack: ${stack}
-GitHub Link: ${p.githubUrl || 'N/A'}
-Live Link: ${p.liveUrl || 'N/A'}
-Key Features:
+      return `${index + 1}. ${p.title}
+- Category: ${p.category}
+- Summary: ${p.description}
+- Technical Overview: ${p.fullDescription}
+- Tech Stack: ${stack}
+- GitHub Link: ${p.githubUrl || 'N/A'}
+- Live Link: ${p.liveUrl || 'N/A'}
+- Key Features:
 ${features}
-Architecture & Technologies:
+- Architecture & Technologies:
 ${tech}`
     })
-    .join('\n\n---\n\n')
+    .join('\n\n')
 }
 
 export default async function handler(req, res) {
@@ -76,33 +76,29 @@ export default async function handler(req, res) {
 
     const projectsRef = buildProjectReference(portfolio?.projects || [])
 
-    let recentHistory = ''
+    let conversationFormatted = ''
     if (Array.isArray(history) && history.length > 0) {
       const recent = history.slice(-4)
-      recentHistory = `\nConversation History:\n${recent
+      conversationFormatted = recent
         .map((h) => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}`)
-        .join('\n')}\n`
+        .join('\n') + '\n'
     }
 
-    const prompt = `You are Junaid's personal AI Assistant embedded on his portfolio website.
+    const prompt = `You are Junaid Mir's portfolio AI assistant embedded on his personal engineering portfolio.
 
 STRICT SCOPE BOUNDARY RULE:
-You MUST ONLY answer questions directly related to Junaid, his engineering portfolio, his background, his technical skills, his contact info, and his specific projects (doc-engine, CoolPath, Tauri CLI contribution, Edugate, ResuMagic, AI Credit and Inventory Management App, Fapper AI, JR Player).
-
-If the user asks an off-topic question, unrelated question, general coding help, script generation, random trivia, recipes, homework, math, jokes, politics, or general knowledge:
-YOU MUST DECLINE POLITELY with:
+You MUST ONLY answer questions directly related to Junaid, his background, his engineering skills, contact details, or his specific projects (doc-engine, CoolPath, Layer, Tauri CLI contribution, Edugate, ResuMagic, AI Credit & Inventory App, Fapper AI, JR Player).
+If the user asks an off-topic question (recipes, unrelated code, generic trivia, homework, politics, non-portfolio topics):
+Politely decline with:
 "I am Junaid's portfolio assistant and can only answer questions about Junaid, his engineering projects (such as doc-engine or CoolPath), technical skills, and background. Feel free to ask about any of his projects!"
 
-CRITICAL INSTRUCTIONS:
-1. Answer the user's question DIRECTLY, CONCISELY, and SPECIFICALLY based on the reference data below.
-2. DO NOT output a generic introduction or bio about Junaid unless the user specifically asks "Who is Junaid?" or "Tell me about yourself".
-3. When asked about a specific project (e.g. "doc-engine", "CoolPath", "Tauri contribution", etc.), answer directly about THAT project: its architecture, problem it solves, tech stack, and links.
-4. Keep the tone sharp, professional, and engineer-friendly. Use clean Markdown formatting.
+CRITICAL RESPONSE GUIDELINES:
+1. Answer the user's specific question DIRECTLY and ACCURATELY based on the knowledge base below.
+2. DO NOT start your response with a generic introduction or bio about Junaid (e.g. "Junaid is a Computer Engineering student based in Bangalore...") UNLESS the user explicitly asks "Who is Junaid?" or "Tell me about yourself".
+3. When asked about a specific project (e.g. "doc-engine", "CoolPath", "Layer", "Tauri", etc.), talk EXCLUSIVELY about that project (what it does, technical architecture, tech stack, and GitHub/demo link).
+4. Keep the tone sharp, factual, and engineer-friendly. Use clean Markdown formatting with bullet points and bold text where helpful.
 
-${recentHistory}
-User Question: "${message.trim()}"
-
---- REFERENCE INFORMATION ABOUT JUNAID & HIS WORK ---
+--- KNOWLEDGE BASE ---
 Profile:
 - Name: ${profile.name}
 - Role: ${profile.role}
@@ -116,14 +112,16 @@ Profile:
 Core Engineering Focus:
 - Native Android: Kotlin, Jetpack Compose, Coroutines & Flow, MVVM, Room Database, Foreground Services, MediaProjection API, CameraX, Agora RTC.
 - Frontend & Web Engines: React 19, TypeScript, Tailwind CSS, Vite, HTML5 Canvas 2D, PDF 1.7 spec vector rendering.
-- Backend & AI: Python, FastAPI, Node.js, Flask, Google Gemini AI SDK (Gemini 2.0 Flash / 1.5), Cloud Firestore, Firebase Auth.
+- Backend & AI: Python, FastAPI, Node.js, Flask, Google Gemini AI SDK, Cloud Firestore, Firebase Auth.
 - Systems & Tooling: Rust (official Tauri framework upstream contributor), spatial indexing (Shapely STRtree, OpenStreetMap), OpenCV, Pillow.
 
-Projects & Open Source Knowledge Base:
+Projects & Open Source Repositories:
 ${projectsRef}
----
+-----------------------
 
-Direct Answer to User Question:`
+Conversation:
+${conversationFormatted}User: ${message.trim()}
+Assistant:`
 
     // Call the upstream API securely without exposing the endpoint or headers to the client
     const upstreamUrl = process.env.SWIRL_API_URL || 'https://swirls.chat/api/ask'

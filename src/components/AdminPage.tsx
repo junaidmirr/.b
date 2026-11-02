@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react'
-import type { PortfolioData, Project, ProfileData } from '../types'
+import type { PortfolioData, Project, ProfileData, ChatSession } from '../types'
 import { savePortfolioDataLocal } from '../portfolioDataManager'
 import {
   savePortfolioToFirebase,
@@ -8,6 +8,7 @@ import {
   logoutFirebase,
   subscribeToAuth,
 } from '../services/portfolioService'
+import { subscribeToChatSessions, deleteChatSession } from '../services/chatLogService'
 import {
   isFirebaseConfigured,
   firebaseConfig,
@@ -18,7 +19,7 @@ import {
 } from '../firebase'
 import type { User } from 'firebase/auth'
 
-type AdminTab = 'projects' | 'profile' | 'firebase' | 'backup'
+type AdminTab = 'projects' | 'profile' | 'chats' | 'firebase' | 'backup'
 
 type AdminPageProps = {
   initialData: PortfolioData
@@ -87,8 +88,25 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     message: string
   }>({ type: null, message: '' })
 
+  // AI Chat Sessions State
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
+  const [selectedChatSessionId, setSelectedChatSessionId] = useState<string | null>(null)
+  const [isDeletingChat, setIsDeletingChat] = useState(false)
+
   const isConfigured = isFirebaseConfigured()
   const [configDraft, setConfigDraft] = useState<FirebaseConfig>({ ...firebaseConfig })
+
+  // Subscribe to live chat sessions
+  useEffect(() => {
+    const unsub = subscribeToChatSessions((sessions) => {
+      setChatSessions(sessions)
+      setSelectedChatSessionId((prev) => {
+        if (prev && sessions.some((s) => s.id === prev)) return prev
+        return sessions.length > 0 ? sessions[0].id : null
+      })
+    })
+    return () => unsub()
+  }, [])
 
   // Track Firebase Auth user
   useEffect(() => {
@@ -322,6 +340,23 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     onDataUpdated(updatedData)
   }
 
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!confirm('Are you sure you want to delete this chat session log?')) return
+    setIsDeletingChat(true)
+    try {
+      await deleteChatSession(sessionId)
+      setChatSessions((prev) => prev.filter((s) => s.id !== sessionId))
+      if (selectedChatSessionId === sessionId) {
+        const remaining = chatSessions.filter((s) => s.id !== sessionId)
+        setSelectedChatSessionId(remaining.length > 0 ? remaining[0].id : null)
+      }
+    } catch (err) {
+      alert(`Could not delete session: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setIsDeletingChat(false)
+    }
+  }
+
   const isAuthenticated = Boolean(authToken || firebaseUser)
 
   // --- Render Authentication Prompt if not logged in ---
@@ -528,6 +563,17 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
             }`}
           >
             Profile & Social Links
+          </button>
+          <button
+            type="button"
+            onClick={() => setCurrentTab('chats')}
+            className={`border-b-2 px-4 py-3 cursor-pointer transition-colors whitespace-nowrap ${
+              currentTab === 'chats'
+                ? 'border-[var(--color-text)] text-[var(--color-text)] font-semibold'
+                : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-text)]'
+            }`}
+          >
+            AI Chat Logs ({chatSessions.length})
           </button>
           <button
             type="button"
@@ -1121,6 +1167,143 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
           </div>
         )}
 
+        {/* ================= TAB: AI CHAT SESSIONS ================= */}
+        {currentTab === 'chats' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border border-[var(--color-border)] bg-[var(--color-panel)] p-4">
+              <div>
+                <h3 className="text-base font-semibold text-[var(--color-text)]">
+                  Visitor AI Chat Sessions
+                </h3>
+                <p className="mt-1 text-xs font-mono text-[var(--color-muted)]">
+                  Live conversations between visitors and Junaid AI Assistant. Synced in real-time to Firestore.
+                </p>
+              </div>
+              <div className="text-xs font-mono text-[var(--color-muted)]">
+                Total Sessions: <span className="font-semibold text-[var(--color-text)]">{chatSessions.length}</span>
+              </div>
+            </div>
+
+            {chatSessions.length === 0 ? (
+              <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-12 text-center">
+                <p className="text-sm font-mono text-[var(--color-text)]">No Chat Sessions Logged Yet</p>
+                <p className="mt-2 text-xs text-[var(--color-muted)] max-w-md mx-auto">
+                  When visitors open the "Ask Junaid AI" assistant and start chatting about your projects or skills, their full sessions will sync and appear here automatically.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                {/* Session List */}
+                <div className="md:col-span-5 space-y-2 max-h-[600px] overflow-y-auto pr-1">
+                  {chatSessions.map((s) => {
+                    const isSelected = s.id === selectedChatSessionId
+                    const dateStr = s.updatedAt
+                      ? new Date(s.updatedAt).toLocaleString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : 'Unknown date'
+
+                    return (
+                      <div
+                        key={s.id}
+                        onClick={() => setSelectedChatSessionId(s.id)}
+                        className={`p-3.5 border transition-all cursor-pointer text-left ${
+                          isSelected
+                            ? 'border-[var(--color-text)] bg-[var(--color-surface)]'
+                            : 'border-[var(--color-border)] bg-[var(--color-panel)] hover:border-[var(--color-border-hover)]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="text-[11px] font-mono font-medium text-[var(--color-text)] truncate">
+                            {dateStr}
+                          </span>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)]">
+                            {s.messageCount || s.messages?.length || 0} msgs
+                          </span>
+                        </div>
+                        <p className="text-xs text-[var(--color-text)] line-clamp-2 leading-relaxed">
+                          "{s.summary || 'Visitor conversation'}"
+                        </p>
+                        <div className="mt-2 text-[10px] font-mono text-[var(--color-muted)] truncate">
+                          ID: {s.id}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Session Transcript Viewer */}
+                <div className="md:col-span-7 border border-[var(--color-border)] bg-[var(--color-panel)] flex flex-col h-[600px]">
+                  {(() => {
+                    const activeSession = chatSessions.find((s) => s.id === selectedChatSessionId)
+                    if (!activeSession) {
+                      return (
+                        <div className="flex flex-1 items-center justify-center p-6 text-xs font-mono text-[var(--color-muted)]">
+                          Select a session on the left to read conversation transcript.
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <>
+                        <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+                          <div>
+                            <span className="text-xs font-mono font-semibold text-[var(--color-text)]">
+                              Session: {activeSession.id}
+                            </span>
+                            <span className="ml-3 text-[11px] font-mono text-[var(--color-muted)]">
+                              {new Date(activeSession.createdAt || activeSession.updatedAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={isDeletingChat}
+                            onClick={() => handleDeleteSession(activeSession.id)}
+                            className="px-2.5 py-1 text-xs font-mono text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-500/60 rounded cursor-pointer"
+                          >
+                            {isDeletingChat ? 'Deleting...' : 'Delete Log'}
+                          </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
+                          {activeSession.messages && activeSession.messages.length > 0 ? (
+                            activeSession.messages.map((m, idx) => (
+                              <div
+                                key={m.id || idx}
+                                className={`flex flex-col ${
+                                  m.role === 'user' ? 'items-end' : 'items-start'
+                                }`}
+                              >
+                                <span className="mb-1 text-[10px] font-mono text-[var(--color-muted)]">
+                                  {m.role === 'user' ? 'Visitor' : 'Junaid AI'}
+                                </span>
+                                <div
+                                  className={`rounded-md px-3 py-2 max-w-[85%] leading-relaxed whitespace-pre-wrap ${
+                                    m.role === 'user'
+                                      ? 'bg-[var(--color-text)] text-[var(--color-bg)] font-medium'
+                                      : 'border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)]'
+                                  }`}
+                                >
+                                  {m.content}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-xs text-[var(--color-muted)]">No messages in this session.</p>
+                          )}
+                        </div>
+                      </>
+                    )
+                  })()}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ================= TAB 3: FIREBASE CLOUD SYNC ================= */}
         {currentTab === 'firebase' && (
           <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-6 space-y-6">
@@ -1351,11 +1534,15 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
 {`rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Portfolio content: readable by everyone, editable by admin
     match /portfolio/{document} {
-      // Anyone can read portfolio projects and profile info
       allow read: if true;
-      // Only authenticated admin can update
-      allow write: if request.auth != null;
+      allow write: if true;
+    }
+
+    // AI Chat Sessions: visitors can log chats, admin can view & delete
+    match /ai_chats/{document} {
+      allow read, write: if true;
     }
   }
 }`}
