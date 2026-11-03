@@ -32,7 +32,6 @@ export default async function handler(req, res) {
       const trimmed = repoUrl.trim().replace(/\/+$/, '')
       cleanRepoUrl = trimmed.startsWith('http') ? trimmed : `https://github.com/${trimmed}`
 
-      // Match github.com/owner/repo or owner/repo
       const match = cleanRepoUrl.match(/github\.com\/([^/]+)\/([^/]+)/i) || trimmed.match(/^([^/]+)\/([^/]+)$/)
       if (match) {
         owner = match[1]
@@ -41,7 +40,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // If no direct README was provided and we have owner/repo, fetch from GitHub
+    // Fetch README from GitHub if not directly provided
     if (!fetchedReadme && owner && repo) {
       const readmeBranches = ['HEAD', 'main', 'master']
       for (const branch of readmeBranches) {
@@ -49,7 +48,7 @@ export default async function handler(req, res) {
           const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/README.md`
           const resp = await fetch(rawUrl, {
             headers: {
-              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)',
+              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
               Accept: 'text/plain, text/markdown, */*',
             },
           })
@@ -62,7 +61,6 @@ export default async function handler(req, res) {
         } catch {}
       }
 
-      // If raw file fetch failed, attempt public GitHub API
       if (!fetchedReadme) {
         try {
           const apiUrl = `https://api.github.com/repos/${owner}/${repo}/readme`
@@ -81,7 +79,6 @@ export default async function handler(req, res) {
         } catch {}
       }
 
-      // Optionally fetch basic repo metadata (homepage, topics, description)
       try {
         const repoApiUrl = `https://api.github.com/repos/${owner}/${repo}`
         const repoResp = await fetch(repoApiUrl, {
@@ -103,34 +100,54 @@ export default async function handler(req, res) {
       })
     }
 
-    // Limit README to 10,000 characters to keep prompt tightly focused
-    const truncatedReadme = (fetchedReadme || '').slice(0, 10000)
+    const truncatedReadme = (fetchedReadme || '').slice(0, 9500)
     const repoDesc = repoMetadata?.description || ''
     const repoTopics = Array.isArray(repoMetadata?.topics) ? repoMetadata.topics.join(', ') : ''
     const repoHomepage = repoMetadata?.homepage || ''
 
-    const prompt = `You are an elite software engineering portfolio curator writing directly for Junaid Mir's portfolio.
-Analyze the following GitHub repository details and README, and output a strictly valid JSON object representing a featured portfolio project entry.
+    const prompt = `You are a staff systems engineer writing authentic portfolio documentation for Junaid Mir.
+Analyze the following GitHub repository details and README, and output a strictly valid JSON object representing this portfolio project entry.
 
-CRITICAL VOICE & EDITORIAL RULES:
-1. Write like an authentic senior staff software engineer talking to other engineers: grounded, punchy, technical, and concrete.
-2. STRICTLY FORBIDDEN ROBOTIC HEADINGS:
-   - DO NOT write "### Problem Statement", "### Why it was built", "### Core Architecture", or "### How it works".
-   - DO NOT use the cliché phrase "Under the hood".
-   - DO NOT write robotic textbook introductions like "In today's fast-paced world" or "To bridge the gap between AI and reality".
-3. STRICTLY FORBIDDEN AI BUZZWORDS:
-   - DO NOT use: "bridge the gap", "revolutionize", "seamlessly", "cutting-edge", "game changer", "testament to", "delve into".
-   - DO NOT use hyphens as dashes in sentences.
-4. HOW JUNAID'S PORTFOLIO PROSE SOUNDS (Style Reference):
-   "If you use coding agents like Claude Code, Cursor, Windsurf, Codex or OpenCode on real projects, you have probably seen these problems: agents fall back to grep, dump whole files into prompts, burn 100k+ tokens, and lose thread. Fixes turn into guessing games. Layer sits between your agent and your code and talks over the standard Model Context Protocol. Instead of raw file dumps, the agent gets symbol outlines, exact function slices, impact graphs and compile checks in milliseconds."
-5. REQUIRED STRUCTURE FOR "fullDescription":
-   - "Why [ProjectName]": Real-world developer friction, bottlenecks, or what breaks when using naive tools.
-   - "How it works": Concrete mechanisms (AST traversal, protocol bridges, data structures, algorithm details).
-   - "Core Subsystems": Technical breakdown of 3 to 4 major pillars with library names and benchmark metrics.
-   - "Performance & Scaling": Latency numbers, memory limits, and benchmarks from the README.
-6. FOR "category":
-   - Pick EXACTLY ONE clean string from: "Featured Open Source", "System Architecture", "Open Source Tooling", "AI Microclimate Navigation Engine", "Full Stack AI App", "Mobile Engineering", "Web Media Tool", "Full Stack Web".
-   - Do NOT output pipe characters like "|".
+CRITICAL VOICE & QUALITY RULES:
+1. Write like an experienced senior staff software engineer talking directly to other senior engineers: grounded, punchy, technical, and concrete.
+2. ABSOLUTELY DO NOT USE ROBOTIC ACADEMIC HEADINGS:
+   - NEVER write "### Problem Statement", "### Why it was built", "### Core Architecture", or "Under the hood".
+   - NEVER write "To bridge the gap between X and Y" or generic AI introductory filler.
+3. ABSOLUTELY DO NOT USE MARKETING CLICHES:
+   - Banned words: "revolutionize", "seamlessly", "cutting-edge", "game changer", "testament to", "delve into".
+   - Do NOT use hyphens as dashes in prose.
+4. HEADINGS TO USE IN "fullDescription" (use markdown ### headers with blank lines):
+   - "### Why [ProjectName]": Real-world developer friction, bottlenecks, or failure modes of naive approaches.
+   - "### Architecture & Implementation": Concrete mechanisms (AST traversal, protocol bridges, data structures, algorithm details).
+   - "### Key Subsystems": Technical breakdown of 3 to 4 major pillars with library names and benchmark metrics.
+   - "### Performance & Benchmarks": Latency numbers, memory limits, and benchmarks from the README.
+
+FEW-SHOT REFERENCE EXAMPLE FOR fullDescription:
+"### Why Layer
+If you use coding agents like Claude Code, Cursor, Windsurf, Codex or OpenCode on real projects, agents fall back to naive grep and dump whole files into prompts, burning 100k+ tokens while losing thread. Fixes turn into guessing games. Layer sits between your agent and your code over the Model Context Protocol.
+
+### Architecture & Implementation
+Instead of raw file dumps, Layer indexes codebases using Tree-sitter for surgical symbol extraction. By mapping the abstract syntax tree, it serves exact function slices and symbol outlines in milliseconds.
+
+### Key Subsystems
+- **In-memory AST Indexer**: Instant syntax and import verification in under 15ms without slow compiler boot times.
+- **Safe Multi-file Refactor Engine**: Separates edited file syntax errors from pending downstream updates.
+- **Compiler Circuit Breaker**: Integrates with language toolchains to supply verified type signatures.
+
+### Performance & Benchmarks
+Token usage for deep codebase tasks drops from 5.9M to 0.7M per session, reducing token overhead by nearly 90 percent."
+
+FOR "category":
+Choose the single most accurate category based on the repository domain:
+- "System Architecture" (compilers, AST engines, MCP servers, protocols, performance infrastructure)
+- "Open Source Tooling" (developer tools, CLI utilities, linters, developer libraries)
+- "Full Stack AI App" (AI platforms, agent workflows, LLM applications)
+- "Featured Open Source" (flagship open source releases)
+- "Mobile Engineering" (Android, iOS, React Native applications)
+- "Web Media Tool" (media editors, canvas tools, streaming utilities)
+- "Full Stack Web" (general full stack web applications)
+- "AI Microclimate Navigation Engine" (ONLY for microclimate or geospatial routing systems like CoolPath)
+Do NOT output pipe characters like "|".
 
 PORTFOLIO PROJECT JSON SCHEMA:
 {
@@ -229,7 +246,6 @@ ${truncatedReadme || 'No README text available; use repository metadata above.'}
       }
     }
 
-    // Clean and extract JSON from AI response
     let cleaned = replyText.trim()
     if (cleaned.startsWith('```json')) {
       cleaned = cleaned.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim()
@@ -237,7 +253,6 @@ ${truncatedReadme || 'No README text available; use repository metadata above.'}
       cleaned = cleaned.replace(/^```\s*/, '').replace(/```\s*$/, '').trim()
     }
 
-    // Try finding JSON object bounds if wrapped in extra text
     const firstBrace = cleaned.indexOf('{')
     const lastBrace = cleaned.lastIndexOf('}')
     if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
@@ -255,12 +270,34 @@ ${truncatedReadme || 'No README text available; use repository metadata above.'}
       })
     }
 
+    // Clean and polish fullDescription to strip any robotic templates or clichés
+    let polishedFullDesc = (parsedProject.fullDescription || parsedProject.description || '').trim()
+    const projectTitle = parsedProject.title || repo || 'Project'
+
+    polishedFullDesc = polishedFullDesc
+      // Replace generic academic headings
+      .replace(/###\s*Problem Statement[:\s]*/gi, `### Why ${projectTitle}\n\n`)
+      .replace(/###\s*Why it was built[:\s]*/gi, '\n\n')
+      .replace(/###\s*Core Architecture[:\s]*/gi, '\n\n### Architecture & Implementation\n\n')
+      .replace(/###\s*(?:How it works|Under the hood)[:\s]*/gi, '\n\n### Architecture & Implementation\n\n')
+      // Normalize inline section titles into markdown headers if LLM emitted them inline
+      .replace(/(?:^|\n)(?:Why\s+[^:\n]+:)/gi, `\n\n### Why ${projectTitle}\n\n`)
+      .replace(/(?:^|\n)(?:Architecture\s*&\s*Implementation:|How it works:)/gi, '\n\n### Architecture & Implementation\n\n')
+      .replace(/(?:^|\n)(?:Key Subsystems:|Core Subsystems:)/gi, '\n\n### Key Subsystems\n\n')
+      .replace(/(?:^|\n)(?:Performance\s*&\s*(?:Scaling|Benchmarks):)/gi, '\n\n### Performance & Benchmarks\n\n')
+      // Remove AI clichés
+      .replace(/To bridge the gap between [^.]+and [^.]+\.\s*/gi, '')
+      .replace(/bridge the gap between/gi, 'connect')
+      .replace(/under the hood,?\s*/gi, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+
     // Sanitize and ensure required defaults
     const finalProject = {
-      title: parsedProject.title || repo || 'Untitled Project',
+      title: projectTitle,
       category: (parsedProject.category || 'Full Stack Web').replace(/\|/g, ',').trim(),
       description: parsedProject.description || repoDesc || 'Software project developed by Junaid.',
-      fullDescription: parsedProject.fullDescription || parsedProject.description || '',
+      fullDescription: polishedFullDesc,
       stack: Array.isArray(parsedProject.stack) && parsedProject.stack.length > 0 ? parsedProject.stack : ['TypeScript'],
       features: Array.isArray(parsedProject.features) && parsedProject.features.length > 0 ? parsedProject.features : ['Core functionality'],
       technologies: Array.isArray(parsedProject.technologies) && parsedProject.technologies.length > 0
