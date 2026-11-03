@@ -109,33 +109,50 @@ export default async function handler(req, res) {
     const repoTopics = Array.isArray(repoMetadata?.topics) ? repoMetadata.topics.join(', ') : ''
     const repoHomepage = repoMetadata?.homepage || ''
 
-    const prompt = `You are an elite software engineering portfolio curator for Junaid Mir.
-Analyze the following GitHub repository details and README, and generate a structured JSON object representing a featured portfolio project item.
+    const prompt = `You are an elite software engineering portfolio curator writing directly for Junaid Mir's portfolio.
+Analyze the following GitHub repository details and README, and output a strictly valid JSON object representing a featured portfolio project entry.
 
-STRICT JSON OUTPUT REQUIREMENT:
-Output ONLY a valid JSON object matching the schema below. Do NOT include markdown code blocks, do not include \`\`\`json or backticks, and do not write any introductory or concluding text.
+CRITICAL VOICE & EDITORIAL RULES:
+1. Write like an authentic senior staff software engineer talking to other engineers: grounded, punchy, technical, and concrete.
+2. STRICTLY FORBIDDEN ROBOTIC HEADINGS:
+   - DO NOT write "### Problem Statement", "### Why it was built", "### Core Architecture", or "### How it works".
+   - DO NOT use the cliché phrase "Under the hood".
+   - DO NOT write robotic textbook introductions like "In today's fast-paced world" or "To bridge the gap between AI and reality".
+3. STRICTLY FORBIDDEN AI BUZZWORDS:
+   - DO NOT use: "bridge the gap", "revolutionize", "seamlessly", "cutting-edge", "game changer", "testament to", "delve into".
+   - DO NOT use hyphens as dashes in sentences.
+4. HOW JUNAID'S PORTFOLIO PROSE SOUNDS (Style Reference):
+   "If you use coding agents like Claude Code, Cursor, Windsurf, Codex or OpenCode on real projects, you have probably seen these problems: agents fall back to grep, dump whole files into prompts, burn 100k+ tokens, and lose thread. Fixes turn into guessing games. Layer sits between your agent and your code and talks over the standard Model Context Protocol. Instead of raw file dumps, the agent gets symbol outlines, exact function slices, impact graphs and compile checks in milliseconds."
+5. REQUIRED STRUCTURE FOR "fullDescription":
+   - "Why [ProjectName]": Real-world developer friction, bottlenecks, or what breaks when using naive tools.
+   - "How it works": Concrete mechanisms (AST traversal, protocol bridges, data structures, algorithm details).
+   - "Core Subsystems": Technical breakdown of 3 to 4 major pillars with library names and benchmark metrics.
+   - "Performance & Scaling": Latency numbers, memory limits, and benchmarks from the README.
+6. FOR "category":
+   - Pick EXACTLY ONE clean string from: "Featured Open Source", "System Architecture", "Open Source Tooling", "AI Microclimate Navigation Engine", "Full Stack AI App", "Mobile Engineering", "Web Media Tool", "Full Stack Web".
+   - Do NOT output pipe characters like "|".
 
 PORTFOLIO PROJECT JSON SCHEMA:
 {
   "title": "Clean concise project title (e.g. doc-engine, CoolPath, Layer)",
-  "category": "Suggested category. Choose one of: Featured Open Source, Vector PDF Engine | Open Source Contribution | AI Microclimate Navigation Engine | Virtual Classroom App | Full Stack AI App | FinTech AI App | Android AI Assistant | Web Media Tool | Mobile Engineering | Full Stack Web | System Architecture",
-  "description": "Punchy, compelling 1-2 sentence overview for the project card view. Focus on the core engineering value and problem solved.",
-  "fullDescription": "A comprehensive deep dive overview formatted in clean Markdown. Include sections: Problem statement, why it was built, core architecture, and how it works under the hood. Avoid hype; use sharp, technical, engineer-friendly terminology.",
+  "category": "Exactly one chosen category string",
+  "description": "Punchy, compelling 1-2 sentence overview for the project card view. Highlights the core engineering value and problem solved.",
+  "fullDescription": "Deep technical case study formatted in Markdown following the senior engineer voice and structure above.",
   "stack": ["Main Language", "Framework", "Library 1", "Library 2", "Tooling"],
   "features": [
-    "Key bullet feature 1 with technical detail",
-    "Key bullet feature 2 with technical detail",
-    "Key bullet feature 3 with technical detail",
-    "Key bullet feature 4 with technical detail"
+    "Sub-15ms incremental syntax checks using in-memory Tree-sitter ASTs",
+    "Concrete technical feature 2",
+    "Concrete technical feature 3",
+    "Concrete technical feature 4"
   ],
   "technologies": [
     {
-      "name": "Subsystem or Component Name (e.g. Vector Serializer or Spatial Indexing Engine)",
-      "details": "Technical breakdown of how this component operates and what libraries/algorithms it leverages."
+      "name": "Subsystem or Component Name (e.g. AST Indexer, Vector Serializer, or Spatial Engine)",
+      "details": "Technical breakdown of how this component operates, what algorithms it uses, and performance specs."
     },
     {
       "name": "Frontend or Core Pipeline",
-      "details": "Explanation of the UI, state flow, or execution loop."
+      "details": "Explanation of the UI state flow, protocol bridge, or execution loop."
     }
   ],
   "icon": "One of: code | globe | rocket | spark | layout | shield | briefcase",
@@ -241,7 +258,7 @@ ${truncatedReadme || 'No README text available; use repository metadata above.'}
     // Sanitize and ensure required defaults
     const finalProject = {
       title: parsedProject.title || repo || 'Untitled Project',
-      category: parsedProject.category || 'Full Stack Web',
+      category: (parsedProject.category || 'Full Stack Web').replace(/\|/g, ',').trim(),
       description: parsedProject.description || repoDesc || 'Software project developed by Junaid.',
       fullDescription: parsedProject.fullDescription || parsedProject.description || '',
       stack: Array.isArray(parsedProject.stack) && parsedProject.stack.length > 0 ? parsedProject.stack : ['TypeScript'],
