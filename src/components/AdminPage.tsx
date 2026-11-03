@@ -521,6 +521,26 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     }
   }
 
+  const handleRefreshChats = async () => {
+    try {
+      const res = await fetch('/api/save-chat-session')
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data.sessions)) {
+          setChatSessions((prev) => {
+            const map = new Map<string, ChatSession>()
+            for (const s of [...prev, ...data.sessions]) {
+              if (s && s.id) map.set(s.id, s)
+            }
+            return Array.from(map.values()).sort(
+              (a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime()
+            )
+          })
+        }
+      }
+    } catch {}
+  }
+
   // Filtered projects
   const filteredProjects = data.projects.filter((p) => {
     if (!projectSearchQuery.trim()) return true
@@ -1624,6 +1644,14 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                   <span className="text-xs font-mono px-2.5 py-1.5 rounded border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)]">
                     Total: <strong className="text-[var(--color-text)]">{chatSessions.length}</strong>
                   </span>
+                  <button
+                    type="button"
+                    onClick={handleRefreshChats}
+                    title="Fetch latest chats from Firestore and Serverless storage"
+                    className="border border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-surface)] px-2.5 py-1.5 text-xs font-mono text-[var(--color-text)] rounded cursor-pointer transition-colors"
+                  >
+                    ↻ Sync Chats
+                  </button>
                 </div>
               </div>
 
@@ -1663,9 +1691,22 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                             <span className="text-[11px] font-mono font-medium text-[var(--color-text)] truncate">
                               {dateStr}
                             </span>
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)]">
-                              {s.messageCount || s.messages?.length || 0} msgs
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {s.browser && (
+                                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${
+                                  s.browser.includes('Instagram')
+                                    ? 'border-pink-500/30 bg-pink-500/10 text-pink-400'
+                                    : s.browser.includes('Facebook')
+                                    ? 'border-blue-500/30 bg-blue-500/10 text-blue-400'
+                                    : 'border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)]'
+                                }`}>
+                                  {s.browser}
+                                </span>
+                              )}
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)]">
+                                {s.messageCount || s.messages?.length || 0} msgs
+                              </span>
+                            </div>
                           </div>
                           <p className="text-xs text-[var(--color-text)] line-clamp-2 leading-relaxed">
                             "{s.summary || 'Visitor conversation'}"
@@ -1694,9 +1735,22 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                         <>
                           <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-bg)] p-3">
                             <div className="min-w-0 pr-2">
-                              <span className="text-xs font-mono font-semibold text-[var(--color-text)] truncate block">
-                                {activeSession.id}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-mono font-semibold text-[var(--color-text)] truncate block">
+                                  {activeSession.id}
+                                </span>
+                                {activeSession.browser && (
+                                  <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${
+                                    activeSession.browser.includes('Instagram')
+                                      ? 'border-pink-500/30 bg-pink-500/10 text-pink-400'
+                                      : activeSession.browser.includes('Facebook')
+                                      ? 'border-blue-500/30 bg-blue-500/10 text-blue-400'
+                                      : 'border-[var(--color-border)] bg-[var(--color-panel)] text-[var(--color-muted)]'
+                                  }`}>
+                                    {activeSession.browser}
+                                  </span>
+                                )}
+                              </div>
                               <span className="text-[10px] font-mono text-[var(--color-muted)]">
                                 {new Date(activeSession.createdAt || activeSession.updatedAt).toLocaleString()}
                               </span>

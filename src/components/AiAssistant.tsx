@@ -19,20 +19,50 @@ const SUGGESTED_PROMPTS = [
 const SESSION_STORAGE_KEY = 'junaid_chat_session_id'
 const SESSION_START_KEY = 'junaid_chat_session_start'
 
+let memorySessionId = ''
+let memoryCreatedAt = ''
+
+function detectInAppBrowser(): string {
+  if (typeof navigator === 'undefined') return 'Web Browser'
+  const ua = navigator.userAgent || ''
+  if (/Instagram/i.test(ua)) return 'Instagram In-App'
+  if (/FBAN|FBAV/i.test(ua)) return 'Facebook In-App'
+  if (/TikTok/i.test(ua)) return 'TikTok In-App'
+  if (/Twitter|X-App/i.test(ua)) return 'Twitter/X In-App'
+  if (/LinkedIn/i.test(ua)) return 'LinkedIn In-App'
+  if (/MicroMessenger/i.test(ua)) return 'WeChat In-App'
+  if (/CriOS/i.test(ua)) return 'Chrome iOS'
+  if (/Chrome/i.test(ua) && /Mobile/i.test(ua)) return 'Chrome Mobile'
+  if (/Mobile.*Safari/i.test(ua) && !/Chrome|CriOS/i.test(ua)) return 'Mobile Safari'
+  if (/Chrome/i.test(ua)) return 'Desktop Chrome'
+  if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) return 'Desktop Safari'
+  if (/Firefox/i.test(ua)) return 'Firefox'
+  return 'Web Browser'
+}
+
 function getOrCreateSessionId(): { id: string; createdAt: string } {
   if (typeof window === 'undefined') {
     const now = new Date().toISOString()
     return { id: `sess_${Date.now()}`, createdAt: now }
   }
-  let id = sessionStorage.getItem(SESSION_STORAGE_KEY)
-  let createdAt = sessionStorage.getItem(SESSION_START_KEY)
-  if (!id || !createdAt) {
-    id = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
-    createdAt = new Date().toISOString()
-    sessionStorage.setItem(SESSION_STORAGE_KEY, id)
-    sessionStorage.setItem(SESSION_START_KEY, createdAt)
+  try {
+    let id = window.sessionStorage?.getItem(SESSION_STORAGE_KEY)
+    let createdAt = window.sessionStorage?.getItem(SESSION_START_KEY)
+    if (!id || !createdAt) {
+      id = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+      createdAt = new Date().toISOString()
+      window.sessionStorage?.setItem(SESSION_STORAGE_KEY, id)
+      window.sessionStorage?.setItem(SESSION_START_KEY, createdAt)
+    }
+    return { id, createdAt }
+  } catch {
+    // In-app browsers (Instagram, etc.) or Private Browsing mode can block sessionStorage
+    if (!memorySessionId) {
+      memorySessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+      memoryCreatedAt = new Date().toISOString()
+    }
+    return { id: memorySessionId, createdAt: memoryCreatedAt }
   }
-  return { id, createdAt }
 }
 
 export function AiAssistant() {
@@ -99,6 +129,7 @@ export function AiAssistant() {
       updatedAt: new Date().toISOString(),
       summary,
       messageCount: chatTurns.length,
+      browser: detectInAppBrowser(),
       messages: chatTurns.map((m) => ({
         id: m.id,
         role: m.role,
@@ -138,6 +169,9 @@ export function AiAssistant() {
     const updatedWithUser = [...messages, userMessage, initialAssistantMessage]
     setMessages(updatedWithUser)
     setIsStreaming(true)
+
+    // Immediately persist user prompt so session is saved even if user switches apps mid-reply
+    persistSession([...messages, userMessage])
 
     let finalReply = ''
 
@@ -232,8 +266,12 @@ export function AiAssistant() {
   }
 
   const clearChat = () => {
-    sessionStorage.removeItem(SESSION_STORAGE_KEY)
-    sessionStorage.removeItem(SESSION_START_KEY)
+    try {
+      window.sessionStorage?.removeItem(SESSION_STORAGE_KEY)
+      window.sessionStorage?.removeItem(SESSION_START_KEY)
+    } catch {}
+    memorySessionId = ''
+    memoryCreatedAt = ''
     setMessages([
       {
         id: 'welcome',

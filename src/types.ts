@@ -55,5 +55,6 @@ export type ChatSession = {
   summary: string
   messageCount: number
   messages: ChatMessage[]
+  browser?: string
   userAgent?: string
 }
