@@ -72,25 +72,48 @@ function mergeSessions(primary: ChatSession[], secondary: ChatSession[]): ChatSe
   })
 }
 
+function sanitizeForFirestore(session: ChatSession, chatDocId: string): Record<string, any> {
+  const clean: Record<string, any> = {
+    id: chatDocId,
+    createdAt: session.createdAt || new Date().toISOString(),
+    updatedAt: session.updatedAt || new Date().toISOString(),
+    summary: String(session.summary || 'Visitor conversation').slice(0, 150),
+    messageCount: Number(session.messageCount) || (Array.isArray(session.messages) ? session.messages.length : 0),
+    browser: session.browser || 'Web Browser',
+    messages: (session.messages || []).map((m) => ({
+      id: String(m.id || Date.now()),
+      role: m.role === 'user' ? 'user' : 'assistant',
+      content: String(m.content || ''),
+      timestamp: m.timestamp || new Date().toISOString(),
+    })),
+  }
+  if (session.userAgent) {
+    clean.userAgent = String(session.userAgent).slice(0, 200)
+  }
+  return clean
+}
+
 /**
  * Saves or updates a chat session directly into Firebase Firestore
  * and through the serverless bridge for resilient cross-device synchronization.
  */
 export async function saveChatSession(session: ChatSession): Promise<void> {
+  const chatDocId = formatChatDocId(session.id)
+  const cleanData = sanitizeForFirestore(session, chatDocId)
+
   // 1. Update local & memory cache
   const local = getLocalChatSessions()
-  const existingIdx = local.findIndex((s) => s.id === session.id)
+  const existingIdx = local.findIndex((s) => s.id === session.id || s.id === chatDocId)
   let updatedLocal: ChatSession[]
   if (existingIdx >= 0) {
     updatedLocal = [...local]
-    updatedLocal[existingIdx] = session
+    updatedLocal[existingIdx] = cleanData as ChatSession
   } else {
-    updatedLocal = [session, ...local]
+    updatedLocal = [cleanData as ChatSession, ...local]
   }
   saveLocalChatSessions(updatedLocal)
 
   // 2. Direct Firestore Client SDK write to 'portfolio' collection
-  const chatDocId = formatChatDocId(session.id)
   try {
     if (!isFirebaseConfigured() || !db) {
       await ensureFirebaseInitialized()
@@ -98,24 +121,16 @@ export async function saveChatSession(session: ChatSession): Promise<void> {
 
     if (isFirebaseConfigured() && db) {
       const docRef = doc(db, FIRESTORE_PORTFOLIO_COLLECTION, chatDocId)
-      await setDoc(docRef, { ...session, id: chatDocId }, { merge: true })
+      await setDoc(docRef, cleanData, { merge: true })
     }
   } catch (err) {
-    console.warn('Direct Firestore save note (serverless bridge will sync):', err)
+    console.warn('Direct Firestore client write note:', err)
   }
 
-  // 3. Serverless API Bridge via Beacon / Fetch keepalive
+  // 3. Serverless API Bridge via fetch with keepalive: true (always runs reliably)
   try {
-    const payload = JSON.stringify({ ...session, id: chatDocId })
-    let beaconSent = false
-    if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-      try {
-        const blob = new Blob([payload], { type: 'application/json' })
-        beaconSent = navigator.sendBeacon('/api/save-chat-session', blob)
-      } catch {}
-    }
-
-    if (!beaconSent && typeof fetch === 'function') {
+    const payload = JSON.stringify(cleanData)
+    if (typeof fetch === 'function') {
       fetch('/api/save-chat-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -1,5 +1,5 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
-import { getFirestore, type Firestore } from 'firebase/firestore'
+import { initializeFirestore, getFirestore, type Firestore } from 'firebase/firestore'
 import { getAuth, type Auth } from 'firebase/auth'
 
 export type FirebaseConfig = {
@@ -58,7 +58,11 @@ export function initFirebaseInstances(): boolean {
   try {
     const existing = getApps()
     app = existing.length === 0 ? initializeApp(firebaseConfig) : existing[0]
-    db = getFirestore(app)
+    try {
+      db = initializeFirestore(app, { ignoreUndefinedProperties: true })
+    } catch {
+      db = getFirestore(app)
+    }
     auth = getAuth(app)
     return true
   } catch (err) {

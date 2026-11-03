@@ -172,6 +172,35 @@ function detectBrowser(userAgent = '') {
   return 'Web Browser'
 }
 
+async function parseRequestBody(req) {
+  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+    return req.body
+  }
+  if (Buffer.isBuffer(req.body)) {
+    try {
+      return JSON.parse(req.body.toString('utf8'))
+    } catch {}
+  }
+  if (typeof req.body === 'string' && req.body.trim()) {
+    try {
+      return JSON.parse(req.body)
+    } catch {}
+  }
+
+  // Fallback: Read raw request stream
+  try {
+    const chunks = []
+    for await (const chunk of req) {
+      chunks.push(chunk)
+    }
+    const raw = Buffer.concat(chunks).toString('utf8')
+    if (raw.trim()) {
+      return JSON.parse(raw)
+    }
+  } catch {}
+  return null
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
@@ -247,14 +276,7 @@ export default async function handler(req, res) {
 
   // 2. POST: Save incoming chat session from any browser
   if (req.method === 'POST') {
-    let session = req.body
-    if (typeof session === 'string') {
-      try {
-        session = JSON.parse(session)
-      } catch {
-        return res.status(400).json({ error: 'Invalid JSON payload' })
-      }
-    }
+    const session = await parseRequestBody(req)
 
     if (!session || !session.id) {
       return res.status(400).json({ error: 'Missing session ID or invalid body' })
