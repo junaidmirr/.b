@@ -1,13 +1,10 @@
 /**
  * Serverless Chat Session Persistence API
  *
- * Dual-layer persistence engine:
- * 1. Cloud Firestore (Primary real-time database when configured)
- * 2. GitHub Repository Store (data/chatSessions.json with [skip ci] - 100% resilient fallback)
- * 3. In-memory buffer across warm lambdas
+ * Saves directly into the 'portfolio' collection in Firebase Firestore
+ * (where database security rules allow read/write), with GitHub storage fallback.
  *
- * Guaranteed to save and sync visitor chat sessions from ALL browsers
- * (Instagram In-App WebView, TikTok, Facebook, Safari Private, Chrome, Firefox).
+ * Guarantees real-time synchronization across PC, phone, Instagram, and Firebase Console.
  */
 
 if (!globalThis.__cachedChatSessions) {
@@ -31,6 +28,11 @@ function getGitHubConfig() {
     repo: process.env.GITHUB_REPO_NAME || '.b',
     branch: process.env.GITHUB_BRANCH || 'main',
   }
+}
+
+function formatChatDocId(id) {
+  if (!id) return `chat_${Date.now()}`
+  return id.startsWith('chat_') ? id : `chat_${id}`
 }
 
 /**
@@ -72,7 +74,6 @@ async function commitSessionsToGitHub(sessions) {
   try {
     const { sha } = await fetchSessionsFromGitHub()
     const putUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${GITHUB_TARGET_FILE}`
-    // Keep the most recent 100 sessions
     const jsonString = JSON.stringify(sessions.slice(0, 100), null, 2)
     const putBody = {
       message: `[skip ci] Sync visitor chat session logs (${new Date().toISOString()})`,
@@ -101,9 +102,6 @@ async function commitSessionsToGitHub(sessions) {
   }
 }
 
-/**
- * Converts standard JavaScript objects to Firestore REST API value representations
- */
 function toFirestoreValue(val) {
   if (val === null || val === undefined) return { nullValue: null }
   if (typeof val === 'boolean') return { booleanValue: val }
@@ -152,6 +150,9 @@ function parseFirestoreDocument(doc) {
   for (const [key, val] of Object.entries(doc.fields)) {
     session[key] = fromFirestoreValue(val)
   }
+  const nameParts = (doc.name || '').split('/')
+  const docId = nameParts[nameParts.length - 1]
+  session.id = session.id || docId
   return session
 }
 
@@ -182,39 +183,44 @@ export default async function handler(req, res) {
 
   const { apiKey, projectId } = getFirebaseConfig()
 
-  // 1. GET: Return all chat sessions merged from GitHub Store, Firestore, and memory
+  // 1. GET: Return all chat sessions merged from Firestore 'portfolio' collection, GitHub, and memory
   if (req.method === 'GET') {
     const mergedMap = new Map()
 
-    // A. Read from GitHub repository persistent store
-    try {
-      const { sessions: githubSessions } = await fetchSessionsFromGitHub()
-      for (const s of githubSessions) {
-        if (s && s.id) mergedMap.set(s.id, s)
-      }
-    } catch {}
-
-    // B. Read from Firestore REST API if available
+    // A. Read from Firestore REST API (under 'portfolio' collection)
     if (projectId && apiKey) {
       try {
-        const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/ai_chats?key=${apiKey}&pageSize=100`
+        const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/portfolio?key=${apiKey}&pageSize=100`
         const resp = await fetch(firestoreUrl)
         if (resp.ok) {
           const data = await resp.json()
           if (Array.isArray(data.documents)) {
-            const firestoreSessions = data.documents.map(parseFirestoreDocument).filter(Boolean)
-            for (const s of firestoreSessions) {
-              if (s && s.id) {
-                const existing = mergedMap.get(s.id)
-                if (!existing || new Date(s.updatedAt || 0) >= new Date(existing.updatedAt || 0)) {
-                  mergedMap.set(s.id, s)
-                }
+            const chatDocs = data.documents.filter((d) => !d.name.endsWith('/content'))
+            for (const doc of chatDocs) {
+              const session = parseFirestoreDocument(doc)
+              if (session && session.id) {
+                mergedMap.set(session.id, session)
               }
             }
           }
         }
-      } catch {}
+      } catch (err) {
+        console.warn('Firestore GET error:', err)
+      }
     }
+
+    // B. Read from GitHub repository persistent store
+    try {
+      const { sessions: githubSessions } = await fetchSessionsFromGitHub()
+      for (const s of githubSessions) {
+        if (s && s.id) {
+          const existing = mergedMap.get(s.id)
+          if (!existing || new Date(s.updatedAt || 0) >= new Date(existing.updatedAt || 0)) {
+            mergedMap.set(s.id, s)
+          }
+        }
+      }
+    } catch {}
 
     // C. Read from memory buffer
     for (const s of globalThis.__cachedChatSessions) {
@@ -256,9 +262,10 @@ export default async function handler(req, res) {
 
     const userAgent = session.userAgent || req.headers['user-agent'] || ''
     const detectedBrowser = session.browser || detectBrowser(userAgent)
+    const chatDocId = formatChatDocId(String(session.id))
 
     const normalizedSession = {
-      id: String(session.id),
+      id: chatDocId,
       createdAt: session.createdAt || new Date().toISOString(),
       updatedAt: session.updatedAt || new Date().toISOString(),
       summary: String(session.summary || 'Visitor conversation').slice(0, 150),
@@ -275,8 +282,34 @@ export default async function handler(req, res) {
         : [],
     }
 
-    // A. Update in-memory cache
-    const existingIdx = globalThis.__cachedChatSessions.findIndex((s) => s.id === normalizedSession.id)
+    // A. Sync directly into Firestore REST API under 'portfolio' collection
+    let firestoreSynced = false
+    let firestoreStatus = null
+    if (projectId && apiKey) {
+      try {
+        const firestoreFields = {}
+        for (const [k, v] of Object.entries(normalizedSession)) {
+          firestoreFields[k] = toFirestoreValue(v)
+        }
+
+        const firestorePatchUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/portfolio/${chatDocId}?key=${apiKey}`
+        const patchResp = await fetch(firestorePatchUrl, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fields: firestoreFields }),
+        })
+        firestoreSynced = patchResp.ok
+        if (!patchResp.ok) {
+          const errBody = await patchResp.json().catch(() => ({}))
+          firestoreStatus = errBody.error?.message || `HTTP ${patchResp.status}`
+        }
+      } catch (err) {
+        firestoreStatus = err instanceof Error ? err.message : String(err)
+      }
+    }
+
+    // B. Update in-memory cache
+    const existingIdx = globalThis.__cachedChatSessions.findIndex((s) => s.id === chatDocId)
     if (existingIdx >= 0) {
       globalThis.__cachedChatSessions[existingIdx] = normalizedSession
     } else {
@@ -286,11 +319,11 @@ export default async function handler(req, res) {
       }
     }
 
-    // B. Save to GitHub repository persistent store with [skip ci]
+    // C. Save to GitHub repository persistent store with [skip ci]
     try {
       const { sessions: existingGithubSessions } = await fetchSessionsFromGitHub()
       const updatedMap = new Map()
-      updatedMap.set(normalizedSession.id, normalizedSession)
+      updatedMap.set(chatDocId, normalizedSession)
       for (const s of existingGithubSessions) {
         if (s && s.id && !updatedMap.has(s.id)) {
           updatedMap.set(s.id, s)
@@ -304,58 +337,43 @@ export default async function handler(req, res) {
       console.warn('Could not commit session to GitHub:', gitErr)
     }
 
-    // C. Also sync to Firestore REST API if configured
-    let firestoreSynced = false
-    if (projectId && apiKey) {
-      try {
-        const firestoreFields = {}
-        for (const [k, v] of Object.entries(normalizedSession)) {
-          firestoreFields[k] = toFirestoreValue(v)
-        }
-
-        const firestorePatchUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/ai_chats/${normalizedSession.id}?key=${apiKey}`
-        const patchResp = await fetch(firestorePatchUrl, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fields: firestoreFields }),
-        })
-        firestoreSynced = patchResp.ok
-      } catch {}
-    }
-
     return res.status(200).json({
       success: true,
-      id: normalizedSession.id,
+      id: chatDocId,
       firestoreSynced,
+      firestoreStatus: firestoreSynced ? 'saved_to_firebase' : firestoreStatus,
       saved: true,
     })
   }
 
   // 3. DELETE: Remove a chat session
   if (req.method === 'DELETE') {
-    const id = req.query.id || (typeof req.body === 'object' && req.body?.id)
-    if (!id) {
+    const rawId = req.query.id || (typeof req.body === 'object' && req.body?.id)
+    if (!rawId) {
       return res.status(400).json({ error: 'Missing session ID to delete' })
     }
+    const chatDocId = formatChatDocId(String(rawId))
 
-    globalThis.__cachedChatSessions = globalThis.__cachedChatSessions.filter((s) => s.id !== id)
-
-    // Remove from GitHub repository store
-    try {
-      const { sessions: existing } = await fetchSessionsFromGitHub()
-      const filtered = existing.filter((s) => s.id !== id)
-      await commitSessionsToGitHub(filtered)
-    } catch {}
+    globalThis.__cachedChatSessions = globalThis.__cachedChatSessions.filter(
+      (s) => s.id !== rawId && s.id !== chatDocId
+    )
 
     // Remove from Firestore
     if (projectId && apiKey) {
       try {
-        const firestoreDeleteUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/ai_chats/${id}?key=${apiKey}`
+        const firestoreDeleteUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/portfolio/${chatDocId}?key=${apiKey}`
         await fetch(firestoreDeleteUrl, { method: 'DELETE' })
       } catch {}
     }
 
-    return res.status(200).json({ success: true, deletedId: id })
+    // Remove from GitHub repository store
+    try {
+      const { sessions: existing } = await fetchSessionsFromGitHub()
+      const filtered = existing.filter((s) => s.id !== rawId && s.id !== chatDocId)
+      await commitSessionsToGitHub(filtered)
+    } catch {}
+
+    return res.status(200).json({ success: true, deletedId: chatDocId })
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
