@@ -135,7 +135,17 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
       })
     })
     return () => unsub()
-  }, [])
+  }, [firebaseUser, authToken])
+
+  // Auto-refresh chats when switching to chats tab and every 10 seconds while viewing
+  useEffect(() => {
+    if (currentTab !== 'chats') return
+    handleRefreshChats()
+    const interval = setInterval(() => {
+      handleRefreshChats()
+    }, 10000)
+    return () => clearInterval(interval)
+  }, [currentTab])
 
   // Track Firebase Auth user
   useEffect(() => {
