@@ -10,14 +10,8 @@ import {
 import { db, isFirebaseConfigured, ensureFirebaseInitialized } from '../firebase'
 import type { ChatSession } from '../types'
 
-// Storing under 'portfolio' collection where Firestore Security Rules allow read/write
-const FIRESTORE_PORTFOLIO_COLLECTION = 'portfolio'
+const AI_CHATS_COLLECTION = 'ai_chats'
 const LOCAL_STORAGE_CHATS_KEY = 'junaid_saved_chat_sessions'
-
-function formatChatDocId(id: string): string {
-  if (id.startsWith('chat_')) return id
-  return `chat_${id}`
-}
 
 let inMemoryChatSessions: ChatSession[] = []
 
@@ -72,9 +66,9 @@ function mergeSessions(primary: ChatSession[], secondary: ChatSession[]): ChatSe
   })
 }
 
-function sanitizeForFirestore(session: ChatSession, chatDocId: string): Record<string, any> {
+function sanitizeForFirestore(session: ChatSession): Record<string, any> {
   const clean: Record<string, any> = {
-    id: chatDocId,
+    id: String(session.id),
     createdAt: session.createdAt || new Date().toISOString(),
     updatedAt: session.updatedAt || new Date().toISOString(),
     summary: String(session.summary || 'Visitor conversation').slice(0, 150),
@@ -98,12 +92,12 @@ function sanitizeForFirestore(session: ChatSession, chatDocId: string): Record<s
  * and through the serverless bridge for resilient cross-device synchronization.
  */
 export async function saveChatSession(session: ChatSession): Promise<void> {
-  const chatDocId = formatChatDocId(session.id)
-  const cleanData = sanitizeForFirestore(session, chatDocId)
+  const cleanData = sanitizeForFirestore(session)
+  const sessionId = cleanData.id
 
   // 1. Update local & memory cache
   const local = getLocalChatSessions()
-  const existingIdx = local.findIndex((s) => s.id === session.id || s.id === chatDocId)
+  const existingIdx = local.findIndex((s) => s.id === sessionId)
   let updatedLocal: ChatSession[]
   if (existingIdx >= 0) {
     updatedLocal = [...local]
@@ -113,14 +107,14 @@ export async function saveChatSession(session: ChatSession): Promise<void> {
   }
   saveLocalChatSessions(updatedLocal)
 
-  // 2. Direct Firestore Client SDK write to 'portfolio' collection
+  // 2. Direct Firestore Client SDK write to 'ai_chats' collection
   try {
     if (!isFirebaseConfigured() || !db) {
       await ensureFirebaseInitialized()
     }
 
     if (isFirebaseConfigured() && db) {
-      const docRef = doc(db, FIRESTORE_PORTFOLIO_COLLECTION, chatDocId)
+      const docRef = doc(db, AI_CHATS_COLLECTION, sessionId)
       await setDoc(docRef, cleanData, { merge: true })
     }
   } catch (err) {
@@ -145,7 +139,7 @@ export async function saveChatSession(session: ChatSession): Promise<void> {
 
 /**
  * Subscribes to live chat sessions for the Admin Panel.
- * Listens to Firestore 'portfolio' real-time updates and merges serverless API data.
+ * Listens to Firestore 'ai_chats' real-time updates and merges serverless API data.
  */
 export function subscribeToChatSessions(
   callback: (sessions: ChatSession[]) => void
@@ -174,23 +168,20 @@ export function subscribeToChatSessions(
   }
   fetchFromServerless()
 
-  // 2. Setup Firestore real-time listener on 'portfolio' collection
+  // 2. Setup Firestore real-time listener on 'ai_chats' collection
   const setupFirestoreSubscription = () => {
     if (!db) return
 
     try {
-      const q = query(collection(db, FIRESTORE_PORTFOLIO_COLLECTION), limit(100))
+      const q = query(collection(db, AI_CHATS_COLLECTION), limit(100))
 
       unsubscribeFirestore = onSnapshot(
         q,
         (snapshot) => {
           const remoteSessions: ChatSession[] = []
           snapshot.forEach((docSnap) => {
-            // Ignore portfolio content document
-            if (docSnap.id === 'content') return
-
             const data = docSnap.data() as Partial<ChatSession>
-            if (data && (Array.isArray(data.messages) || data.summary || docSnap.id.startsWith('chat_'))) {
+            if (data && (Array.isArray(data.messages) || data.summary)) {
               remoteSessions.push({
                 id: docSnap.id,
                 createdAt: data.createdAt || new Date().toISOString(),
@@ -243,13 +234,12 @@ export function subscribeToChatSessions(
  * Deletes a chat session from local storage, serverless API, and Firestore.
  */
 export async function deleteChatSession(sessionId: string): Promise<void> {
-  const chatDocId = formatChatDocId(sessionId)
-  const local = getLocalChatSessions().filter((s) => s.id !== sessionId && s.id !== chatDocId)
+  const local = getLocalChatSessions().filter((s) => s.id !== sessionId)
   saveLocalChatSessions(local)
 
   // Delete via serverless API
   try {
-    await fetch(`/api/save-chat-session?id=${encodeURIComponent(chatDocId)}`, {
+    await fetch(`/api/save-chat-session?id=${encodeURIComponent(sessionId)}`, {
       method: 'DELETE',
     })
   } catch {}
@@ -261,7 +251,7 @@ export async function deleteChatSession(sessionId: string): Promise<void> {
 
   if (db) {
     try {
-      const docRef = doc(db, FIRESTORE_PORTFOLIO_COLLECTION, chatDocId)
+      const docRef = doc(db, AI_CHATS_COLLECTION, sessionId)
       await deleteDoc(docRef)
     } catch (err) {
       console.warn('Could not delete from Firestore client:', err)
