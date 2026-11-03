@@ -9,6 +9,7 @@ import {
   subscribeToAuth,
 } from '../services/portfolioService'
 import { subscribeToChatSessions, deleteChatSession } from '../services/chatLogService'
+import { generateProjectFromGithub } from '../services/aiAutofillService'
 import {
   isFirebaseConfigured,
   firebaseConfig,
@@ -55,6 +56,25 @@ const SUGGESTED_CATEGORIES = [
   'System Architecture',
 ]
 
+const POPULAR_STACK_SUGGESTIONS = [
+  'Kotlin',
+  'Jetpack Compose',
+  'Coroutines & Flow',
+  'TypeScript',
+  'React 19',
+  'Tailwind CSS',
+  'Vite',
+  'Rust',
+  'Python',
+  'FastAPI',
+  'Google Gemini 2.0',
+  'HTML5 Canvas 2D',
+  'Cloud Firestore',
+  'Firebase Auth',
+  'Shapely STRtree',
+  'OpenStreetMap',
+]
+
 const AVAILABLE_ICONS = ['code', 'globe', 'rocket', 'spark', 'briefcase', 'layout', 'shield']
 
 export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProps) {
@@ -69,18 +89,26 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
   const [authError, setAuthError] = useState('')
   const [isAuthenticating, setIsAuthenticating] = useState(false)
 
-  // Active Tab
+  // Navigation & Data
   const [currentTab, setCurrentTab] = useState<AdminTab>('projects')
-
-  // Portfolio Data under edit
   const [data, setData] = useState<PortfolioData>(initialData)
   const [editingProjectIndex, setEditingProjectIndex] = useState<number | null>(null)
   const [activeProjectDraft, setActiveProjectDraft] = useState<Project | null>(null)
   const [isNewProject, setIsNewProject] = useState(false)
+  const [projectSearchQuery, setProjectSearchQuery] = useState('')
+  const [previewMarkdown, setPreviewMarkdown] = useState(false)
+  const [tagInput, setTagInput] = useState('')
 
-  // Save states
+  // Swirl AI Autofill states
+  const [aiRepoUrl, setAiRepoUrl] = useState('')
+  const [aiCustomInstructions, setAiCustomInstructions] = useState('')
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false)
+  const [aiStatusMessage, setAiStatusMessage] = useState('')
+  const [aiError, setAiError] = useState('')
+  const [showAiImportModal, setShowAiImportModal] = useState(false)
+
+  // Save & Sync states
   const [isSaving, setIsSaving] = useState(false)
-  const [isSeeding, setIsSeeding] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
   const [testFeedback, setTestFeedback] = useState<{ ok: boolean; message: string } | null>(null)
   const [saveStatus, setSaveStatus] = useState<{
@@ -92,6 +120,7 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
   const [selectedChatSessionId, setSelectedChatSessionId] = useState<string | null>(null)
   const [isDeletingChat, setIsDeletingChat] = useState(false)
+  const [chatSearchQuery, setChatSearchQuery] = useState('')
 
   const isConfigured = isFirebaseConfigured()
   const [configDraft, setConfigDraft] = useState<FirebaseConfig>({ ...firebaseConfig })
@@ -130,6 +159,23 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     }
   }, [authToken])
 
+  // ESC to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isGeneratingAi) {
+        if (activeProjectDraft) {
+          cancelProjectEdit()
+        } else if (showAiImportModal) {
+          setShowAiImportModal(false)
+        } else {
+          onClose()
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [activeProjectDraft, showAiImportModal, isGeneratingAi])
+
   // Login handler
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault()
@@ -145,7 +191,6 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
         setAuthToken('firebase_session_' + Date.now())
         setPasswordInput('')
       } else {
-        // Master password authentication
         const res = await fetch('/api/admin-auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -179,11 +224,9 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     setSaveStatus({ type: null, message: '' })
 
     try {
-      // 1. Instantly save to Firebase Firestore
       const res = await savePortfolioToFirebase(data)
       onDataUpdated(data)
 
-      // 2. Also inform serverless backup if token exists
       if (authToken && !authToken.startsWith('firebase_session_')) {
         fetch('/api/admin-save', {
           method: 'POST',
@@ -206,26 +249,6 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
       })
     } finally {
       setIsSaving(false)
-    }
-  }
-
-  // 1-Click seed current data to Firestore
-  const handleSeedFirebase = async () => {
-    setIsSeeding(true)
-    setSaveStatus({ type: null, message: '' })
-    try {
-      await savePortfolioToFirebase(data)
-      setSaveStatus({
-        type: 'success',
-        message: `Successfully synchronized all ${data.projects.length} projects and profile data to Firebase Firestore!`,
-      })
-    } catch (err) {
-      setSaveStatus({
-        type: 'error',
-        message: err instanceof Error ? err.message : 'Failed to sync data to Firebase.',
-      })
-    } finally {
-      setIsSeeding(false)
     }
   }
 
@@ -279,18 +302,27 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     setActiveProjectDraft({ ...DEFAULT_NEW_PROJECT })
     setIsNewProject(true)
     setEditingProjectIndex(null)
+    setAiRepoUrl('')
+    setAiStatusMessage('')
+    setAiError('')
   }
 
   const startEditProject = (index: number) => {
-    setActiveProjectDraft({ ...data.projects[index] })
+    const proj = data.projects[index]
+    setActiveProjectDraft({ ...proj })
     setIsNewProject(false)
     setEditingProjectIndex(index)
+    setAiRepoUrl(proj.githubUrl || '')
+    setAiStatusMessage('')
+    setAiError('')
   }
 
   const cancelProjectEdit = () => {
     setActiveProjectDraft(null)
     setIsNewProject(false)
     setEditingProjectIndex(null)
+    setAiStatusMessage('')
+    setAiError('')
   }
 
   const commitProjectDraft = () => {
@@ -300,11 +332,13 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
       return
     }
 
-    const updatedProjects = [...data.projects]
-    if (isNewProject) {
-      updatedProjects.unshift(activeProjectDraft)
-    } else if (editingProjectIndex !== null) {
-      updatedProjects[editingProjectIndex] = activeProjectDraft
+    let updatedProjects: Project[]
+    if (isNewProject || editingProjectIndex === null) {
+      updatedProjects = [activeProjectDraft, ...data.projects]
+    } else {
+      updatedProjects = data.projects.map((p, idx) =>
+        idx === editingProjectIndex ? activeProjectDraft : p
+      )
     }
 
     const updatedData = { ...data, projects: updatedProjects }
@@ -312,6 +346,10 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     savePortfolioDataLocal(updatedData)
     onDataUpdated(updatedData)
     cancelProjectEdit()
+    setSaveStatus({
+      type: 'info',
+      message: `Project "${activeProjectDraft.title}" updated in working memory. Click "Save to Firebase" to sync changes to the cloud.`,
+    })
   }
 
   const deleteProject = (index: number) => {
@@ -340,6 +378,132 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     onDataUpdated(updatedData)
   }
 
+  // --- Swirl AI Autofill Handler ---
+  const handleAiAutofill = async (targetRepoUrl?: string) => {
+    const url = (targetRepoUrl || aiRepoUrl || activeProjectDraft?.githubUrl || '').trim()
+    if (!url) {
+      setAiError('Please enter a valid GitHub repository URL (e.g. https://github.com/owner/repo).')
+      return
+    }
+
+    setIsGeneratingAi(true)
+    setAiError('')
+    setAiStatusMessage('Connecting to GitHub repository and fetching README...')
+
+    try {
+      const result = await generateProjectFromGithub(url, aiCustomInstructions)
+      setAiStatusMessage('Swirl AI analyzed architecture! Populating project fields...')
+
+      const gen = result.project
+
+      if (showAiImportModal || !activeProjectDraft) {
+        // Direct import as a new project draft
+        setActiveProjectDraft(gen)
+        setIsNewProject(true)
+        setEditingProjectIndex(null)
+        setShowAiImportModal(false)
+      } else {
+        // Populate into existing project draft
+        setActiveProjectDraft((prev) => {
+          const base = prev || { ...DEFAULT_NEW_PROJECT }
+          return {
+            ...base,
+            title: gen.title || base.title,
+            category: gen.category || base.category,
+            description: gen.description || base.description,
+            fullDescription: gen.fullDescription || base.fullDescription,
+            stack: Array.isArray(gen.stack) && gen.stack.length > 0 ? gen.stack : base.stack,
+            features: Array.isArray(gen.features) && gen.features.length > 0 ? gen.features : base.features,
+            technologies:
+              Array.isArray(gen.technologies) && gen.technologies.length > 0
+                ? gen.technologies
+                : base.technologies,
+            githubUrl: gen.githubUrl || url,
+            liveUrl: gen.liveUrl || base.liveUrl || '',
+            icon: gen.icon || base.icon || 'code',
+            linkLabel: gen.linkLabel || base.linkLabel || 'View case study',
+          }
+        })
+      }
+
+      setAiStatusMessage('✨ Successfully generated from README with Swirl AI!')
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'Failed to generate project details.')
+    } finally {
+      setIsGeneratingAi(false)
+    }
+  }
+
+  // Tag helper
+  const handleAddTag = (tagToAdd?: string) => {
+    const tag = (tagToAdd || tagInput).trim()
+    if (!tag || !activeProjectDraft) return
+    if (!activeProjectDraft.stack.includes(tag)) {
+      setActiveProjectDraft({
+        ...activeProjectDraft,
+        stack: [...activeProjectDraft.stack, tag],
+      })
+    }
+    setTagInput('')
+  }
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    if (!activeProjectDraft) return
+    setActiveProjectDraft({
+      ...activeProjectDraft,
+      stack: activeProjectDraft.stack.filter((t) => t !== tagToRemove),
+    })
+  }
+
+  // Feature bullet helper
+  const handleAddFeature = () => {
+    if (!activeProjectDraft) return
+    setActiveProjectDraft({
+      ...activeProjectDraft,
+      features: [...activeProjectDraft.features, ''],
+    })
+  }
+
+  const handleUpdateFeature = (index: number, val: string) => {
+    if (!activeProjectDraft) return
+    const updated = [...activeProjectDraft.features]
+    updated[index] = val
+    setActiveProjectDraft({ ...activeProjectDraft, features: updated })
+  }
+
+  const handleRemoveFeature = (index: number) => {
+    if (!activeProjectDraft) return
+    setActiveProjectDraft({
+      ...activeProjectDraft,
+      features: activeProjectDraft.features.filter((_, i) => i !== index),
+    })
+  }
+
+  // Technology architecture helper
+  const handleAddTech = () => {
+    if (!activeProjectDraft) return
+    setActiveProjectDraft({
+      ...activeProjectDraft,
+      technologies: [...activeProjectDraft.technologies, { name: '', details: '' }],
+    })
+  }
+
+  const handleUpdateTech = (index: number, field: 'name' | 'details', val: string) => {
+    if (!activeProjectDraft) return
+    const updated = [...activeProjectDraft.technologies]
+    updated[index] = { ...updated[index], [field]: val }
+    setActiveProjectDraft({ ...activeProjectDraft, technologies: updated })
+  }
+
+  const handleRemoveTech = (index: number) => {
+    if (!activeProjectDraft) return
+    setActiveProjectDraft({
+      ...activeProjectDraft,
+      technologies: activeProjectDraft.technologies.filter((_, i) => i !== index),
+    })
+  }
+
+  // Chat Session Delete
   const handleDeleteSession = async (sessionId: string) => {
     if (!confirm('Are you sure you want to delete this chat session log?')) return
     setIsDeletingChat(true)
@@ -357,18 +521,44 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     }
   }
 
+  // Filtered projects
+  const filteredProjects = data.projects.filter((p) => {
+    if (!projectSearchQuery.trim()) return true
+    const q = projectSearchQuery.toLowerCase()
+    return (
+      p.title.toLowerCase().includes(q) ||
+      p.category.toLowerCase().includes(q) ||
+      p.description.toLowerCase().includes(q) ||
+      p.stack.some((s) => s.toLowerCase().includes(q))
+    )
+  })
+
+  // Filtered chat sessions
+  const filteredChatSessions = chatSessions.filter((s) => {
+    if (!chatSearchQuery.trim()) return true
+    const q = chatSearchQuery.toLowerCase()
+    return (
+      (s.summary && s.summary.toLowerCase().includes(q)) ||
+      s.id.toLowerCase().includes(q) ||
+      (s.messages && s.messages.some((m) => m.content.toLowerCase().includes(q)))
+    )
+  })
+
   const isAuthenticated = Boolean(authToken || firebaseUser)
 
   // --- Render Authentication Prompt if not logged in ---
   if (!isAuthenticated) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-bg)]/90 p-4 backdrop-blur-md">
-        <div className="w-full max-w-md border border-[var(--color-border)] bg-[var(--color-panel)] p-8">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-bg)]/95 p-4 backdrop-blur-md">
+        <div className="w-full max-w-md border border-[var(--color-border)] bg-[var(--color-panel)] p-6 md:p-8 shadow-2xl rounded-lg">
           <div className="mb-6 flex items-center justify-between border-b border-[var(--color-border)] pb-4">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight text-[var(--color-text)]">
-                Admin Authentication
-              </h2>
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <h2 className="text-base font-mono font-semibold tracking-tight text-[var(--color-text)]">
+                  Admin Console
+                </h2>
+              </div>
               <p className="mt-1 text-xs font-mono text-[var(--color-muted)]">
                 {isConfigured ? 'Firebase Cloud Connected' : 'Local / Master Password Mode'}
               </p>
@@ -376,19 +566,18 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
             <button
               type="button"
               onClick={onClose}
-              className="text-xs font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] cursor-pointer"
+              className="text-xs font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] cursor-pointer p-1"
             >
-              Close [ESC]
+              ✕ Close
             </button>
           </div>
 
-          {/* Mode Switcher */}
           {isConfigured && (
-            <div className="mb-4 flex border border-[var(--color-border)] text-xs font-mono">
+            <div className="mb-4 flex border border-[var(--color-border)] text-xs font-mono rounded overflow-hidden">
               <button
                 type="button"
                 onClick={() => setAuthMode('password')}
-                className={`flex-1 py-1.5 transition-colors cursor-pointer ${
+                className={`flex-1 py-2 transition-colors cursor-pointer ${
                   authMode === 'password'
                     ? 'bg-[var(--color-text)] text-[var(--color-bg)] font-semibold'
                     : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
@@ -399,7 +588,7 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
               <button
                 type="button"
                 onClick={() => setAuthMode('firebase')}
-                className={`flex-1 py-1.5 transition-colors cursor-pointer ${
+                className={`flex-1 py-2 transition-colors cursor-pointer ${
                   authMode === 'firebase'
                     ? 'bg-[var(--color-text)] text-[var(--color-bg)] font-semibold'
                     : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
@@ -410,940 +599,1171 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          {authError && (
+            <div className="mb-4 border border-red-500/30 bg-red-500/10 p-3 text-xs font-mono text-red-400 rounded">
+              {authError}
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-4 font-mono text-xs">
             {authMode === 'firebase' && isConfigured && (
               <div>
-                <label
-                  htmlFor="admin-email"
-                  className="block text-xs font-mono text-[var(--color-muted)] mb-1.5"
-                >
-                  Firebase Admin Email
-                </label>
+                <label className="block text-[var(--color-muted)] mb-1">Admin Email</label>
                 <input
-                  id="admin-email"
                   type="email"
                   required
-                  placeholder="admin@example.com"
+                  autoFocus
+                  placeholder="admin@domain.com"
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
-                  className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] placeholder-[var(--color-muted)] focus:border-[var(--color-border-hover)] focus:outline-none font-mono"
+                  className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-[var(--color-text)] focus:border-[var(--color-border-hover)] focus:outline-none rounded"
                 />
               </div>
             )}
 
             <div>
-              <label
-                htmlFor="admin-password"
-                className="block text-xs font-mono text-[var(--color-muted)] mb-1.5"
-              >
+              <label className="block text-[var(--color-muted)] mb-1">
                 {authMode === 'firebase' ? 'Firebase Password' : 'Master Password'}
               </label>
               <input
-                id="admin-password"
                 type="password"
                 required
-                autoFocus
-                placeholder="Enter password..."
+                autoFocus={authMode === 'password'}
+                placeholder="Enter password"
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] placeholder-[var(--color-muted)] focus:border-[var(--color-border-hover)] focus:outline-none font-mono"
+                className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-[var(--color-text)] focus:border-[var(--color-border-hover)] focus:outline-none rounded"
               />
             </div>
 
-            {authError && (
-              <div className="border border-red-500/40 bg-red-500/10 p-2.5 text-xs text-red-400 font-mono">
-                {authError}
-              </div>
-            )}
-
-            <div className="pt-2 flex items-center gap-3">
-              <button
-                type="submit"
-                disabled={isAuthenticating}
-                className="btn-primary w-full py-2 text-xs font-mono tracking-wide cursor-pointer"
-              >
-                {isAuthenticating ? 'Verifying...' : 'Unlock Portal'}
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="btn-secondary w-full py-2 text-xs font-mono tracking-wide cursor-pointer"
-              >
-                Cancel
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={isAuthenticating}
+              className="btn-primary w-full py-2.5 font-mono text-xs cursor-pointer disabled:opacity-50"
+            >
+              {isAuthenticating ? 'Authenticating...' : 'Unlock Console →'}
+            </button>
           </form>
 
-          <p className="mt-6 text-[11px] font-mono text-[var(--color-muted)] border-t border-[var(--color-border)] pt-4 leading-relaxed">
-            Instant updates with Firebase Cloud Firestore. Zero redeployment needed.
+          <p className="mt-4 text-center text-[11px] font-mono text-[var(--color-muted)]">
+            Changes save to Firebase Firestore and sync to visitors instantly with zero redeploy.
           </p>
         </div>
       </div>
     )
   }
 
-  // --- Render Authenticated Admin Dashboard ---
+  // --- Main Admin Portal Layout ---
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-[var(--color-bg)] text-[var(--color-text)]">
-      {/* Top Bar */}
-      <header className="sticky top-0 z-40 border-b border-[var(--color-border)] bg-[var(--color-bg)]/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4 flex-wrap">
-            <span className="font-mono text-sm font-semibold tracking-tight text-[var(--color-text)]">
-              /iam_admin
-            </span>
+    <div className="fixed inset-0 z-50 flex flex-col bg-[var(--color-bg)] text-[var(--color-text)] overflow-hidden font-sans">
+      {/* Top Header Command Bar */}
+      <header className="border-b border-[var(--color-border)] bg-[var(--color-panel)] px-4 sm:px-6 py-3 flex-shrink-0">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          {/* Left: Branding & Status */}
+          <div className="flex items-center gap-3 min-w-0">
             <div className="flex items-center gap-2">
-              <span
-                className={`inline-block h-2 w-2 rounded-full ${
-                  isConfigured ? 'bg-emerald-500' : 'bg-amber-500'
-                }`}
-              />
-              <span className="text-xs font-mono text-[var(--color-muted)]">
-                {isConfigured
-                  ? `Firebase Firestore Live (${firebaseConfig.projectId || 'Connected'})`
-                  : 'Firebase Pending Config (Local Mode)'}
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
+              <span className="font-mono text-xs font-semibold tracking-tight text-[var(--color-text)] truncate">
+                Junaid Admin Portal
               </span>
             </div>
+            <span className="hidden md:inline-block h-3 w-px bg-[var(--color-border)]" />
+            <span className="hidden md:inline-flex items-center gap-1.5 font-mono text-[11px] text-[var(--color-muted)]">
+              {isConfigured ? (
+                <span className="text-emerald-500 font-medium">● Firestore Live</span>
+              ) : (
+                <span className="text-amber-500 font-medium">○ Local Browser Cache</span>
+              )}
+            </span>
             {firebaseUser && (
-              <span className="text-[11px] font-mono text-emerald-500 border border-emerald-500/30 px-2 py-0.5 rounded">
-                User: {firebaseUser.email}
+              <span className="hidden lg:inline-block font-mono text-[10px] text-[var(--color-muted)] truncate max-w-[180px]">
+                {firebaseUser.email}
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             <button
               type="button"
               onClick={handleSaveAll}
               disabled={isSaving}
-              className="btn-primary px-4 py-1.5 text-xs font-mono cursor-pointer"
+              className="btn-primary px-3 sm:px-4 py-1.5 text-xs font-mono cursor-pointer flex items-center gap-1.5 shadow-sm"
+              title="Save all changes to Firebase Firestore"
             >
-              {isSaving ? 'Saving to Firebase...' : 'Save to Firebase'}
+              {isSaving ? (
+                <>
+                  <span className="h-2 w-2 rounded-full bg-white animate-spin" />
+                  <span>Syncing...</span>
+                </>
+              ) : (
+                <>
+                  <span>☁ Save to Firebase</span>
+                </>
+              )}
             </button>
+
             <button
               type="button"
               onClick={onClose}
               className="btn-secondary px-3 py-1.5 text-xs font-mono cursor-pointer"
+              title="Return to public portfolio view"
             >
-              Exit to Portfolio
+              Exit
             </button>
+
             <button
               type="button"
               onClick={handleLogout}
-              className="border border-[var(--color-border)] px-3 py-1.5 text-xs font-mono text-[var(--color-muted)] hover:text-red-400 hover:border-red-500/40 cursor-pointer"
+              className="border border-[var(--color-border)] px-2.5 py-1.5 text-xs font-mono text-[var(--color-muted)] hover:text-red-400 hover:border-red-500/40 rounded cursor-pointer transition-colors"
+              title="Log out of admin session"
             >
               Log Out
             </button>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="mx-auto flex max-w-6xl border-t border-[var(--color-border)] px-6 text-xs font-mono overflow-x-auto">
+        {/* Tab Navigation */}
+        <div className="mx-auto flex max-w-7xl pt-3 text-xs font-mono overflow-x-auto no-scrollbar gap-1">
           <button
             type="button"
             onClick={() => {
               setCurrentTab('projects')
               cancelProjectEdit()
             }}
-            className={`border-b-2 px-4 py-3 cursor-pointer transition-colors whitespace-nowrap ${
+            className={`border-b-2 px-3 py-2 cursor-pointer transition-colors whitespace-nowrap flex items-center gap-1.5 ${
               currentTab === 'projects'
                 ? 'border-[var(--color-text)] text-[var(--color-text)] font-semibold'
                 : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-text)]'
             }`}
           >
-            Projects ({data.projects.length})
+            <span>📁 Projects</span>
+            <span className="rounded bg-[var(--color-bg)] border border-[var(--color-border)] px-1.5 py-0.2 text-[10px] text-[var(--color-muted)]">
+              {data.projects.length}
+            </span>
           </button>
+
           <button
             type="button"
             onClick={() => setCurrentTab('profile')}
-            className={`border-b-2 px-4 py-3 cursor-pointer transition-colors whitespace-nowrap ${
+            className={`border-b-2 px-3 py-2 cursor-pointer transition-colors whitespace-nowrap flex items-center gap-1.5 ${
               currentTab === 'profile'
                 ? 'border-[var(--color-text)] text-[var(--color-text)] font-semibold'
                 : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-text)]'
             }`}
           >
-            Profile & Social Links
+            <span>👤 Profile & Bio</span>
           </button>
+
           <button
             type="button"
             onClick={() => setCurrentTab('chats')}
-            className={`border-b-2 px-4 py-3 cursor-pointer transition-colors whitespace-nowrap ${
+            className={`border-b-2 px-3 py-2 cursor-pointer transition-colors whitespace-nowrap flex items-center gap-1.5 ${
               currentTab === 'chats'
                 ? 'border-[var(--color-text)] text-[var(--color-text)] font-semibold'
                 : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-text)]'
             }`}
           >
-            AI Chat Logs ({chatSessions.length})
+            <span>💬 Visitor AI Chats</span>
+            <span className="rounded bg-[var(--color-bg)] border border-[var(--color-border)] px-1.5 py-0.2 text-[10px] text-[var(--color-muted)]">
+              {chatSessions.length}
+            </span>
           </button>
+
           <button
             type="button"
             onClick={() => setCurrentTab('firebase')}
-            className={`border-b-2 px-4 py-3 cursor-pointer transition-colors whitespace-nowrap ${
+            className={`border-b-2 px-3 py-2 cursor-pointer transition-colors whitespace-nowrap flex items-center gap-1.5 ${
               currentTab === 'firebase'
                 ? 'border-[var(--color-text)] text-[var(--color-text)] font-semibold'
                 : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-text)]'
             }`}
           >
-            Firebase Cloud Sync
+            <span>☁ Cloud Sync & Rules</span>
           </button>
+
           <button
             type="button"
             onClick={() => setCurrentTab('backup')}
-            className={`border-b-2 px-4 py-3 cursor-pointer transition-colors whitespace-nowrap ${
+            className={`border-b-2 px-3 py-2 cursor-pointer transition-colors whitespace-nowrap flex items-center gap-1.5 ${
               currentTab === 'backup'
                 ? 'border-[var(--color-text)] text-[var(--color-text)] font-semibold'
                 : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-text)]'
             }`}
           >
-            Raw JSON & Backup
+            <span>💾 Raw JSON</span>
           </button>
         </div>
       </header>
 
-      {/* Status banner */}
+      {/* Save / Feedback Status Notification */}
       {saveStatus.message && (
-        <div className="mx-auto max-w-6xl px-6 pt-4">
-          <div
-            className={`p-3 text-xs font-mono border ${
-              saveStatus.type === 'success'
-                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                : 'border-red-500/40 bg-red-500/10 text-red-300'
-            }`}
-          >
-            {saveStatus.message}
+        <div className="border-b border-[var(--color-border)] bg-[var(--color-bg)] px-6 py-2.5">
+          <div className="mx-auto max-w-7xl flex items-center justify-between text-xs font-mono">
+            <span
+              className={
+                saveStatus.type === 'success'
+                  ? 'text-emerald-400'
+                  : saveStatus.type === 'error'
+                  ? 'text-red-400'
+                  : 'text-sky-400'
+              }
+            >
+              {saveStatus.type === 'success' ? '✓ ' : saveStatus.type === 'error' ? '✗ ' : 'ℹ '}
+              {saveStatus.message}
+            </span>
+            <button
+              type="button"
+              onClick={() => setSaveStatus({ type: null, message: '' })}
+              className="text-[var(--color-muted)] hover:text-[var(--color-text)] ml-2"
+            >
+              ✕
+            </button>
           </div>
         </div>
       )}
 
-      {/* Main Content Area */}
-      <main className="mx-auto max-w-6xl p-6">
-        {/* ================= TAB 1: PROJECTS ================= */}
-        {currentTab === 'projects' && (
-          <div>
-            {activeProjectDraft ? (
-              // Project Editor Form
-              <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-6 space-y-6">
-                <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-4">
-                  <h3 className="text-base font-semibold text-[var(--color-text)]">
-                    {isNewProject ? 'Add New Project' : `Edit: ${activeProjectDraft.title}`}
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={commitProjectDraft}
-                      className="btn-primary px-3 py-1.5 text-xs font-mono cursor-pointer"
-                    >
-                      Apply To In Memory List
-                    </button>
-                    <button
-                      type="button"
-                      onClick={cancelProjectEdit}
-                      className="btn-secondary px-3 py-1.5 text-xs font-mono cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
+      {/* Main Content Area (Scrollable) */}
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div className="mx-auto max-w-7xl">
+          {/* ================= TAB 1: PROJECTS ================= */}
+          {currentTab === 'projects' && (
+            <div>
+              {activeProjectDraft ? (
+                /* ================= PROJECT EDITOR VIEW ================= */
+                <div className="space-y-6">
+                  {/* Top Editor Bar */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-panel)] p-4 rounded-lg">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-[var(--color-muted)] uppercase tracking-wider">
+                          {isNewProject ? 'Project Creator' : 'Project Editor'}
+                        </span>
+                        <span className="text-xs font-mono px-2 py-0.5 rounded bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)]">
+                          {activeProjectDraft.category}
+                        </span>
+                      </div>
+                      <h2 className="text-lg font-semibold text-[var(--color-text)] mt-1">
+                        {activeProjectDraft.title || 'Untitled Project'}
+                      </h2>
+                    </div>
 
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  {/* Title */}
-                  <div>
-                    <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                      Project Title *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. doc engine"
-                      value={activeProjectDraft.title}
-                      onChange={(e) =>
-                        setActiveProjectDraft({ ...activeProjectDraft, title: e.target.value })
-                      }
-                      className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none"
-                    />
-                  </div>
-
-                  {/* Category Selector */}
-                  <div>
-                    <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                      Category Selector *
-                    </label>
-                    <div className="space-y-2">
-                      <select
-                        value={activeProjectDraft.category}
-                        onChange={(e) =>
-                          setActiveProjectDraft({ ...activeProjectDraft, category: e.target.value })
-                        }
-                        className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none"
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={commitProjectDraft}
+                        className="btn-primary flex-1 sm:flex-initial px-4 py-2 text-xs font-mono cursor-pointer shadow-sm"
                       >
-                        {SUGGESTED_CATEGORIES.map((cat) => (
-                          <option key={cat} value={cat}>
-                            {cat}
-                          </option>
-                        ))}
-                        <option value="custom">Custom category...</option>
-                      </select>
-                      <input
-                        type="text"
-                        placeholder="Or type a custom category title..."
-                        value={activeProjectDraft.category}
-                        onChange={(e) =>
-                          setActiveProjectDraft({ ...activeProjectDraft, category: e.target.value })
-                        }
-                        className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs text-[var(--color-text)] focus:outline-none font-mono"
-                      />
+                        ✓ Apply To List
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelProjectEdit}
+                        className="btn-secondary flex-1 sm:flex-initial px-4 py-2 text-xs font-mono cursor-pointer"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
 
-                  {/* Short Description */}
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                      Short Description (Card view) *
-                    </label>
-                    <textarea
-                      rows={2}
-                      placeholder="A short summary of what this project does..."
-                      value={activeProjectDraft.description}
-                      onChange={(e) =>
-                        setActiveProjectDraft({
-                          ...activeProjectDraft,
-                          description: e.target.value,
-                        })
-                      }
-                      className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none"
-                    />
-                  </div>
-
-                  {/* Full Description / Deep Dive */}
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                      Detailed Overview (Modal Case Study)
-                    </label>
-                    <textarea
-                      rows={4}
-                      placeholder="Comprehensive technical breakdown, challenges, and implementation details..."
-                      value={activeProjectDraft.fullDescription}
-                      onChange={(e) =>
-                        setActiveProjectDraft({
-                          ...activeProjectDraft,
-                          fullDescription: e.target.value,
-                        })
-                      }
-                      className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none leading-relaxed"
-                    />
-                  </div>
-
-                  {/* Tech Stack Tags */}
-                  <div>
-                    <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                      Tech Stack Tags (Comma separated)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="TypeScript, React, Kotlin, Gemini"
-                      value={activeProjectDraft.stack.join(', ')}
-                      onChange={(e) =>
-                        setActiveProjectDraft({
-                          ...activeProjectDraft,
-                          stack: e.target.value
-                            .split(',')
-                            .map((s) => s.trim())
-                            .filter(Boolean),
-                        })
-                      }
-                      className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] font-mono focus:outline-none"
-                    />
-                  </div>
-
-                  {/* Link Label */}
-                  <div>
-                    <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                      Modal Link Button Label
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. View case study"
-                      value={activeProjectDraft.linkLabel}
-                      onChange={(e) =>
-                        setActiveProjectDraft({ ...activeProjectDraft, linkLabel: e.target.value })
-                      }
-                      className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none"
-                    />
-                  </div>
-
-                  {/* GitHub URL */}
-                  <div>
-                    <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                      GitHub Repository URL
-                    </label>
-                    <input
-                      type="url"
-                      placeholder="https://github.com/..."
-                      value={activeProjectDraft.githubUrl || ''}
-                      onChange={(e) =>
-                        setActiveProjectDraft({ ...activeProjectDraft, githubUrl: e.target.value })
-                      }
-                      className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] font-mono focus:outline-none"
-                    />
-                  </div>
-
-                  {/* Live URL */}
-                  <div>
-                    <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                      Live Project / Demo URL
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="https://... or #"
-                      value={activeProjectDraft.liveUrl || ''}
-                      onChange={(e) =>
-                        setActiveProjectDraft({ ...activeProjectDraft, liveUrl: e.target.value })
-                      }
-                      className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] font-mono focus:outline-none"
-                    />
-                  </div>
-
-                  {/* Icon Selector */}
-                  <div>
-                    <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                      Icon Identifier
-                    </label>
-                    <select
-                      value={activeProjectDraft.icon || 'code'}
-                      onChange={(e) =>
-                        setActiveProjectDraft({ ...activeProjectDraft, icon: e.target.value })
-                      }
-                      className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none font-mono"
-                    >
-                      {AVAILABLE_ICONS.map((ic) => (
-                        <option key={ic} value={ic}>
-                          {ic}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Key Features Bullet List */}
-                <div className="border-t border-[var(--color-border)] pt-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <label className="text-xs font-mono text-[var(--color-muted)]">
-                      Key Highlights & Features
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setActiveProjectDraft({
-                          ...activeProjectDraft,
-                          features: [...activeProjectDraft.features, ''],
-                        })
-                      }
-                      className="text-xs font-mono text-[var(--color-text)] underline cursor-pointer"
-                    >
-                      + Add Feature
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {activeProjectDraft.features.map((feat, fi) => (
-                      <div key={fi} className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={feat}
-                          placeholder={`Feature highlight ${fi + 1}`}
-                          onChange={(e) => {
-                            const updated = [...activeProjectDraft.features]
-                            updated[fi] = e.target.value
-                            setActiveProjectDraft({ ...activeProjectDraft, features: updated })
-                          }}
-                          className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs text-[var(--color-text)] focus:outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = activeProjectDraft.features.filter((_, i) => i !== fi)
-                            setActiveProjectDraft({ ...activeProjectDraft, features: updated })
-                          }}
-                          className="px-2 py-1 text-xs font-mono text-red-400 hover:text-red-300 border border-[var(--color-border)] cursor-pointer"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Technologies List */}
-                <div className="border-t border-[var(--color-border)] pt-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <label className="text-xs font-mono text-[var(--color-muted)]">
-                      Architecture & Technologies Breakdown
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setActiveProjectDraft({
-                          ...activeProjectDraft,
-                          technologies: [
-                            ...activeProjectDraft.technologies,
-                            { name: '', details: '' },
-                          ],
-                        })
-                      }
-                      className="text-xs font-mono text-[var(--color-text)] underline cursor-pointer"
-                    >
-                      + Add Technology
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {activeProjectDraft.technologies.map((tech, ti) => (
-                      <div key={ti} className="grid grid-cols-12 gap-2">
-                        <input
-                          type="text"
-                          value={tech.name}
-                          placeholder="Category / Layer name"
-                          onChange={(e) => {
-                            const updated = [...activeProjectDraft.technologies]
-                            updated[ti] = { ...updated[ti], name: e.target.value }
-                            setActiveProjectDraft({ ...activeProjectDraft, technologies: updated })
-                          }}
-                          className="col-span-4 border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs text-[var(--color-text)] focus:outline-none font-mono"
-                        />
-                        <input
-                          type="text"
-                          value={tech.details}
-                          placeholder="Technical details, libraries, protocols"
-                          onChange={(e) => {
-                            const updated = [...activeProjectDraft.technologies]
-                            updated[ti] = { ...updated[ti], details: e.target.value }
-                            setActiveProjectDraft({ ...activeProjectDraft, technologies: updated })
-                          }}
-                          className="col-span-7 border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs text-[var(--color-text)] focus:outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = activeProjectDraft.technologies.filter(
-                              (_, i) => i !== ti
-                            )
-                            setActiveProjectDraft({
-                              ...activeProjectDraft,
-                              technologies: updated,
-                            })
-                          }}
-                          className="col-span-1 px-1 py-1 text-xs font-mono text-red-400 hover:text-red-300 border border-[var(--color-border)] cursor-pointer"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-3 border-t border-[var(--color-border)] pt-4">
-                  <button
-                    type="button"
-                    onClick={cancelProjectEdit}
-                    className="btn-secondary px-4 py-2 text-xs font-mono cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={commitProjectDraft}
-                    className="btn-primary px-5 py-2 text-xs font-mono cursor-pointer"
-                  >
-                    Apply To Project List
-                  </button>
-                </div>
-              </div>
-            ) : (
-              // Project List View
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-base font-semibold text-[var(--color-text)]">
-                      Current Projects ({data.projects.length})
-                    </h3>
-                    <p className="text-xs font-mono text-[var(--color-muted)] mt-1">
-                      Manage order, content, and links. Changes persist directly to Firebase with zero redeployment.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={startAddNewProject}
-                    className="btn-primary px-4 py-2 text-xs font-mono cursor-pointer"
-                  >
-                    + Add New Project
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  {data.projects.map((project, idx) => (
-                    <div
-                      key={project.title + idx}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between border border-[var(--color-border)] bg-[var(--color-panel)] p-4 gap-4"
-                    >
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-sm text-[var(--color-text)]">
-                            {project.title}
-                          </span>
-                          <span className="border border-[var(--color-border)] px-2 py-0.5 text-[11px] font-mono text-[var(--color-muted)]">
-                            {project.category}
-                          </span>
+                  {/* ⚡ Swirl AI Autofill Assistant Section */}
+                  <div className="border border-indigo-500/30 bg-gradient-to-r from-indigo-500/5 via-[var(--color-panel)] to-purple-500/5 p-4 sm:p-5 rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-400 text-xs font-mono">
+                          ⚡
+                        </span>
+                        <div>
+                          <h4 className="text-xs font-mono font-semibold text-[var(--color-text)] uppercase tracking-wider">
+                            Swirl AI Project Writer
+                          </h4>
+                          <p className="text-[11px] text-[var(--color-muted)]">
+                            Paste any GitHub repo link. AI will fetch the README and automatically write the title, descriptions, tech stack, features, and architecture components!
+                          </p>
                         </div>
-                        <p className="text-xs text-[var(--color-muted)] line-clamp-1">
-                          {project.description}
-                        </p>
-                        <div className="flex flex-wrap gap-1 text-[11px] font-mono text-[var(--color-muted)]">
-                          {project.stack.slice(0, 4).map((tech) => (
-                            <span key={tech}>#{tech}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-2.5 text-xs text-[var(--color-muted)] font-mono">
+                          🐙
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="https://github.com/owner/repository"
+                          value={aiRepoUrl}
+                          onChange={(e) => setAiRepoUrl(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              handleAiAutofill()
+                            }
+                          }}
+                          className="w-full pl-8 pr-3 py-2 border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-mono text-[var(--color-text)] focus:border-indigo-500 focus:outline-none rounded"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={isGeneratingAi || !aiRepoUrl.trim()}
+                        onClick={() => handleAiAutofill()}
+                        className="btn-primary bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 text-xs font-mono cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm rounded"
+                      >
+                        {isGeneratingAi ? (
+                          <>
+                            <span className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                            <span>Writing with AI...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>✨ AI Write Project</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Progress / Status / Error feedback */}
+                    {aiStatusMessage && (
+                      <div className="text-xs font-mono text-indigo-400 flex items-center gap-1.5 pt-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                        <span>{aiStatusMessage}</span>
+                      </div>
+                    )}
+                    {aiError && (
+                      <div className="text-xs font-mono text-red-400 border border-red-500/20 bg-red-500/10 p-2.5 rounded">
+                        {aiError}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Project Form Fields */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* Left Column (8 cols): Primary details */}
+                    <div className="lg:col-span-8 space-y-6">
+                      {/* Section 1: Identity & Categorization */}
+                      <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-5 rounded-lg space-y-4">
+                        <h4 className="text-xs font-mono uppercase tracking-wider text-[var(--color-muted)] border-b border-[var(--color-border)] pb-2">
+                          1. Project Overview
+                        </h4>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                              Project Title *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. doc-engine"
+                              value={activeProjectDraft.title}
+                              onChange={(e) =>
+                                setActiveProjectDraft({ ...activeProjectDraft, title: e.target.value })
+                              }
+                              className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:border-[var(--color-border-hover)] focus:outline-none rounded font-medium"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                              Category *
+                            </label>
+                            <select
+                              value={activeProjectDraft.category}
+                              onChange={(e) =>
+                                setActiveProjectDraft({
+                                  ...activeProjectDraft,
+                                  category: e.target.value,
+                                })
+                              }
+                              className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-mono text-[var(--color-text)] focus:border-[var(--color-border-hover)] focus:outline-none rounded"
+                            >
+                              {SUGGESTED_CATEGORIES.map((cat) => (
+                                <option key={cat} value={cat}>
+                                  {cat}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Short Card Description */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-xs font-mono text-[var(--color-muted)]">
+                              Short Description (Card View Summary) *
+                            </label>
+                            <span className="text-[10px] font-mono text-[var(--color-muted)]">
+                              {activeProjectDraft.description.length} chars
+                            </span>
+                          </div>
+                          <textarea
+                            rows={2}
+                            placeholder="A concise, punchy 1-2 sentence overview of the project's engineering purpose."
+                            value={activeProjectDraft.description}
+                            onChange={(e) =>
+                              setActiveProjectDraft({
+                                ...activeProjectDraft,
+                                description: e.target.value,
+                              })
+                            }
+                            className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text)] focus:border-[var(--color-border-hover)] focus:outline-none rounded leading-relaxed"
+                          />
+                        </div>
+
+                        {/* Deep Dive / Full Description (With Markdown Preview) */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="text-xs font-mono text-[var(--color-muted)]">
+                              Technical Deep Dive (Modal Case Study)
+                            </label>
+                            <div className="flex border border-[var(--color-border)] rounded text-[10px] font-mono overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => setPreviewMarkdown(false)}
+                                className={`px-2.5 py-1 ${
+                                  !previewMarkdown
+                                    ? 'bg-[var(--color-text)] text-[var(--color-bg)] font-semibold'
+                                    : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+                                }`}
+                              >
+                                Edit Markdown
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPreviewMarkdown(true)}
+                                className={`px-2.5 py-1 ${
+                                  previewMarkdown
+                                    ? 'bg-[var(--color-text)] text-[var(--color-bg)] font-semibold'
+                                    : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+                                }`}
+                              >
+                                Live Preview
+                              </button>
+                            </div>
+                          </div>
+
+                          {!previewMarkdown ? (
+                            <textarea
+                              rows={8}
+                              placeholder="Full architectural case study in Markdown: Problem statement, why it was created, internal mechanics, and tradeoffs..."
+                              value={activeProjectDraft.fullDescription}
+                              onChange={(e) =>
+                                setActiveProjectDraft({
+                                  ...activeProjectDraft,
+                                  fullDescription: e.target.value,
+                                })
+                              }
+                              className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-xs font-mono text-[var(--color-text)] focus:border-[var(--color-border-hover)] focus:outline-none rounded leading-relaxed"
+                            />
+                          ) : (
+                            <div className="border border-[var(--color-border)] bg-[var(--color-bg)] p-4 rounded max-h-64 overflow-y-auto text-xs leading-relaxed text-[var(--color-text)] whitespace-pre-wrap font-sans">
+                              {activeProjectDraft.fullDescription || 'No markdown content yet.'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Section 2: Key Features Manager */}
+                      <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-5 rounded-lg space-y-4">
+                        <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2">
+                          <h4 className="text-xs font-mono uppercase tracking-wider text-[var(--color-muted)]">
+                            2. Key Features ({activeProjectDraft.features.length})
+                          </h4>
+                          <button
+                            type="button"
+                            onClick={handleAddFeature}
+                            className="text-xs font-mono text-[var(--color-text)] hover:underline cursor-pointer flex items-center gap-1"
+                          >
+                            + Add Feature
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {activeProjectDraft.features.map((feat, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              <span className="text-xs font-mono text-[var(--color-muted)] w-5 text-right">
+                                {idx + 1}.
+                              </span>
+                              <input
+                                type="text"
+                                placeholder={`Feature bullet point #${idx + 1}`}
+                                value={feat}
+                                onChange={(e) => handleUpdateFeature(idx, e.target.value)}
+                                className="flex-1 border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs text-[var(--color-text)] focus:border-[var(--color-border-hover)] focus:outline-none rounded"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveFeature(idx)}
+                                className="text-xs text-[var(--color-muted)] hover:text-red-400 p-1 cursor-pointer"
+                                title="Remove feature"
+                              >
+                                ✕
+                              </button>
+                            </div>
                           ))}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => moveProject(idx, 'up')}
-                          disabled={idx === 0}
-                          title="Move up"
-                          className="px-2 py-1 text-xs font-mono border border-[var(--color-border)] disabled:opacity-30 hover:border-[var(--color-border-hover)] cursor-pointer"
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveProject(idx, 'down')}
-                          disabled={idx === data.projects.length - 1}
-                          title="Move down"
-                          className="px-2 py-1 text-xs font-mono border border-[var(--color-border)] disabled:opacity-30 hover:border-[var(--color-border-hover)] cursor-pointer"
-                        >
-                          ↓
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => startEditProject(idx)}
-                          className="btn-secondary px-3 py-1 text-xs font-mono cursor-pointer"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteProject(idx)}
-                          className="px-3 py-1 text-xs font-mono text-red-400 hover:text-red-300 border border-[var(--color-border)] cursor-pointer"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ================= TAB 2: PROFILE & SOCIALS ================= */}
-        {currentTab === 'profile' && (
-          <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-6 space-y-6">
-            <div>
-              <h3 className="text-base font-semibold text-[var(--color-text)]">
-                Profile & Social Links
-              </h3>
-              <p className="text-xs font-mono text-[var(--color-muted)] mt-1">
-                Update your identity, hero statements, bio, and public social URLs.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div>
-                <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={data.profile.name}
-                  onChange={(e) => updateProfileField('name', e.target.value)}
-                  className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                  Professional Title / Role
-                </label>
-                <input
-                  type="text"
-                  value={data.profile.role}
-                  onChange={(e) => updateProfileField('role', e.target.value)}
-                  className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                  Primary Email
-                </label>
-                <input
-                  type="email"
-                  value={data.profile.email}
-                  onChange={(e) => updateProfileField('email', e.target.value)}
-                  className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] font-mono focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                  Location / Timezone
-                </label>
-                <input
-                  type="text"
-                  value={data.profile.location}
-                  onChange={(e) => updateProfileField('location', e.target.value)}
-                  className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                  GitHub Profile URL
-                </label>
-                <input
-                  type="url"
-                  value={data.profile.github}
-                  onChange={(e) => updateProfileField('github', e.target.value)}
-                  className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] font-mono focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                  LinkedIn Profile URL
-                </label>
-                <input
-                  type="url"
-                  value={data.profile.linkedin}
-                  onChange={(e) => updateProfileField('linkedin', e.target.value)}
-                  className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] font-mono focus:outline-none"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                  Headline (Hero Title)
-                </label>
-                <textarea
-                  rows={2}
-                  value={data.profile.headline}
-                  onChange={(e) => updateProfileField('headline', e.target.value)}
-                  className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none leading-relaxed"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                  Bio (Hero Subtitle / Description)
-                </label>
-                <textarea
-                  rows={3}
-                  value={data.profile.bio}
-                  onChange={(e) => updateProfileField('bio', e.target.value)}
-                  className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none leading-relaxed"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end border-t border-[var(--color-border)] pt-4">
-              <button
-                type="button"
-                onClick={handleSaveAll}
-                disabled={isSaving}
-                className="btn-primary px-5 py-2 text-xs font-mono cursor-pointer"
-              >
-                {isSaving ? 'Saving to Firebase...' : 'Save to Firebase'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ================= TAB: AI CHAT SESSIONS ================= */}
-        {currentTab === 'chats' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border border-[var(--color-border)] bg-[var(--color-panel)] p-4">
-              <div>
-                <h3 className="text-base font-semibold text-[var(--color-text)]">
-                  Visitor AI Chat Sessions
-                </h3>
-                <p className="mt-1 text-xs font-mono text-[var(--color-muted)]">
-                  Live conversations between visitors and Junaid AI Assistant. Synced in real-time to Firestore.
-                </p>
-              </div>
-              <div className="text-xs font-mono text-[var(--color-muted)]">
-                Total Sessions: <span className="font-semibold text-[var(--color-text)]">{chatSessions.length}</span>
-              </div>
-            </div>
-
-            {chatSessions.length === 0 ? (
-              <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-12 text-center">
-                <p className="text-sm font-mono text-[var(--color-text)]">No Chat Sessions Logged Yet</p>
-                <p className="mt-2 text-xs text-[var(--color-muted)] max-w-md mx-auto">
-                  When visitors open the "Ask Junaid AI" assistant and start chatting about your projects or skills, their full sessions will sync and appear here automatically.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                {/* Session List */}
-                <div className="md:col-span-5 space-y-2 max-h-[600px] overflow-y-auto pr-1">
-                  {chatSessions.map((s) => {
-                    const isSelected = s.id === selectedChatSessionId
-                    const dateStr = s.updatedAt
-                      ? new Date(s.updatedAt).toLocaleString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
-                      : 'Unknown date'
-
-                    return (
-                      <div
-                        key={s.id}
-                        onClick={() => setSelectedChatSessionId(s.id)}
-                        className={`p-3.5 border transition-all cursor-pointer text-left ${
-                          isSelected
-                            ? 'border-[var(--color-text)] bg-[var(--color-surface)]'
-                            : 'border-[var(--color-border)] bg-[var(--color-panel)] hover:border-[var(--color-border-hover)]'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <span className="text-[11px] font-mono font-medium text-[var(--color-text)] truncate">
-                            {dateStr}
-                          </span>
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)]">
-                            {s.messageCount || s.messages?.length || 0} msgs
-                          </span>
-                        </div>
-                        <p className="text-xs text-[var(--color-text)] line-clamp-2 leading-relaxed">
-                          "{s.summary || 'Visitor conversation'}"
-                        </p>
-                        <div className="mt-2 text-[10px] font-mono text-[var(--color-muted)] truncate">
-                          ID: {s.id}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* Session Transcript Viewer */}
-                <div className="md:col-span-7 border border-[var(--color-border)] bg-[var(--color-panel)] flex flex-col h-[600px]">
-                  {(() => {
-                    const activeSession = chatSessions.find((s) => s.id === selectedChatSessionId)
-                    if (!activeSession) {
-                      return (
-                        <div className="flex flex-1 items-center justify-center p-6 text-xs font-mono text-[var(--color-muted)]">
-                          Select a session on the left to read conversation transcript.
-                        </div>
-                      )
-                    }
-
-                    return (
-                      <>
-                        <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-                          <div>
-                            <span className="text-xs font-mono font-semibold text-[var(--color-text)]">
-                              Session: {activeSession.id}
-                            </span>
-                            <span className="ml-3 text-[11px] font-mono text-[var(--color-muted)]">
-                              {new Date(activeSession.createdAt || activeSession.updatedAt).toLocaleString()}
-                            </span>
-                          </div>
+                      {/* Section 3: Architecture & Technologies Breakdown */}
+                      <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-5 rounded-lg space-y-4">
+                        <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2">
+                          <h4 className="text-xs font-mono uppercase tracking-wider text-[var(--color-muted)]">
+                            3. Subsystem Architecture ({activeProjectDraft.technologies.length})
+                          </h4>
                           <button
                             type="button"
-                            disabled={isDeletingChat}
-                            onClick={() => handleDeleteSession(activeSession.id)}
-                            className="px-2.5 py-1 text-xs font-mono text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-500/60 rounded cursor-pointer"
+                            onClick={handleAddTech}
+                            className="text-xs font-mono text-[var(--color-text)] hover:underline cursor-pointer flex items-center gap-1"
                           >
-                            {isDeletingChat ? 'Deleting...' : 'Delete Log'}
+                            + Add Subsystem
                           </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
-                          {activeSession.messages && activeSession.messages.length > 0 ? (
-                            activeSession.messages.map((m, idx) => (
-                              <div
-                                key={m.id || idx}
-                                className={`flex flex-col ${
-                                  m.role === 'user' ? 'items-end' : 'items-start'
+                        <div className="space-y-3">
+                          {activeProjectDraft.technologies.map((tech, idx) => (
+                            <div
+                              key={idx}
+                              className="border border-[var(--color-border)] bg-[var(--color-bg)] p-3 rounded space-y-2 relative"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="Subsystem Name (e.g. Layout Calculation Engine)"
+                                  value={tech.name}
+                                  onChange={(e) => handleUpdateTech(idx, 'name', e.target.value)}
+                                  className="flex-1 border-b border-[var(--color-border)] bg-transparent pb-1 text-xs font-mono font-semibold text-[var(--color-text)] focus:border-[var(--color-border-hover)] focus:outline-none"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveTech(idx)}
+                                  className="text-xs text-[var(--color-muted)] hover:text-red-400 p-1 cursor-pointer"
+                                  title="Remove component"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                              <textarea
+                                rows={2}
+                                placeholder="Describe the technical implementation, algorithm, or data structure used."
+                                value={tech.details}
+                                onChange={(e) => handleUpdateTech(idx, 'details', e.target.value)}
+                                className="w-full bg-transparent text-xs text-[var(--color-muted)] focus:text-[var(--color-text)] focus:outline-none resize-none leading-relaxed"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column (4 cols): Meta, Links & Tech Stack */}
+                    <div className="lg:col-span-4 space-y-6">
+                      {/* URLs & Action Links */}
+                      <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-5 rounded-lg space-y-3">
+                        <h4 className="text-xs font-mono uppercase tracking-wider text-[var(--color-muted)] border-b border-[var(--color-border)] pb-2">
+                          Repository & Links
+                        </h4>
+
+                        <div>
+                          <label className="block text-[11px] font-mono text-[var(--color-muted)] mb-1">
+                            GitHub Repository Link
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="https://github.com/junaidmirr/..."
+                            value={activeProjectDraft.githubUrl || ''}
+                            onChange={(e) =>
+                              setActiveProjectDraft({
+                                ...activeProjectDraft,
+                                githubUrl: e.target.value,
+                              })
+                            }
+                            className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-mono text-[var(--color-muted)] mb-1">
+                            Live Demo / Docs URL
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="https://..."
+                            value={activeProjectDraft.liveUrl || ''}
+                            onChange={(e) =>
+                              setActiveProjectDraft({ ...activeProjectDraft, liveUrl: e.target.value })
+                            }
+                            className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-mono text-[var(--color-muted)] mb-1">
+                            Button Link Label
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="View case study"
+                            value={activeProjectDraft.linkLabel}
+                            onChange={(e) =>
+                              setActiveProjectDraft({
+                                ...activeProjectDraft,
+                                linkLabel: e.target.value,
+                              })
+                            }
+                            className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-mono text-[var(--color-muted)] mb-1">
+                            Project Icon
+                          </label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {AVAILABLE_ICONS.map((ic) => (
+                              <button
+                                key={ic}
+                                type="button"
+                                onClick={() => setActiveProjectDraft({ ...activeProjectDraft, icon: ic })}
+                                className={`px-2 py-1 text-xs font-mono rounded border cursor-pointer ${
+                                  activeProjectDraft.icon === ic
+                                    ? 'border-[var(--color-text)] bg-[var(--color-text)] text-[var(--color-bg)] font-semibold'
+                                    : 'border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)] hover:text-[var(--color-text)]'
                                 }`}
                               >
-                                <span className="mb-1 text-[10px] font-mono text-[var(--color-muted)]">
-                                  {m.role === 'user' ? 'Visitor' : 'Junaid AI'}
-                                </span>
-                                <div
-                                  className={`rounded-md px-3 py-2 max-w-[85%] leading-relaxed whitespace-pre-wrap ${
-                                    m.role === 'user'
-                                      ? 'bg-[var(--color-text)] text-[var(--color-bg)] font-medium'
-                                      : 'border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)]'
-                                  }`}
-                                >
-                                  {m.content}
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-xs text-[var(--color-muted)]">No messages in this session.</p>
-                          )}
+                                {ic}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </>
-                    )
-                  })()}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+                      </div>
 
-        {/* ================= TAB 3: FIREBASE CLOUD SYNC ================= */}
-        {currentTab === 'firebase' && (
-          <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-6 space-y-6">
-            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-4">
-              <div>
+                      {/* Tech Stack Tag Manager */}
+                      <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-5 rounded-lg space-y-3">
+                        <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2">
+                          <h4 className="text-xs font-mono uppercase tracking-wider text-[var(--color-muted)]">
+                            Tech Stack Tags ({activeProjectDraft.stack.length})
+                          </h4>
+                        </div>
+
+                        {/* Tag list */}
+                        <div className="flex flex-wrap gap-1.5 min-h-[40px]">
+                          {activeProjectDraft.stack.map((tag) => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[var(--color-bg)] border border-[var(--color-border)] text-xs font-mono text-[var(--color-text)]"
+                            >
+                              <span>{tag}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveTag(tag)}
+                                className="text-[var(--color-muted)] hover:text-red-400 cursor-pointer"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Add custom tag */}
+                        <div className="flex gap-1.5 pt-1">
+                          <input
+                            type="text"
+                            placeholder="Add tag (e.g. Rust, Kotlin)..."
+                            value={tagInput}
+                            onChange={(e) => setTagInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ',') {
+                                e.preventDefault()
+                                handleAddTag()
+                              }
+                            }}
+                            className="flex-1 border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleAddTag()}
+                            className="btn-secondary px-3 py-1 text-xs font-mono cursor-pointer"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        {/* Popular suggestions */}
+                        <div className="pt-2">
+                          <span className="text-[10px] font-mono text-[var(--color-muted)] block mb-1.5">
+                            Suggestions (click to add):
+                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {POPULAR_STACK_SUGGESTIONS.filter(
+                              (s) => !activeProjectDraft.stack.includes(s)
+                            )
+                              .slice(0, 10)
+                              .map((s) => (
+                                <button
+                                  key={s}
+                                  type="button"
+                                  onClick={() => handleAddTag(s)}
+                                  className="text-[10px] font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] border border-[var(--color-border)] hover:border-[var(--color-border-hover)] bg-[var(--color-bg)] px-2 py-0.5 rounded cursor-pointer transition-colors"
+                                >
+                                  +{s}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Live Card Preview Box */}
+                      <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-4 rounded-lg space-y-2">
+                        <span className="text-[10px] font-mono text-[var(--color-muted)] uppercase tracking-wider block">
+                          Card Preview:
+                        </span>
+                        <div className="border border-[var(--color-border)] bg-[var(--color-bg)] p-3 rounded">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="text-sm font-semibold text-[var(--color-text)] truncate">
+                              {activeProjectDraft.title || 'Project Title'}
+                            </span>
+                            <span className="text-[10px] font-mono text-[var(--color-muted)] truncate max-w-[120px]">
+                              {activeProjectDraft.category}
+                            </span>
+                          </div>
+                          <p className="mt-1.5 text-[11px] text-[var(--color-muted)] line-clamp-2 leading-relaxed">
+                            {activeProjectDraft.description || 'Card description summary will appear here.'}
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {activeProjectDraft.stack.slice(0, 4).map((t) => (
+                              <span
+                                key={t}
+                                className="text-[9px] font-mono border border-[var(--color-border)] px-1.5 py-0.5 rounded text-[var(--color-muted)]"
+                              >
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* ================= PROJECTS LIST VIEW ================= */
+                <div className="space-y-4">
+                  {/* Action Bar */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border border-[var(--color-border)] bg-[var(--color-panel)] p-4 rounded-lg">
+                    {/* Search Input */}
+                    <div className="relative flex-1 max-w-md">
+                      <span className="absolute left-3 top-2.5 text-xs text-[var(--color-muted)] font-mono">
+                        🔍
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="Search projects by name, stack, or category..."
+                        value={projectSearchQuery}
+                        onChange={(e) => setProjectSearchQuery(e.target.value)}
+                        className="w-full pl-8 pr-3 py-2 border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-mono text-[var(--color-text)] focus:border-[var(--color-border-hover)] focus:outline-none rounded"
+                      />
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowAiImportModal(true)}
+                        className="btn-primary bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 text-xs font-mono cursor-pointer flex items-center gap-1.5 shadow-sm rounded"
+                      >
+                        <span>⚡ AI Import from GitHub</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={startAddNewProject}
+                        className="btn-primary px-3.5 py-2 text-xs font-mono cursor-pointer flex items-center gap-1 rounded"
+                      >
+                        <span>+ New Project</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Projects List */}
+                  {filteredProjects.length === 0 ? (
+                    <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-12 text-center rounded-lg">
+                      <p className="text-sm font-mono text-[var(--color-text)]">
+                        {projectSearchQuery ? 'No matching projects found' : 'No projects added yet'}
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--color-muted)]">
+                        {projectSearchQuery
+                          ? 'Try clearing the search query or search by another keyword.'
+                          : 'Use "AI Import from GitHub" to automatically write your project entry in seconds.'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3">
+                      {filteredProjects.map((proj) => {
+                        const originalIndex = data.projects.findIndex((p) => p.title === proj.title)
+                        return (
+                          <div
+                            key={proj.title}
+                            className="border border-[var(--color-border)] bg-[var(--color-panel)] hover:border-[var(--color-border-hover)] p-4 sm:p-5 rounded-lg transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                          >
+                            <div className="space-y-1.5 min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="h-6 w-6 rounded border border-[var(--color-border)] bg-[var(--color-bg)] flex items-center justify-center text-xs font-mono text-[var(--color-text)]">
+                                  {proj.icon === 'code'
+                                    ? '</>'
+                                    : proj.icon === 'globe'
+                                    ? '🌐'
+                                    : proj.icon === 'rocket'
+                                    ? '🚀'
+                                    : proj.icon === 'shield'
+                                    ? '🛡'
+                                    : '⚡'}
+                                </span>
+                                <h3 className="text-base font-semibold text-[var(--color-text)] truncate">
+                                  {proj.title}
+                                </h3>
+                                <span className="text-[11px] font-mono text-[var(--color-muted)] border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-0.5 rounded">
+                                  {proj.category}
+                                </span>
+                              </div>
+
+                              <p className="text-xs text-[var(--color-muted)] line-clamp-2 leading-relaxed">
+                                {proj.description}
+                              </p>
+
+                              <div className="flex flex-wrap gap-1.5 pt-1">
+                                {proj.stack.map((tech) => (
+                                  <span
+                                    key={tech}
+                                    className="text-[10px] font-mono px-2 py-0.5 rounded border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)]"
+                                  >
+                                    {tech}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Project Item Actions */}
+                            <div className="flex items-center gap-1.5 sm:self-center border-t sm:border-t-0 pt-3 sm:pt-0 border-[var(--color-border)]">
+                              <button
+                                type="button"
+                                onClick={() => moveProject(originalIndex, 'up')}
+                                disabled={originalIndex === 0}
+                                title="Move project up"
+                                className="px-2 py-1 text-xs font-mono border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30 rounded cursor-pointer"
+                              >
+                                ▲
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => moveProject(originalIndex, 'down')}
+                                disabled={originalIndex === data.projects.length - 1}
+                                title="Move project down"
+                                className="px-2 py-1 text-xs font-mono border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30 rounded cursor-pointer"
+                              >
+                                ▼
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => startEditProject(originalIndex)}
+                                className="btn-primary px-3 py-1 text-xs font-mono cursor-pointer rounded"
+                              >
+                                Edit
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => deleteProject(originalIndex)}
+                                className="px-2.5 py-1 text-xs font-mono text-[var(--color-muted)] hover:text-red-400 border border-[var(--color-border)] hover:border-red-500/40 rounded cursor-pointer"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ================= TAB 2: PROFILE & IDENTITY ================= */}
+          {currentTab === 'profile' && (
+            <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-6 rounded-lg space-y-6">
+              <div className="border-b border-[var(--color-border)] pb-3">
                 <h3 className="text-base font-semibold text-[var(--color-text)]">
-                  Firebase Cloud Connection
+                  Portfolio Profile & Social Details
                 </h3>
                 <p className="text-xs font-mono text-[var(--color-muted)] mt-1">
-                  Real-time database integration: instant live updates without Git commits or Vercel rebuilds.
+                  Updates your biography, header presentation, contact coordinates, and social media handles.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <span
-                  className={`inline-block h-2.5 w-2.5 rounded-full ${
-                    isConfigured ? 'bg-emerald-500' : 'bg-amber-500'
-                  }`}
-                />
-                <span className="text-xs font-mono font-medium">
-                  {isConfigured ? 'Connected' : 'Configuration Required'}
-                </span>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                    Display Name
+                  </label>
+                  <input
+                    type="text"
+                    value={data.profile.name}
+                    onChange={(e) => updateProfileField('name', e.target.value)}
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none rounded"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                    Engineering Role Title
+                  </label>
+                  <input
+                    type="text"
+                    value={data.profile.role}
+                    onChange={(e) => updateProfileField('role', e.target.value)}
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none rounded"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                    Headline Greeting
+                  </label>
+                  <input
+                    type="text"
+                    value={data.profile.headline}
+                    onChange={(e) => updateProfileField('headline', e.target.value)}
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none rounded"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                    Bio Summary
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={data.profile.bio}
+                    onChange={(e) => updateProfileField('bio', e.target.value)}
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none rounded leading-relaxed"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                    Location & Timezone
+                  </label>
+                  <input
+                    type="text"
+                    value={data.profile.location}
+                    onChange={(e) => updateProfileField('location', e.target.value)}
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                    Contact Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={data.profile.email}
+                    onChange={(e) => updateProfileField('email', e.target.value)}
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                    GitHub Profile URL
+                  </label>
+                  <input
+                    type="text"
+                    value={data.profile.github}
+                    onChange={(e) => updateProfileField('github', e.target.value)}
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                    LinkedIn Profile URL
+                  </label>
+                  <input
+                    type="text"
+                    value={data.profile.linkedin}
+                    onChange={(e) => updateProfileField('linkedin', e.target.value)}
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
+                  />
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Connection Test & Quick Sync Actions */}
+          {/* ================= TAB 3: VISITOR AI CHAT SESSIONS ================= */}
+          {currentTab === 'chats' && (
             <div className="space-y-4">
-              <div className="rounded border border-[var(--color-border)] bg-[var(--color-bg)] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-[var(--color-border)] bg-[var(--color-panel)] p-4 rounded-lg">
                 <div>
-                  <h4 className="text-sm font-semibold text-[var(--color-text)]">
-                    Live Connection Test
-                  </h4>
-                  <p className="text-xs text-[var(--color-muted)] mt-1 leading-relaxed">
-                    Verify that your credentials and Firestore security rules allow active read and write operations.
+                  <h3 className="text-base font-semibold text-[var(--color-text)]">
+                    Visitor AI Conversations
+                  </h3>
+                  <p className="mt-0.5 text-xs font-mono text-[var(--color-muted)]">
+                    Live recorded sessions between visitors and Junaid AI Assistant. Synced in real time to Firestore.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Search conversations..."
+                    value={chatSearchQuery}
+                    onChange={(e) => setChatSearchQuery(e.target.value)}
+                    className="border border-[var(--color-border)] bg-[var(--color-bg)] px-2.5 py-1.5 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded w-48"
+                  />
+                  <span className="text-xs font-mono px-2.5 py-1.5 rounded border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)]">
+                    Total: <strong className="text-[var(--color-text)]">{chatSessions.length}</strong>
+                  </span>
+                </div>
+              </div>
+
+              {chatSessions.length === 0 ? (
+                <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-12 text-center rounded-lg">
+                  <p className="text-sm font-mono text-[var(--color-text)]">No Chat Sessions Logged Yet</p>
+                  <p className="mt-2 text-xs text-[var(--color-muted)] max-w-md mx-auto">
+                    When visitors open the "Ask Junaid AI" assistant and start chatting about your projects or skills, their full sessions will sync and appear here automatically.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  {/* Sessions List (5 cols) */}
+                  <div className="md:col-span-5 space-y-2 max-h-[620px] overflow-y-auto pr-1">
+                    {filteredChatSessions.map((s) => {
+                      const isSelected = s.id === selectedChatSessionId
+                      const dateStr = s.updatedAt
+                        ? new Date(s.updatedAt).toLocaleString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : 'Unknown date'
+
+                      return (
+                        <div
+                          key={s.id}
+                          onClick={() => setSelectedChatSessionId(s.id)}
+                          className={`p-3.5 border transition-all cursor-pointer rounded-lg text-left ${
+                            isSelected
+                              ? 'border-[var(--color-text)] bg-[var(--color-surface)] shadow-sm'
+                              : 'border-[var(--color-border)] bg-[var(--color-panel)] hover:border-[var(--color-border-hover)]'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <span className="text-[11px] font-mono font-medium text-[var(--color-text)] truncate">
+                              {dateStr}
+                            </span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)]">
+                              {s.messageCount || s.messages?.length || 0} msgs
+                            </span>
+                          </div>
+                          <p className="text-xs text-[var(--color-text)] line-clamp-2 leading-relaxed">
+                            "{s.summary || 'Visitor conversation'}"
+                          </p>
+                          <div className="mt-2 text-[10px] font-mono text-[var(--color-muted)] truncate">
+                            ID: {s.id}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Transcript Viewer (7 cols) */}
+                  <div className="md:col-span-7 border border-[var(--color-border)] bg-[var(--color-panel)] flex flex-col h-[620px] rounded-lg overflow-hidden">
+                    {(() => {
+                      const activeSession = chatSessions.find((s) => s.id === selectedChatSessionId)
+                      if (!activeSession) {
+                        return (
+                          <div className="flex flex-1 items-center justify-center p-6 text-xs font-mono text-[var(--color-muted)]">
+                            Select a session on the left to read conversation transcript.
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <>
+                          <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+                            <div className="min-w-0 pr-2">
+                              <span className="text-xs font-mono font-semibold text-[var(--color-text)] truncate block">
+                                {activeSession.id}
+                              </span>
+                              <span className="text-[10px] font-mono text-[var(--color-muted)]">
+                                {new Date(activeSession.createdAt || activeSession.updatedAt).toLocaleString()}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              disabled={isDeletingChat}
+                              onClick={() => handleDeleteSession(activeSession.id)}
+                              className="px-2.5 py-1 text-xs font-mono text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-500/60 rounded cursor-pointer whitespace-nowrap"
+                            >
+                              {isDeletingChat ? 'Deleting...' : 'Delete Log'}
+                            </button>
+                          </div>
+
+                          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
+                            {activeSession.messages && activeSession.messages.length > 0 ? (
+                              activeSession.messages.map((m, idx) => (
+                                <div
+                                  key={m.id || idx}
+                                  className={`flex flex-col ${
+                                    m.role === 'user' ? 'items-end' : 'items-start'
+                                  }`}
+                                >
+                                  <span className="mb-1 text-[10px] font-mono text-[var(--color-muted)]">
+                                    {m.role === 'user' ? 'Visitor' : 'Junaid AI'}
+                                  </span>
+                                  <div
+                                    className={`rounded-md px-3.5 py-2.5 max-w-[85%] leading-relaxed whitespace-pre-wrap ${
+                                      m.role === 'user'
+                                        ? 'bg-[var(--color-text)] text-[var(--color-bg)] font-medium'
+                                        : 'border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)]'
+                                    }`}
+                                  >
+                                    {m.content}
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-xs text-[var(--color-muted)]">No messages in this session.</p>
+                            )}
+                          </div>
+                        </>
+                      )
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ================= TAB 4: FIREBASE CLOUD SYNC ================= */}
+          {currentTab === 'firebase' && (
+            <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-6 rounded-lg space-y-6">
+              <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-4">
+                <div>
+                  <h3 className="text-base font-semibold text-[var(--color-text)]">
+                    Firebase Cloud Infrastructure
+                  </h3>
+                  <p className="text-xs font-mono text-[var(--color-muted)] mt-1">
+                    Real-time cloud database configuration. Edits save to Firestore instantly without redeploying code.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={handleTestConnection}
                   disabled={isTesting}
-                  className="btn-secondary px-4 py-2 text-xs font-mono shrink-0 cursor-pointer disabled:opacity-40"
+                  className="btn-secondary px-3 py-1.5 text-xs font-mono cursor-pointer"
                 >
                   {isTesting ? 'Testing...' : 'Test Connection'}
                 </button>
@@ -1351,186 +1771,122 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
 
               {testFeedback && (
                 <div
-                  className={`p-3.5 text-xs font-mono border leading-relaxed ${
+                  className={`border p-4 text-xs font-mono rounded ${
                     testFeedback.ok
-                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                      : 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+                      : 'border-red-500/40 bg-red-500/10 text-red-400'
                   }`}
                 >
-                  <strong>{testFeedback.ok ? '✓ Status:' : '⚠ Warning:'}</strong> {testFeedback.message}
+                  {testFeedback.message}
                 </div>
               )}
 
-              <div className="rounded border border-[var(--color-border)] bg-[var(--color-bg)] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h4 className="text-sm font-semibold text-[var(--color-text)]">
-                    Synchronize Current Data to Firestore
-                  </h4>
-                  <p className="text-xs text-[var(--color-muted)] mt-1 leading-relaxed">
-                    Upload all current {data.projects.length} projects, categories, and profile details to your Firebase database in a single click.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSeedFirebase}
-                  disabled={isSeeding || !isConfigured}
-                  className="btn-primary px-4 py-2 text-xs font-mono shrink-0 cursor-pointer disabled:opacity-40"
-                >
-                  {isSeeding ? 'Syncing...' : 'Sync to Firestore Now'}
-                </button>
-              </div>
-            </div>
-
-            {/* Direct In-Browser Firebase Config Setup */}
-            <div className="rounded border border-[var(--color-border)] bg-[var(--color-bg)] p-4 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--color-border)] pb-3">
-                <div>
-                  <h4 className="text-sm font-semibold text-[var(--color-text)]">
-                    Direct Firebase Configuration (Instant Setup)
-                  </h4>
-                  <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                    Paste your Firebase credentials here to connect immediately without waiting for redeploys.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleResetFirebaseConfig}
-                    className="border border-[var(--color-border)] px-2.5 py-1 text-[11px] font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] cursor-pointer"
-                  >
-                    Reset
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveFirebaseConfig}
-                    className="btn-primary px-3.5 py-1 text-xs font-mono cursor-pointer"
-                  >
-                    Save & Connect Now
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-xs font-mono">
-                <div>
-                  <label className="block text-[11px] text-[var(--color-muted)] mb-1">
-                    apiKey *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="AIzaSy..."
-                    value={configDraft.apiKey}
-                    onChange={(e) => setConfigDraft({ ...configDraft, apiKey: e.target.value.trim() })}
-                    className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-1.5 text-xs text-[var(--color-text)] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] text-[var(--color-muted)] mb-1">
-                    projectId *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="your-project-id"
-                    value={configDraft.projectId}
-                    onChange={(e) => setConfigDraft({ ...configDraft, projectId: e.target.value.trim() })}
-                    className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-1.5 text-xs text-[var(--color-text)] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] text-[var(--color-muted)] mb-1">
-                    authDomain
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="your-project-id.firebaseapp.com"
-                    value={configDraft.authDomain}
-                    onChange={(e) => setConfigDraft({ ...configDraft, authDomain: e.target.value.trim() })}
-                    className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-1.5 text-xs text-[var(--color-text)] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] text-[var(--color-muted)] mb-1">
-                    storageBucket
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="your-project-id.firebasestorage.app"
-                    value={configDraft.storageBucket}
-                    onChange={(e) => setConfigDraft({ ...configDraft, storageBucket: e.target.value.trim() })}
-                    className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-1.5 text-xs text-[var(--color-text)] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] text-[var(--color-muted)] mb-1">
-                    messagingSenderId
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="123456789012"
-                    value={configDraft.messagingSenderId}
-                    onChange={(e) => setConfigDraft({ ...configDraft, messagingSenderId: e.target.value.trim() })}
-                    className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-1.5 text-xs text-[var(--color-text)] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] text-[var(--color-muted)] mb-1">
-                    appId
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="1:123456789012:web:abcdef"
-                    value={configDraft.appId}
-                    onChange={(e) => setConfigDraft({ ...configDraft, appId: e.target.value.trim() })}
-                    className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-1.5 text-xs text-[var(--color-text)] focus:outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Environment Variables Status */}
-            <div>
-              <h4 className="text-xs font-mono uppercase tracking-wider text-[var(--color-muted)] mb-3">
-                Firebase Environment Configuration
-              </h4>
-              <div className="space-y-2 font-mono text-xs">
-                {[
-                  { key: 'VITE_FIREBASE_API_KEY', val: firebaseConfig.apiKey },
-                  { key: 'VITE_FIREBASE_AUTH_DOMAIN', val: firebaseConfig.authDomain },
-                  { key: 'VITE_FIREBASE_PROJECT_ID', val: firebaseConfig.projectId },
-                  { key: 'VITE_FIREBASE_STORAGE_BUCKET', val: firebaseConfig.storageBucket },
-                  { key: 'VITE_FIREBASE_MESSAGING_SENDER_ID', val: firebaseConfig.messagingSenderId },
-                  { key: 'VITE_FIREBASE_APP_ID', val: firebaseConfig.appId },
-                ].map((item) => (
-                  <div
-                    key={item.key}
-                    className="flex items-center justify-between border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5"
-                  >
-                    <span className="text-[var(--color-text)]">{item.key}</span>
-                    <span
-                      className={`text-[11px] ${
-                        item.val ? 'text-emerald-400' : 'text-amber-400'
-                      }`}
+              {/* Environment Checklist */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-mono uppercase tracking-wider text-[var(--color-muted)]">
+                  Environment Configuration Status
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-xs">
+                  {[
+                    { key: 'VITE_FIREBASE_API_KEY', val: firebaseConfig.apiKey },
+                    { key: 'VITE_FIREBASE_AUTH_DOMAIN', val: firebaseConfig.authDomain },
+                    { key: 'VITE_FIREBASE_PROJECT_ID', val: firebaseConfig.projectId },
+                    { key: 'VITE_FIREBASE_STORAGE_BUCKET', val: firebaseConfig.storageBucket },
+                    { key: 'VITE_FIREBASE_MESSAGING_SENDER_ID', val: firebaseConfig.messagingSenderId },
+                    { key: 'VITE_FIREBASE_APP_ID', val: firebaseConfig.appId },
+                  ].map((item) => (
+                    <div
+                      key={item.key}
+                      className="flex items-center justify-between border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5 rounded"
                     >
-                      {item.val ? '✓ Set' : '✗ Missing in .env'}
-                    </span>
-                  </div>
-                ))}
+                      <span className="text-[var(--color-text)] truncate">{item.key}</span>
+                      <span
+                        className={`text-[11px] ml-2 font-medium ${
+                          item.val ? 'text-emerald-400' : 'text-amber-400'
+                        }`}
+                      >
+                        {item.val ? '✓ Set' : '✗ Missing'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Recommended Firestore Security Rules */}
-            <div>
-              <h4 className="text-xs font-mono uppercase tracking-wider text-[var(--color-muted)] mb-2">
-                Recommended Firestore Security Rules
-              </h4>
-              <p className="text-xs text-[var(--color-muted)] mb-2">
-                Paste these rules in your Firebase Console under <strong>Firestore Database → Rules</strong>:
-              </p>
-              <pre className="overflow-auto border border-[var(--color-border)] bg-[var(--color-bg)] p-4 text-xs font-mono text-[var(--color-text)] leading-relaxed">
+              {/* Manual Firebase Config Override */}
+              <div className="border border-[var(--color-border)] bg-[var(--color-bg)] p-4 rounded-lg space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h5 className="text-xs font-mono font-medium text-[var(--color-text)]">
+                      Manual Firebase Configuration
+                    </h5>
+                    <p className="text-[11px] text-[var(--color-muted)]">
+                      Overrides credentials directly in local browser storage if Vercel environment variables are not yet propagated.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveFirebaseConfig}
+                      className="btn-primary px-3 py-1 text-xs font-mono rounded cursor-pointer"
+                    >
+                      Save Override
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResetFirebaseConfig}
+                      className="btn-secondary px-3 py-1 text-xs font-mono rounded cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
+                  <div>
+                    <label className="block text-[var(--color-muted)] mb-1">API Key</label>
+                    <input
+                      type="text"
+                      placeholder="AIzaSy..."
+                      value={configDraft.apiKey}
+                      onChange={(e) => setConfigDraft({ ...configDraft, apiKey: e.target.value.trim() })}
+                      className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-1.5 text-xs text-[var(--color-text)] rounded focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[var(--color-muted)] mb-1">Project ID</label>
+                    <input
+                      type="text"
+                      placeholder="myportfolio-..."
+                      value={configDraft.projectId}
+                      onChange={(e) => setConfigDraft({ ...configDraft, projectId: e.target.value.trim() })}
+                      className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2.5 py-1.5 text-xs text-[var(--color-text)] rounded focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Recommended Firestore Security Rules */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-mono uppercase tracking-wider text-[var(--color-muted)]">
+                    Recommended Firestore Security Rules
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const rules = `rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /portfolio/{document} {\n      allow read, write: if true;\n    }\n    match /ai_chats/{document} {\n      allow read, write: if true;\n    }\n  }\n}`
+                      navigator.clipboard.writeText(rules)
+                      alert('Firestore rules copied to clipboard!')
+                    }}
+                    className="text-xs font-mono text-[var(--color-text)] underline cursor-pointer"
+                  >
+                    Copy Rules
+                  </button>
+                </div>
+                <p className="text-xs text-[var(--color-muted)]">
+                  Paste these rules in your Firebase Console under <strong>Firestore Database → Rules</strong>:
+                </p>
+                <pre className="overflow-auto border border-[var(--color-border)] bg-[var(--color-bg)] p-4 text-xs font-mono text-[var(--color-text)] leading-relaxed rounded">
 {`rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -1546,60 +1902,157 @@ service cloud.firestore {
     }
   }
 }`}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {/* ================= TAB 5: RAW BACKUP & JSON ================= */}
+          {currentTab === 'backup' && (
+            <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-6 rounded-lg space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-semibold text-[var(--color-text)]">
+                    Raw JSON Snapshot
+                  </h3>
+                  <p className="text-xs font-mono text-[var(--color-muted)] mt-1">
+                    Download or copy the raw JSON configuration for safe offline backups or version control.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify(data, null, 2))
+                      alert('JSON configuration copied to clipboard!')
+                    }}
+                    className="btn-secondary px-3 py-1.5 text-xs font-mono cursor-pointer rounded"
+                  >
+                    Copy JSON
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const blob = new Blob([JSON.stringify(data, null, 2)], {
+                        type: 'application/json',
+                      })
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = 'portfolioData.json'
+                      a.click()
+                      URL.revokeObjectURL(url)
+                    }}
+                    className="btn-primary px-3 py-1.5 text-xs font-mono cursor-pointer rounded"
+                  >
+                    Download .json
+                  </button>
+                </div>
+              </div>
+
+              <pre className="max-h-96 overflow-auto border border-[var(--color-border)] bg-[var(--color-bg)] p-4 text-xs font-mono text-[var(--color-text)] leading-relaxed rounded">
+                {JSON.stringify(data, null, 2)}
               </pre>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+      </main>
 
-        {/* ================= TAB 4: RAW JSON & BACKUP ================= */}
-        {currentTab === 'backup' && (
-          <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-semibold text-[var(--color-text)]">
-                  Raw JSON Configuration
-                </h3>
-                <p className="text-xs font-mono text-[var(--color-muted)] mt-1">
-                  Direct snapshot of your portfolio data structure. Download or copy anytime for offline backups.
-                </p>
-              </div>
+      {/* ================= MODAL: QUICK AI REPO IMPORT ================= */}
+      {showAiImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-bg)]/80 p-4 backdrop-blur-md">
+          <div className="w-full max-w-lg border border-[var(--color-border)] bg-[var(--color-panel)] p-6 rounded-lg shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
               <div className="flex items-center gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500/20 text-indigo-400 text-xs font-mono">
+                  ⚡
+                </span>
+                <h3 className="text-base font-semibold text-[var(--color-text)]">
+                  Import Project from GitHub
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAiImportModal(false)}
+                className="text-xs font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] cursor-pointer"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <p className="text-xs text-[var(--color-muted)] leading-relaxed">
+              Paste the public repository URL. Swirl AI will fetch its README, inspect the tech stack and code architecture, and automatically write a complete portfolio project entry for you.
+            </p>
+
+            <div className="space-y-3 font-mono text-xs">
+              <div>
+                <label className="block text-[var(--color-muted)] mb-1">GitHub Repository Link *</label>
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="https://github.com/owner/repository"
+                  value={aiRepoUrl}
+                  onChange={(e) => setAiRepoUrl(e.target.value)}
+                  className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text)] focus:border-indigo-500 focus:outline-none rounded"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[var(--color-muted)] mb-1">
+                  Optional Guidance for AI (e.g. emphasize Android, or focus on vector engine)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Optional custom instructions..."
+                  value={aiCustomInstructions}
+                  onChange={(e) => setAiCustomInstructions(e.target.value)}
+                  className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs text-[var(--color-text)] focus:border-indigo-500 focus:outline-none rounded"
+                />
+              </div>
+
+              {aiStatusMessage && (
+                <div className="text-xs font-mono text-indigo-400 flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                  <span>{aiStatusMessage}</span>
+                </div>
+              )}
+
+              {aiError && (
+                <div className="text-xs font-mono text-red-400 border border-red-500/20 bg-red-500/10 p-2.5 rounded">
+                  {aiError}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(JSON.stringify(data, null, 2))
-                    alert('Configuration copied to clipboard!')
-                  }}
-                  className="btn-secondary px-3 py-1.5 text-xs font-mono cursor-pointer"
+                  disabled={isGeneratingAi || !aiRepoUrl.trim()}
+                  onClick={() => handleAiAutofill()}
+                  className="btn-primary bg-indigo-600 hover:bg-indigo-700 text-white flex-1 py-2.5 font-mono text-xs cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 rounded"
                 >
-                  Copy JSON
+                  {isGeneratingAi ? (
+                    <>
+                      <span className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      <span>Writing with AI...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>✨ Generate with Swirl AI</span>
+                    </>
+                  )}
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    const blob = new Blob([JSON.stringify(data, null, 2)], {
-                      type: 'application/json',
-                    })
-                    const url = URL.createObjectURL(blob)
-                    const a = document.createElement('a')
-                    a.href = url
-                    a.download = 'portfolioData.json'
-                    a.click()
-                    URL.revokeObjectURL(url)
-                  }}
-                  className="btn-primary px-3 py-1.5 text-xs font-mono cursor-pointer"
+                  onClick={() => setShowAiImportModal(false)}
+                  className="btn-secondary px-4 py-2.5 font-mono text-xs cursor-pointer rounded"
                 >
-                  Download .json
+                  Cancel
                 </button>
               </div>
             </div>
-
-            <pre className="max-h-96 overflow-auto border border-[var(--color-border)] bg-[var(--color-bg)] p-4 text-xs font-mono text-[var(--color-text)] leading-relaxed">
-              {JSON.stringify(data, null, 2)}
-            </pre>
           </div>
-        )}
-      </main>
+        </div>
+      )}
     </div>
   )
 }
