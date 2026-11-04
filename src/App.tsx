@@ -1053,32 +1053,74 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-[var(--color-border)] bg-[var(--color-surface)] py-8 text-xs font-mono text-[var(--color-muted)]">
-        <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-4 px-6 sm:flex-row">
-          <p>© {new Date().getFullYear()} {portfolioData.profile.name || 'Junaid'}.</p>
-          <div className="flex items-center gap-4">
-            <a href="#open-source" className="hover:text-[var(--color-text)]">
-              Open Source
-            </a>
-            <a href="#projects" className="hover:text-[var(--color-text)]">
-              Projects
-            </a>
-            <a href="#essays" className="hover:text-[var(--color-text)]">
-              Essays
-            </a>
-            <a href="#skills" className="hover:text-[var(--color-text)]">
-              Skills
-            </a>
-            <button
-              type="button"
-              onClick={() => setContactModalOpen(true)}
-              className="hover:text-[var(--color-text)] cursor-pointer"
+      <footer className="border-t border-[var(--color-border)] bg-[var(--color-surface)] py-8 sm:py-10 text-xs font-mono text-[var(--color-muted)]">
+        <div className="mx-auto max-w-4xl px-6">
+          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row sm:items-center">
+            {/* Left: Branding & Copyright */}
+            <div className="flex flex-col items-center sm:items-start gap-1 text-center sm:text-left">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-[var(--color-text)]">
+                  {portfolioData.profile.name || 'Junaid'}
+                </span>
+                <span className="text-[10px] text-[var(--color-muted)]">·</span>
+                <span className="text-[11px] text-[var(--color-muted)]">
+                  {portfolioData.profile.role || 'Software Engineer'}
+                </span>
+              </div>
+              <p className="text-[11px] text-[var(--color-muted)]">
+                © {new Date().getFullYear()} All rights reserved.
+              </p>
+            </div>
+
+            {/* Right: Navigation Links with responsive wrapping */}
+            <nav
+              aria-label="Footer navigation"
+              className="flex flex-wrap items-center justify-center sm:justify-end gap-x-4 gap-y-2 text-[11px] sm:text-xs"
             >
-              Contact
-            </button>
-            <a href="#" className="hover:text-[var(--color-text)]">
-              Back to top ↑
-            </a>
+              <a
+                href="#open-source"
+                className="transition-colors hover:text-[var(--color-text)] py-1"
+              >
+                Open Source
+              </a>
+              <a
+                href="#projects"
+                className="transition-colors hover:text-[var(--color-text)] py-1"
+              >
+                Projects
+              </a>
+              <a
+                href="#essays"
+                className="transition-colors hover:text-[var(--color-text)] py-1"
+              >
+                Essays
+              </a>
+              <a
+                href="#skills"
+                className="transition-colors hover:text-[var(--color-text)] py-1"
+              >
+                Skills
+              </a>
+              <a
+                href="#about"
+                className="transition-colors hover:text-[var(--color-text)] py-1"
+              >
+                About
+              </a>
+              <button
+                type="button"
+                onClick={() => setContactModalOpen(true)}
+                className="transition-colors hover:text-[var(--color-text)] cursor-pointer py-1"
+              >
+                Contact
+              </button>
+              <a
+                href="#"
+                className="inline-flex items-center gap-1 transition-colors hover:text-[var(--color-text)] py-1 text-[var(--color-text)] font-medium"
+              >
+                Top ↑
+              </a>
+            </nav>
           </div>
         </div>
       </footer>
