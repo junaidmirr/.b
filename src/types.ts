@@ -35,10 +35,40 @@ export type ProfileData = {
   twitter?: string
 }
 
+export type EssayComment = {
+  id: string
+  essayId: string
+  authorName: string
+  content: string
+  createdAt: string
+}
+
+export type EssayInteraction = {
+  essayId: string
+  views: number
+  likes: number
+  comments: EssayComment[]
+}
+
+export type Essay = {
+  id: string
+  title: string
+  slug: string
+  date: string
+  readingTime: string
+  category: string
+  excerpt: string
+  content: string
+  coverImage?: string
+  externalLink?: string
+  externalLinkLabel?: string
+}
+
 export type PortfolioData = {
   profile: ProfileData
   categories: string[]
   projects: Project[]
+  essays?: Essay[]
 }
 
 export type ChatMessage = {

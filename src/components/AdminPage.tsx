@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react'
-import type { PortfolioData, Project, ProfileData, ChatSession } from '../types'
+import type { PortfolioData, Project, ProfileData, ChatSession, Essay, EssayComment } from '../types'
 import { savePortfolioDataLocal } from '../portfolioDataManager'
 import {
   savePortfolioToFirebase,
@@ -11,6 +11,12 @@ import {
 import { subscribeToChatSessions, deleteChatSession } from '../services/chatLogService'
 import { generateProjectFromGithub } from '../services/aiAutofillService'
 import {
+  fetchEssayInteractions,
+  deleteEssayComment,
+  type EssayInteractionsMap,
+} from '../services/essayService'
+import { renderEssayMarkdown } from './EssaysSection'
+import {
   isFirebaseConfigured,
   firebaseConfig,
   saveCustomFirebaseConfig,
@@ -20,13 +26,36 @@ import {
 } from '../firebase'
 import type { User } from 'firebase/auth'
 
-type AdminTab = 'projects' | 'profile' | 'chats' | 'firebase' | 'backup'
+type AdminTab = 'projects' | 'essays' | 'profile' | 'chats' | 'firebase' | 'backup'
 
 type AdminPageProps = {
   initialData: PortfolioData
   onClose: () => void
   onDataUpdated: (newData: PortfolioData) => void
 }
+
+const DEFAULT_NEW_ESSAY: Essay = {
+  id: '',
+  title: '',
+  slug: '',
+  date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+  readingTime: '5 min read',
+  category: 'System Architecture',
+  excerpt: '',
+  content: '',
+  coverImage: '',
+  externalLink: '',
+  externalLinkLabel: '',
+}
+
+const SUGGESTED_ESSAY_CATEGORIES = [
+  'System Architecture',
+  'Geospatial Systems',
+  'Compiler & Parser Design',
+  'Android Internals',
+  'AI & LLM Systems',
+  'Performance Engineering',
+]
 
 const DEFAULT_NEW_PROJECT: Project = {
   title: '',
@@ -122,6 +151,17 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
   const [isDeletingChat, setIsDeletingChat] = useState(false)
   const [chatSearchQuery, setChatSearchQuery] = useState('')
 
+  // Essays Management State
+  const [editingEssayIndex, setEditingEssayIndex] = useState<number | null>(null)
+  const [activeEssayDraft, setActiveEssayDraft] = useState<Essay | null>(null)
+  const [isNewEssay, setIsNewEssay] = useState(false)
+  const [essaySearchQuery, setEssaySearchQuery] = useState('')
+  const [previewEssayMarkdown, setPreviewEssayMarkdown] = useState(false)
+  const [essayInteractions, setEssayInteractions] = useState<EssayInteractionsMap>({})
+  const [isLoadingInteractions, setIsLoadingInteractions] = useState(false)
+  const [commentFilterEssayId, setCommentFilterEssayId] = useState<string>('all')
+  const [isDeletingCommentId, setIsDeletingCommentId] = useState<string | null>(null)
+
   const isConfigured = isFirebaseConfigured()
   const [configDraft, setConfigDraft] = useState<FirebaseConfig>({ ...firebaseConfig })
 
@@ -145,6 +185,23 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
       handleRefreshChats()
     }, 10000)
     return () => clearInterval(interval)
+  }, [currentTab])
+
+  // Fetch real-time essay interactions when on essays tab
+  const loadInteractions = async () => {
+    setIsLoadingInteractions(true)
+    try {
+      const map = await fetchEssayInteractions()
+      setEssayInteractions(map)
+    } finally {
+      setIsLoadingInteractions(false)
+    }
+  }
+
+  useEffect(() => {
+    if (currentTab === 'essays') {
+      loadInteractions()
+    }
   }, [currentTab])
 
   // Track Firebase Auth user
@@ -386,6 +443,116 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     setData(updatedData)
     savePortfolioDataLocal(updatedData)
     onDataUpdated(updatedData)
+  }
+
+  // --- Essays & Perspectives Handlers ---
+  const startNewEssay = () => {
+    const newId = `essay-${Date.now()}`
+    setActiveEssayDraft({
+      ...DEFAULT_NEW_ESSAY,
+      id: newId,
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    })
+    setIsNewEssay(true)
+    setEditingEssayIndex(null)
+    setPreviewEssayMarkdown(false)
+  }
+
+  const startEditEssay = (index: number) => {
+    const target = data.essays?.[index]
+    if (!target) return
+    setActiveEssayDraft({ ...target })
+    setEditingEssayIndex(index)
+    setIsNewEssay(false)
+    setPreviewEssayMarkdown(false)
+  }
+
+  const cancelEssayEdit = () => {
+    setActiveEssayDraft(null)
+    setEditingEssayIndex(null)
+    setIsNewEssay(false)
+    setPreviewEssayMarkdown(false)
+  }
+
+  const commitEssayDraft = () => {
+    if (!activeEssayDraft) return
+    if (!activeEssayDraft.title.trim()) {
+      alert('Essay title is required.')
+      return
+    }
+
+    const currentEssays = data.essays || []
+    const autoSlug =
+      activeEssayDraft.slug.trim() ||
+      activeEssayDraft.title
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+
+    const finalDraft: Essay = {
+      ...activeEssayDraft,
+      slug: autoSlug,
+    }
+
+    let updatedEssays: Essay[]
+    if (isNewEssay || editingEssayIndex === null) {
+      updatedEssays = [finalDraft, ...currentEssays]
+    } else {
+      updatedEssays = currentEssays.map((e, idx) =>
+        idx === editingEssayIndex ? finalDraft : e
+      )
+    }
+
+    const updatedData = { ...data, essays: updatedEssays }
+    setData(updatedData)
+    savePortfolioDataLocal(updatedData)
+    onDataUpdated(updatedData)
+    cancelEssayEdit()
+    setSaveStatus({
+      type: 'info',
+      message: `Essay "${finalDraft.title}" updated in working memory. Click "Save to Firebase" to sync changes to the cloud.`,
+    })
+  }
+
+  const deleteEssay = (index: number) => {
+    const essay = data.essays?.[index]
+    if (!essay) return
+    if (!confirm(`Are you sure you want to delete essay "${essay.title}"?`)) return
+    const updatedEssays = (data.essays || []).filter((_, i) => i !== index)
+    const updatedData = { ...data, essays: updatedEssays }
+    setData(updatedData)
+    savePortfolioDataLocal(updatedData)
+    onDataUpdated(updatedData)
+    if (editingEssayIndex === index) {
+      cancelEssayEdit()
+    }
+  }
+
+  const moveEssay = (index: number, direction: 'up' | 'down') => {
+    const list = [...(data.essays || [])]
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= list.length) return
+    const [moved] = list.splice(index, 1)
+    list.splice(targetIndex, 0, moved)
+    const updatedData = { ...data, essays: list }
+    setData(updatedData)
+    savePortfolioDataLocal(updatedData)
+    onDataUpdated(updatedData)
+  }
+
+  const handleDeleteComment = async (essayId: string, commentId: string) => {
+    if (!confirm('Are you sure you want to delete this comment?')) return
+    setIsDeletingCommentId(commentId)
+    try {
+      const ok = await deleteEssayComment(essayId, commentId)
+      if (ok) {
+        await loadInteractions()
+      } else {
+        alert('Could not delete comment.')
+      }
+    } finally {
+      setIsDeletingCommentId(null)
+    }
   }
 
   // --- Swirl AI Autofill Handler ---
@@ -770,6 +937,24 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
             <span>📁 Projects</span>
             <span className="rounded bg-[var(--color-bg)] border border-[var(--color-border)] px-1.5 py-0.2 text-[10px] text-[var(--color-muted)]">
               {data.projects.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setCurrentTab('essays')
+              cancelEssayEdit()
+            }}
+            className={`border-b-2 px-3 py-2 cursor-pointer transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+              currentTab === 'essays'
+                ? 'border-[var(--color-text)] text-[var(--color-text)] font-semibold'
+                : 'border-transparent text-[var(--color-muted)] hover:text-[var(--color-text)]'
+            }`}
+          >
+            <span>✍️ Essays & Writing</span>
+            <span className="rounded bg-[var(--color-bg)] border border-[var(--color-border)] px-1.5 py-0.2 text-[10px] text-[var(--color-muted)]">
+              {data.essays?.length || 0}
             </span>
           </button>
 
@@ -1514,6 +1699,646 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                       })}
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ================= TAB: ESSAYS & PERSPECTIVES ================= */}
+          {currentTab === 'essays' && (
+            <div>
+              {activeEssayDraft ? (
+                /* ================= ESSAY EDITOR VIEW ================= */
+                <div className="space-y-6">
+                  {/* Top Editor Bar */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-panel)] p-4 rounded-lg">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-[var(--color-muted)] uppercase tracking-wider">
+                          {isNewEssay ? 'Essay Creator' : 'Essay Editor'}
+                        </span>
+                        <span className="text-xs font-mono px-2 py-0.5 rounded bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)]">
+                          {activeEssayDraft.category || 'System Architecture'}
+                        </span>
+                      </div>
+                      <h2 className="text-lg font-semibold text-[var(--color-text)] mt-1">
+                        {activeEssayDraft.title || 'Untitled Essay'}
+                      </h2>
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={commitEssayDraft}
+                        className="btn-primary flex-1 sm:flex-initial px-4 py-2 text-xs font-mono cursor-pointer shadow-sm"
+                      >
+                        ✓ Apply To List
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEssayEdit}
+                        className="btn-secondary flex-1 sm:flex-initial px-4 py-2 text-xs font-mono cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Form Card */}
+                  <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-6 rounded-lg space-y-6">
+                    {/* Title & Slug */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                          Essay Title *
+                        </label>
+                        <input
+                          type="text"
+                          value={activeEssayDraft.title}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setActiveEssayDraft((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    title: val,
+                                    slug: isNewEssay
+                                      ? val
+                                          .toLowerCase()
+                                          .replace(/[^\w\s-]/g, '')
+                                          .replace(/\s+/g, '-')
+                                      : prev.slug,
+                                  }
+                                : null
+                            )
+                          }}
+                          placeholder="e.g. Why Grep-Based Context Fails Modern Coding Agents"
+                          className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-mono text-[var(--color-text)] rounded focus:outline-none focus:border-[var(--color-border-hover)]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                          URL Slug
+                        </label>
+                        <input
+                          type="text"
+                          value={activeEssayDraft.slug}
+                          onChange={(e) =>
+                            setActiveEssayDraft((prev) => (prev ? { ...prev, slug: e.target.value } : null))
+                          }
+                          placeholder="e.g. why-grep-based-context-fails"
+                          className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-mono text-[var(--color-text)] rounded focus:outline-none focus:border-[var(--color-border-hover)]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Category with Suggested Pills */}
+                    <div>
+                      <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                        Category
+                      </label>
+                      <input
+                        type="text"
+                        value={activeEssayDraft.category}
+                        onChange={(e) =>
+                          setActiveEssayDraft((prev) =>
+                            prev ? { ...prev, category: e.target.value } : null
+                          )
+                        }
+                        placeholder="e.g. System Architecture"
+                        className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-mono text-[var(--color-text)] rounded focus:outline-none focus:border-[var(--color-border-hover)] mb-2"
+                      />
+                      <div className="flex flex-wrap gap-1.5">
+                        {SUGGESTED_ESSAY_CATEGORIES.map((cat) => (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() =>
+                              setActiveEssayDraft((prev) => (prev ? { ...prev, category: cat } : null))
+                            }
+                            className={`px-2 py-0.5 rounded text-[11px] font-mono cursor-pointer border transition-colors ${
+                              activeEssayDraft.category === cat
+                                ? 'bg-[var(--color-text)] text-[var(--color-bg)] border-[var(--color-text)]'
+                                : 'bg-[var(--color-bg)] text-[var(--color-muted)] border-[var(--color-border)] hover:border-[var(--color-border-hover)]'
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Date & Reading Time */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                          Publication Date
+                        </label>
+                        <input
+                          type="text"
+                          value={activeEssayDraft.date}
+                          onChange={(e) =>
+                            setActiveEssayDraft((prev) => (prev ? { ...prev, date: e.target.value } : null))
+                          }
+                          placeholder="e.g. Nov 2026 or Nov 4, 2026"
+                          className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-mono text-[var(--color-text)] rounded focus:outline-none focus:border-[var(--color-border-hover)]"
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-mono text-[var(--color-muted)]">
+                            Estimated Reading Time
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const words = (activeEssayDraft.content || '')
+                                .trim()
+                                .split(/\s+/)
+                                .filter(Boolean).length
+                              const mins = Math.max(1, Math.ceil(words / 200))
+                              setActiveEssayDraft((prev) =>
+                                prev ? { ...prev, readingTime: `${mins} min read` } : null
+                              )
+                            }}
+                            className="text-[10px] font-mono text-indigo-400 hover:underline cursor-pointer"
+                          >
+                            ⚡ Calc from word count
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={activeEssayDraft.readingTime}
+                          onChange={(e) =>
+                            setActiveEssayDraft((prev) =>
+                              prev ? { ...prev, readingTime: e.target.value } : null
+                            )
+                          }
+                          placeholder="e.g. 5 min read"
+                          className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-mono text-[var(--color-text)] rounded focus:outline-none focus:border-[var(--color-border-hover)]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Excerpt */}
+                    <div>
+                      <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                        Card Excerpt / Abstract
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={activeEssayDraft.excerpt}
+                        onChange={(e) =>
+                          setActiveEssayDraft((prev) => (prev ? { ...prev, excerpt: e.target.value } : null))
+                        }
+                        placeholder="Brief 1-2 sentence overview displayed on the post card and reader header..."
+                        className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-mono text-[var(--color-text)] rounded focus:outline-none focus:border-[var(--color-border-hover)]"
+                      />
+                    </div>
+
+                    {/* Attachments Section */}
+                    <div className="border border-[var(--color-border)] bg-[var(--color-bg)] p-4 rounded-lg space-y-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">📎</span>
+                        <h4 className="text-xs font-mono font-semibold text-[var(--color-text)] uppercase tracking-wider">
+                          Media & Link Attachments
+                        </h4>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                            External Link URL (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={activeEssayDraft.externalLink || ''}
+                            onChange={(e) =>
+                              setActiveEssayDraft((prev) =>
+                                prev ? { ...prev, externalLink: e.target.value } : null
+                              )
+                            }
+                            placeholder="https://github.com/... or https://demo..."
+                            className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-panel)] text-xs font-mono text-[var(--color-text)] rounded focus:outline-none focus:border-[var(--color-border-hover)]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                            External Link Button Label (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={activeEssayDraft.externalLinkLabel || ''}
+                            onChange={(e) =>
+                              setActiveEssayDraft((prev) =>
+                                prev ? { ...prev, externalLinkLabel: e.target.value } : null
+                              )
+                            }
+                            placeholder="e.g. View Interactive Map Demo ↗"
+                            className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-panel)] text-xs font-mono text-[var(--color-text)] rounded focus:outline-none focus:border-[var(--color-border-hover)]"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                          Cover / Architecture Diagram Image URL (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={activeEssayDraft.coverImage || ''}
+                          onChange={(e) =>
+                            setActiveEssayDraft((prev) =>
+                              prev ? { ...prev, coverImage: e.target.value } : null
+                            )
+                          }
+                          placeholder="https://images.unsplash.com/... or /path/to/diagram.png"
+                          className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-panel)] text-xs font-mono text-[var(--color-text)] rounded focus:outline-none focus:border-[var(--color-border-hover)]"
+                        />
+                        {activeEssayDraft.coverImage && (
+                          <div className="mt-3 flex items-center gap-3 p-2 rounded border border-[var(--color-border)] bg-[var(--color-panel)]">
+                            <img
+                              src={activeEssayDraft.coverImage}
+                              alt="Preview"
+                              className="h-16 w-28 object-cover rounded border border-[var(--color-border)]"
+                              onError={(e) => {
+                                ;(e.target as HTMLElement).style.display = 'none'
+                              }}
+                            />
+                            <span className="text-[11px] font-mono text-[var(--color-muted)]">
+                              Attached image preview
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Markdown Body Content */}
+                    <div>
+                      <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2 mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-[var(--color-muted)]">
+                            Content (Markdown)
+                          </span>
+                          <span className="text-[10px] font-mono text-[var(--color-muted)]">
+                            ({(activeEssayDraft.content || '').split(/\s+/).filter(Boolean).length} words)
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1 text-xs font-mono">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewEssayMarkdown(false)}
+                            className={`px-3 py-1 rounded cursor-pointer transition-colors ${
+                              !previewEssayMarkdown
+                                ? 'bg-[var(--color-text)] text-[var(--color-bg)] font-semibold'
+                                : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+                            }`}
+                          >
+                            Write
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewEssayMarkdown(true)}
+                            className={`px-3 py-1 rounded cursor-pointer transition-colors ${
+                              previewEssayMarkdown
+                                ? 'bg-[var(--color-text)] text-[var(--color-bg)] font-semibold'
+                                : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+                            }`}
+                          >
+                            Live Preview
+                          </button>
+                        </div>
+                      </div>
+
+                      {!previewEssayMarkdown ? (
+                        <textarea
+                          rows={18}
+                          value={activeEssayDraft.content}
+                          onChange={(e) =>
+                            setActiveEssayDraft((prev) =>
+                              prev ? { ...prev, content: e.target.value } : null
+                            )
+                          }
+                          placeholder="Write your technical essay here using standard Markdown...&#10;&#10;## Section Heading&#10;&#10;Explain your architectural thesis, trade-offs, and benchmarks.&#10;&#10;```python&#10;# Code example&#10;def parse_operators():&#10;    pass&#10;```&#10;&#10;- Bullet point one&#10;- Bullet point two"
+                          className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-mono text-[var(--color-text)] rounded focus:outline-none focus:border-[var(--color-border-hover)] leading-relaxed"
+                        />
+                      ) : (
+                        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-6 min-h-[300px]">
+                          {activeEssayDraft.content ? (
+                            renderEssayMarkdown(activeEssayDraft.content)
+                          ) : (
+                            <p className="text-xs font-mono text-[var(--color-muted)] text-center py-10">
+                              Nothing to preview yet. Switch back to Write mode to draft your essay.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bottom Save Action */}
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--color-border)]">
+                      <button
+                        type="button"
+                        onClick={cancelEssayEdit}
+                        className="btn-secondary px-4 py-2 text-xs font-mono cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={commitEssayDraft}
+                        className="btn-primary px-5 py-2 text-xs font-mono cursor-pointer"
+                      >
+                        ✓ Apply To List
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* ================= ESSAY LIST & MODERATION VIEW ================= */
+                <div className="space-y-8">
+                  {/* Top Bar */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[var(--color-border)] pb-4">
+                    <div>
+                      <h2 className="text-lg font-semibold text-[var(--color-text)]">
+                        Essays & Architectural Perspectives
+                      </h2>
+                      <p className="text-xs font-mono text-[var(--color-muted)] mt-1">
+                        Publish deep-dives, architectural essays, and research notes with live views, likes, and reader discussions.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={isLoadingInteractions}
+                        onClick={loadInteractions}
+                        className="btn-secondary px-3 py-1.5 text-xs font-mono cursor-pointer flex items-center gap-1.5"
+                        title="Refresh analytics and comments"
+                      >
+                        <span className={isLoadingInteractions ? 'animate-spin' : ''}>🔄</span>
+                        <span>{isLoadingInteractions ? 'Refreshing...' : 'Refresh Stats'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={startNewEssay}
+                        className="btn-primary px-3.5 py-1.5 text-xs font-mono cursor-pointer flex items-center gap-1.5 shadow-sm"
+                      >
+                        <span>✍️ New Essay</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Search Bar */}
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-xs text-[var(--color-muted)] font-mono">
+                      🔍
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Search essays by title, category, or abstract..."
+                      value={essaySearchQuery}
+                      onChange={(e) => setEssaySearchQuery(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-mono text-[var(--color-text)] rounded focus:outline-none focus:border-[var(--color-border-hover)]"
+                    />
+                  </div>
+
+                  {/* Essays List Cards */}
+                  <div className="space-y-3">
+                    {(!data.essays || data.essays.length === 0) ? (
+                      <div className="p-8 text-center border border-dashed border-[var(--color-border)] rounded-lg text-xs font-mono text-[var(--color-muted)]">
+                        No essays published yet. Click "✍️ New Essay" to publish your first post!
+                      </div>
+                    ) : (
+                      data.essays
+                        .filter((essay) => {
+                          if (!essaySearchQuery.trim()) return true
+                          const q = essaySearchQuery.toLowerCase()
+                          return (
+                            essay.title.toLowerCase().includes(q) ||
+                            essay.category.toLowerCase().includes(q) ||
+                            essay.excerpt.toLowerCase().includes(q)
+                          )
+                        })
+                        .map((essay, index) => {
+                          const stats = essayInteractions[essay.id]
+                          const viewsCount = stats?.views ?? 0
+                          const likesCount = stats?.likes ?? 0
+                          const commentsCount = stats?.comments?.length ?? 0
+
+                          return (
+                            <div
+                              key={essay.id || index}
+                              className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] hover:border-[var(--color-border-hover)] transition-colors"
+                            >
+                              <div className="space-y-1.5 flex-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-xs font-semibold text-[var(--color-text)] truncate max-w-md">
+                                    {essay.title}
+                                  </span>
+                                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-muted)]">
+                                    {essay.category}
+                                  </span>
+                                  <span className="text-[10px] font-mono text-[var(--color-muted)]">
+                                    {essay.date} • {essay.readingTime}
+                                  </span>
+                                </div>
+
+                                <p className="text-xs text-[var(--color-muted)] line-clamp-1">
+                                  {essay.excerpt}
+                                </p>
+
+                                {/* Badges & Analytics */}
+                                <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] font-mono">
+                                  <span className="flex items-center gap-1 text-[var(--color-text)] font-medium">
+                                    <span>👁️</span>
+                                    <span>{viewsCount} views</span>
+                                  </span>
+                                  <span className="flex items-center gap-1 text-rose-500 font-medium">
+                                    <span>❤️</span>
+                                    <span>{likesCount} likes</span>
+                                  </span>
+                                  <span className="flex items-center gap-1 text-indigo-400 font-medium">
+                                    <span>💬</span>
+                                    <span>{commentsCount} comments</span>
+                                  </span>
+                                  {essay.externalLink && (
+                                    <span className="text-[10px] text-[var(--color-muted)]">
+                                      🔗 Link attached
+                                    </span>
+                                  )}
+                                  {essay.coverImage && (
+                                    <span className="text-[10px] text-[var(--color-muted)]">
+                                      🖼️ Image attached
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-center">
+                                <button
+                                  type="button"
+                                  onClick={() => moveEssay(index, 'up')}
+                                  disabled={index === 0}
+                                  title="Move essay up"
+                                  className="px-2 py-1 text-xs font-mono border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30 rounded cursor-pointer"
+                                >
+                                  ▲
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveEssay(index, 'down')}
+                                  disabled={index === (data.essays?.length || 0) - 1}
+                                  title="Move essay down"
+                                  className="px-2 py-1 text-xs font-mono border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30 rounded cursor-pointer"
+                                >
+                                  ▼
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => startEditEssay(index)}
+                                  className="btn-secondary px-3 py-1 text-xs font-mono cursor-pointer"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => deleteEssay(index)}
+                                  className="px-2.5 py-1 text-xs font-mono text-[var(--color-muted)] hover:text-red-400 border border-[var(--color-border)] hover:border-red-500/40 rounded cursor-pointer"
+                                  title="Delete essay"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })
+                    )}
+                  </div>
+
+                  {/* ================= COMMENT MODERATION SECTION ================= */}
+                  <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-6 rounded-lg space-y-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[var(--color-border)] pb-3">
+                      <div>
+                        <h3 className="text-base font-semibold text-[var(--color-text)] flex items-center gap-2">
+                          <span>💬 Reader Discussions & Comments</span>
+                          <span className="text-xs font-mono px-2 py-0.5 rounded bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-muted)]">
+                            {Object.values(essayInteractions).reduce(
+                              (acc, curr) => acc + (curr.comments?.length || 0),
+                              0
+                            )}{' '}
+                            total
+                          </span>
+                        </h3>
+                        <p className="text-xs font-mono text-[var(--color-muted)] mt-1">
+                          Review and moderate comments posted by visitors across all your technical essays.
+                        </p>
+                      </div>
+
+                      {/* Filter by essay */}
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs font-mono text-[var(--color-muted)] whitespace-nowrap">
+                          Filter:
+                        </label>
+                        <select
+                          value={commentFilterEssayId}
+                          onChange={(e) => setCommentFilterEssayId(e.target.value)}
+                          className="px-2.5 py-1 text-xs font-mono border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] rounded focus:outline-none"
+                        >
+                          <option value="all">All Essays</option>
+                          {(data.essays || []).map((e) => (
+                            <option key={e.id} value={e.id}>
+                              {e.title}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Comments List */}
+                    {(() => {
+                      const allComments: Array<
+                        EssayComment & { essayTitle: string; targetEssayId: string }
+                      > = []
+                      for (const [eId, interaction] of Object.entries(essayInteractions)) {
+                        const essayObj = (data.essays || []).find((e) => e.id === eId)
+                        for (const c of interaction.comments || []) {
+                          allComments.push({
+                            ...c,
+                            targetEssayId: eId,
+                            essayTitle: essayObj?.title || eId,
+                          })
+                        }
+                      }
+
+                      // Sort newest first
+                      allComments.sort(
+                        (a, b) =>
+                          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                      )
+
+                      const displayed =
+                        commentFilterEssayId === 'all'
+                          ? allComments
+                          : allComments.filter((c) => c.targetEssayId === commentFilterEssayId)
+
+                      if (displayed.length === 0) {
+                        return (
+                          <div className="p-8 text-center border border-dashed border-[var(--color-border)] rounded-lg text-xs font-mono text-[var(--color-muted)]">
+                            No comments found. When visitors discuss your essays, their thoughts appear here.
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <div className="space-y-3">
+                          {displayed.map((c) => (
+                            <div
+                              key={c.id}
+                              className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]"
+                            >
+                              <div className="space-y-1 flex-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+                                  <span className="font-semibold text-[var(--color-text)]">
+                                    {c.authorName || 'Anonymous Reader'}
+                                  </span>
+                                  <span className="text-[10px] text-[var(--color-muted)]">
+                                    on &ldquo;{c.essayTitle}&rdquo;
+                                  </span>
+                                  <span className="text-[10px] text-[var(--color-muted)]">
+                                    • {new Date(c.createdAt).toLocaleDateString(undefined, {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </span>
+                                </div>
+                                <p className="text-xs leading-relaxed text-[var(--color-text)] whitespace-pre-wrap">
+                                  {c.content}
+                                </p>
+                              </div>
+
+                              <button
+                                type="button"
+                                disabled={isDeletingCommentId === c.id}
+                                onClick={() => handleDeleteComment(c.targetEssayId, c.id)}
+                                className="px-2.5 py-1 text-xs font-mono text-red-400 hover:bg-red-500/10 border border-red-500/30 rounded cursor-pointer self-end sm:self-center transition-colors disabled:opacity-50 whitespace-nowrap"
+                              >
+                                {isDeletingCommentId === c.id ? 'Deleting...' : 'Delete'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    })()}
+                  </div>
                 </div>
               )}
             </div>

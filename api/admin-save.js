@@ -49,6 +49,7 @@ export default async function handler(req, res) {
       profile,
       categories: Array.isArray(categories) ? categories : [],
       projects,
+      essays: Array.isArray(body.essays) ? body.essays : [],
     }
 
     const jsonString = JSON.stringify(cleanData, null, 2)

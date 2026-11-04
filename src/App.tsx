@@ -5,6 +5,7 @@ import { subscribeToPortfolio } from './services/portfolioService'
 import { AiAssistant } from './components/AiAssistant'
 import { CookieConsent } from './components/CookieConsent'
 import { ErrorPage } from './components/ErrorPage'
+import { EssaysSection } from './components/EssaysSection'
 import type { Theme, Project, SkillCategory, PortfolioData } from './types'
 
 const AdminPage = lazy(() =>
@@ -385,6 +386,12 @@ export default function App() {
               Projects
             </a>
             <a
+              href="#essays"
+              className="text-[var(--color-muted)] transition-colors hover:text-[var(--color-text)]"
+            >
+              Essays
+            </a>
+            <a
               href="#skills"
               className="text-[var(--color-muted)] transition-colors hover:text-[var(--color-text)]"
             >
@@ -531,6 +538,13 @@ export default function App() {
                 className="py-1 text-[var(--color-muted)] transition-colors hover:text-[var(--color-text)]"
               >
                 Projects
+              </a>
+              <a
+                href="#essays"
+                onClick={() => setMobileMenuOpen(false)}
+                className="py-1 text-[var(--color-muted)] transition-colors hover:text-[var(--color-text)]"
+              >
+                Essays
               </a>
               <a
                 href="#skills"
@@ -865,6 +879,9 @@ export default function App() {
           </div>
         </section>
 
+        {/* Technical Essays and Perspectives */}
+        <EssaysSection essays={portfolioData.essays || []} />
+
         {/* Technical Skills and Architecture */}
         <section id="skills" className="mb-20 scroll-mt-20">
           <div className="border-b border-[var(--color-border)] pb-4">
@@ -1045,6 +1062,9 @@ export default function App() {
             </a>
             <a href="#projects" className="hover:text-[var(--color-text)]">
               Projects
+            </a>
+            <a href="#essays" className="hover:text-[var(--color-text)]">
+              Essays
             </a>
             <a href="#skills" className="hover:text-[var(--color-text)]">
               Skills

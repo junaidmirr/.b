@@ -22,6 +22,7 @@ export function getPortfolioData(): PortfolioData {
           },
           categories: Array.isArray(parsed.categories) ? parsed.categories : fallback.categories,
           projects: parsed.projects,
+          essays: Array.isArray(parsed.essays) ? parsed.essays : (fallback.essays || []),
         }
       }
     }
