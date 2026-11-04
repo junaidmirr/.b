@@ -1076,17 +1076,6 @@ export default function App() {
             >
               Contact
             </button>
-            <a
-              href="/iam_admin"
-              onClick={(e) => {
-                e.preventDefault()
-                window.history.pushState(null, '', '/iam_admin')
-                setIsAdminOpen(true)
-              }}
-              className="hover:text-[var(--color-text)] transition-colors"
-            >
-              iam_admin
-            </a>
             <a href="#" className="hover:text-[var(--color-text)]">
               Back to top ↑
             </a>
