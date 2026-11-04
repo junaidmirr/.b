@@ -2,9 +2,9 @@
   {
     "id": "sess_1793730085610_brcds",
     "createdAt": "2026-11-03T18:21:25.610Z",
-    "updatedAt": "2026-11-04T07:46:21.545Z",
+    "updatedAt": "2026-11-04T07:46:24.080Z",
     "summary": "What is your Android stack?",
-    "messageCount": 1,
+    "messageCount": 2,
     "browser": "Firefox",
     "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:159.0) Gecko/20100101 Firefox/159.0",
     "messages": [
@@ -12,7 +12,13 @@
         "id": "u_1793778381545",
         "role": "user",
         "content": "What is your Android stack?",
-        "timestamp": "2026-11-04T07:46:21.545Z"
+        "timestamp": "2026-11-04T07:46:24.080Z"
+      },
+      {
+        "id": "a_1793778381545",
+        "role": "assistant",
+        "content": "Junaid specializes in Android development, primarily utilizing Kotlin and Java. His portfolio features two key Android projects:\n\nEdugate is a virtual classroom application built for real-time video conferencing, screen sharing, and resource management. \n\nAi assistant app is an on-screen AI interface designed for seamless user interaction within the Android environment. \n\nYou can explore his source code and contributions further on his GitHub at https://github.com/junaidmirr.",
+        "timestamp": "2026-11-04T07:46:24.080Z"
       }
     ]
   }
