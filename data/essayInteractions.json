@@ -4,13 +4,6 @@
     "likes": 34,
     "comments": [
       {
-        "id": "c_1793775838739_a0gj",
-        "essayId": "essay-grep-context-layer",
-        "authorName": "Test Reviewer",
-        "content": "Testing comment submission.",
-        "createdAt": "2026-11-04T07:03:58.739Z"
-      },
-      {
         "id": "c_1",
         "essayId": "essay-grep-context-layer",
         "authorName": "Arjun Sharma",
