@@ -290,33 +290,66 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     setIsSaving(true)
     setSaveStatus({ type: null, message: '' })
 
+    let firebaseOk = false
+    let firebaseMessage = ''
+    let gitOk = false
+    let gitMessage = ''
+
+    // 1. Immediately persist to local working memory and UI
+    savePortfolioDataLocal(data)
+    onDataUpdated(data)
+
+    // 2. Attempt direct Firestore cloud write
     try {
       const res = await savePortfolioToFirebase(data)
-      onDataUpdated(data)
+      firebaseOk = true
+      firebaseMessage = res.message
+    } catch (err) {
+      firebaseMessage = err instanceof Error ? err.message : 'Firestore write failed.'
+    }
 
-      if (authToken && !authToken.startsWith('firebase_session_')) {
-        fetch('/api/admin-save', {
+    // 3. Simultaneously sync via secure serverless admin save
+    if (authToken && !authToken.startsWith('firebase_session_')) {
+      try {
+        const apiRes = await fetch('/api/admin-save', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${authToken}`,
           },
           body: JSON.stringify(data),
-        }).catch(() => {})
+        })
+        if (apiRes.ok) {
+          const apiData = await apiRes.json()
+          gitOk = true
+          gitMessage = apiData.message || 'Committed to repository.'
+        }
+      } catch {
+        gitMessage = 'Could not contact serverless admin-save.'
       }
+    }
 
+    if (firebaseOk) {
       setSaveStatus({
         type: 'success',
-        message: res.message,
+        message: gitOk
+          ? `✓ Saved to Firestore & ${gitMessage}`
+          : firebaseMessage,
       })
-    } catch (err) {
+    } else if (gitOk) {
+      setSaveStatus({
+        type: 'info',
+        message:
+          `✓ Saved to working memory & ${gitMessage}. Note: Direct Firestore sync requires updating Firestore Rules in Firebase Console.`,
+      })
+    } else {
       setSaveStatus({
         type: 'error',
-        message: err instanceof Error ? err.message : 'An error occurred while saving to Firebase.',
+        message: firebaseMessage,
       })
-    } finally {
-      setIsSaving(false)
     }
+
+    setIsSaving(false)
   }
 
   const handleTestConnection = async () => {
