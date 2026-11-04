@@ -1,5 +1,22 @@
 [
   {
+    "id": "sess_1793814767493_mojyr",
+    "createdAt": "2026-11-04T17:52:47.494Z",
+    "updatedAt": "2026-11-04T17:52:47.498Z",
+    "summary": "Tell me about doc-engine",
+    "messageCount": 1,
+    "browser": "Chrome Mobile",
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36",
+    "messages": [
+      {
+        "id": "u_1793814767493",
+        "role": "user",
+        "content": "Tell me about doc-engine",
+        "timestamp": "2026-11-04T17:52:47.499Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1793810788171_wsoxt",
     "createdAt": "2026-11-04T16:46:28.171Z",
     "updatedAt": "2026-11-04T16:48:18.018Z",
