@@ -150,16 +150,27 @@ export async function submitEssayComment(
  */
 export async function deleteEssayComment(
   essayId: string,
-  commentId: string
+  commentId: string,
+  adminToken?: string
 ): Promise<boolean> {
+  const token =
+    adminToken ||
+    (typeof window !== 'undefined'
+      ? sessionStorage.getItem('junaid_admin_token') || ''
+      : '')
+
   try {
     const res = await fetch('/api/essay-interactions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({
         action: 'delete_comment',
         essayId,
         commentId,
+        adminToken: token,
       }),
     })
     return res.ok

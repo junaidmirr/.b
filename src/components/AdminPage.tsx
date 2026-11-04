@@ -544,7 +544,7 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     if (!confirm('Are you sure you want to delete this comment?')) return
     setIsDeletingCommentId(commentId)
     try {
-      const ok = await deleteEssayComment(essayId, commentId)
+      const ok = await deleteEssayComment(essayId, commentId, authToken)
       if (ok) {
         await loadInteractions()
       } else {

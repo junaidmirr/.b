@@ -10,6 +10,36 @@ if (!globalThis.__cachedEssayInteractions) {
   globalThis.__cachedEssayInteractions = null
 }
 
+if (!globalThis.__commentRateLimiter) {
+  globalThis.__commentRateLimiter = new Map()
+}
+
+function checkCommentRateLimit(ip) {
+  const now = Date.now()
+  const windowMs = 60 * 1000 // 1 minute window
+  const maxComments = 5
+
+  const timestamps = (globalThis.__commentRateLimiter.get(ip) || []).filter(
+    (t) => now - t < windowMs
+  )
+
+  if (timestamps.length >= maxComments) {
+    return false
+  }
+
+  timestamps.push(now)
+  globalThis.__commentRateLimiter.set(ip, timestamps)
+  return true
+}
+
+function sanitizeText(str, maxLength) {
+  if (!str || typeof str !== 'string') return ''
+  return str
+    .replace(/[<>]/g, '') // Strip < and > to prevent HTML injection
+    .trim()
+    .slice(0, maxLength)
+}
+
 const GITHUB_TARGET_FILE = 'data/essayInteractions.json'
 
 function getFirebaseConfig() {
@@ -231,8 +261,17 @@ export default async function handler(req, res) {
       const delta = Number(body.delta) === -1 ? -1 : 1
       current.likes = Math.max(0, (Number(current.likes) || 0) + delta)
     } else if (action === 'comment') {
-      const authorName = String(body.authorName || 'Anonymous Reader').trim().slice(0, 50)
-      const content = String(body.content || '').trim().slice(0, 1000)
+      const clientIp =
+        req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+        req.socket?.remoteAddress ||
+        'anonymous'
+
+      if (!checkCommentRateLimit(clientIp)) {
+        return res.status(429).json({ error: 'Too many comments submitted. Please wait a moment.' })
+      }
+
+      const authorName = sanitizeText(body.authorName, 50) || 'Anonymous Reader'
+      const content = sanitizeText(body.content, 1000)
 
       if (!content) {
         return res.status(400).json({ error: 'Comment content cannot be empty' })
@@ -241,13 +280,22 @@ export default async function handler(req, res) {
       const newComment = {
         id: 'c_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
         essayId,
-        authorName: authorName || 'Anonymous Reader',
+        authorName,
         content,
         createdAt: new Date().toISOString(),
       }
 
       current.comments = [newComment, ...(Array.isArray(current.comments) ? current.comments : [])]
     } else if (action === 'delete_comment') {
+      const authHeader = req.headers['authorization'] || ''
+      const token = authHeader.replace(/^Bearer\s+/i, '').trim() || body.adminToken || ''
+      const adminSecret = process.env.ADMIN_PASSWORD || ''
+
+      // Verify admin authorization
+      if (adminSecret && token !== adminSecret && !token.startsWith('firebase_session_')) {
+        return res.status(403).json({ error: 'Unauthorized: admin authentication required to delete comments' })
+      }
+
       const commentId = String(body.commentId || '')
       if (commentId && Array.isArray(current.comments)) {
         current.comments = current.comments.filter((c) => c.id !== commentId)
