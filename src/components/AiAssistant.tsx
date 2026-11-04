@@ -292,12 +292,12 @@ export function AiAssistant() {
             type="button"
             onClick={() => setIsOpen(true)}
             aria-label="Open AI Assistant"
-            className="group flex items-center gap-2.5 rounded-full border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-2.5 text-xs font-mono text-[var(--color-text)] shadow-sm hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface)] transition-all cursor-pointer"
+            className="group flex items-center gap-2.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-xs font-medium text-[var(--color-text)] shadow-lg hover:border-[var(--color-border-hover)] transition-all tap-spring cursor-pointer"
           >
             <span className="flex h-2 w-2 items-center justify-center">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             </span>
-            <span className="font-medium">Ask Junaid AI</span>
+            <span>Ask Junaid AI</span>
           </button>
         )}
       </div>
@@ -307,17 +307,17 @@ export function AiAssistant() {
         <div
           role="dialog"
           aria-label="Junaid AI Assistant Chat"
-          className="fixed bottom-5 right-5 z-50 flex h-[540px] max-h-[85vh] w-[390px] max-w-[calc(100vw-2.5rem)] flex-col rounded-lg border border-[var(--color-border)] bg-[var(--color-panel)] shadow-xl overflow-hidden font-sans"
+          className="fixed bottom-5 right-5 z-50 flex h-[540px] max-h-[85vh] w-[390px] max-w-[calc(100vw-2.5rem)] flex-col rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl overflow-hidden font-sans animate-in zoom-in-95 duration-200"
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3">
+          <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)]/80 px-4 py-3 backdrop-blur-md">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
               <div>
-                <span className="text-xs font-mono font-semibold text-[var(--color-text)]">
+                <span className="text-xs font-semibold text-[var(--color-text)]">
                   Junaid AI Assistant
                 </span>
-                <span className="ml-2 text-[10px] font-mono text-[var(--color-muted)]">
+                <span className="ml-2 text-[10px] text-[var(--color-muted)]">
                   Instant
                 </span>
               </div>
@@ -328,7 +328,7 @@ export function AiAssistant() {
                 type="button"
                 onClick={clearChat}
                 title="Clear conversation"
-                className="px-2 py-1 text-[11px] font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] cursor-pointer"
+                className="px-2 py-1 text-xs text-[var(--color-muted)] hover:text-[var(--color-text)] cursor-pointer tap-spring font-medium"
               >
                 Clear
               </button>
@@ -336,7 +336,7 @@ export function AiAssistant() {
                 type="button"
                 onClick={() => setIsOpen(false)}
                 title="Close [ESC]"
-                className="px-2 py-1 text-xs font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] cursor-pointer"
+                className="flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] cursor-pointer tap-spring"
               >
                 ✕
               </button>
@@ -345,8 +345,8 @@ export function AiAssistant() {
 
           {/* Quick Suggestions (if no conversation yet) */}
           {!hasInteracted && (
-            <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--color-muted)] mb-1.5">
+            <div className="border-b border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-2.5">
+              <div className="text-[10px] uppercase tracking-wider font-semibold text-[var(--color-muted)] mb-1.5">
                 Quick questions:
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -355,7 +355,7 @@ export function AiAssistant() {
                     key={prompt}
                     type="button"
                     onClick={() => handleSend(prompt)}
-                    className="rounded border border-[var(--color-border)] bg-[var(--color-panel)] px-2 py-1 text-[11px] font-mono text-[var(--color-muted)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] transition-colors cursor-pointer text-left"
+                    className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-[11px] font-medium text-[var(--color-muted)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] transition-colors cursor-pointer text-left tap-spring"
                   >
                     {prompt}
                   </button>
@@ -373,14 +373,14 @@ export function AiAssistant() {
                   msg.role === 'user' ? 'items-end' : 'items-start'
                 }`}
               >
-                <span className="mb-1 text-[10px] font-mono text-[var(--color-muted)]">
+                <span className="mb-1 text-[10px] text-[var(--color-muted)] font-medium">
                   {msg.role === 'user' ? 'You' : 'Junaid AI'}
                 </span>
                 <div
-                  className={`rounded-md px-3.5 py-2.5 max-w-[88%] leading-relaxed whitespace-pre-wrap ${
+                  className={`px-4 py-2.5 max-w-[88%] leading-relaxed whitespace-pre-wrap ${
                     msg.role === 'user'
-                      ? 'bg-[var(--color-text)] text-[var(--color-bg)] font-medium'
-                      : 'border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)]'
+                      ? 'rounded-2xl rounded-br-xs bg-[#111317] text-white dark:bg-white dark:text-neutral-900 font-medium'
+                      : 'rounded-2xl rounded-bl-xs border border-[var(--color-border)] bg-[var(--color-panel)] text-[var(--color-text)]'
                   }`}
                 >
                   {msg.content}
@@ -396,7 +396,7 @@ export function AiAssistant() {
           {/* Input Bar */}
           <form
             onSubmit={handleSubmit}
-            className="flex items-center gap-2 border-t border-[var(--color-border)] bg-[var(--color-bg)] p-2.5"
+            className="flex items-center gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface)] p-3"
           >
             <input
               ref={inputRef}
@@ -405,12 +405,12 @@ export function AiAssistant() {
               disabled={isStreaming}
               onChange={(e) => setInput(e.target.value)}
               placeholder={isStreaming ? 'Thinking...' : 'Ask about Junaid, doc-engine, CoolPath...'}
-              className="flex-1 border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-2 text-xs text-[var(--color-text)] placeholder-[var(--color-muted)] focus:border-[var(--color-border-hover)] focus:outline-none font-mono"
+              className="flex-1 rounded-full border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-2 text-xs text-[var(--color-text)] placeholder-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none transition-all"
             />
             <button
               type="submit"
               disabled={!input.trim() || isStreaming}
-              className="btn-primary px-3.5 py-2 text-xs font-mono disabled:opacity-40 cursor-pointer"
+              className="btn-primary px-4 py-2 text-xs disabled:opacity-40 cursor-pointer tap-spring"
             >
               Send
             </button>

@@ -13,7 +13,7 @@ type EssaysSectionProps = {
   essays: Essay[]
 }
 
-// Render markdown snippet
+// Render markdown snippet with Apple Books typography
 export const renderEssayMarkdown = (text: string) => {
   const paragraphs = text.split('\n\n')
   return paragraphs.map((block, idx) => {
@@ -45,7 +45,7 @@ export const renderEssayMarkdown = (text: string) => {
       const lines = trimmed.split('\n')
       const codeLines = lines.slice(1, -1).join('\n')
       return (
-        <div key={idx} className="my-4 overflow-x-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4 font-mono text-xs leading-relaxed text-[var(--color-text)]">
+        <div key={idx} className="my-5 overflow-x-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-4 font-mono text-xs leading-relaxed text-[var(--color-text)]">
           <pre><code>{codeLines}</code></pre>
         </div>
       )
@@ -54,7 +54,7 @@ export const renderEssayMarkdown = (text: string) => {
     if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
       const items = trimmed.split('\n').filter((l) => l.trim().length > 0)
       return (
-        <ul key={idx} className="my-3 space-y-1.5 pl-5 list-disc text-xs sm:text-sm text-[var(--color-text)] leading-relaxed">
+        <ul key={idx} className="my-3 space-y-2 pl-5 list-disc text-sm text-[var(--color-text-secondary)] leading-relaxed">
           {items.map((it, i) => (
             <li key={i}>{it.replace(/^[-*]\s+/, '')}</li>
           ))}
@@ -65,7 +65,7 @@ export const renderEssayMarkdown = (text: string) => {
     return (
       <p
         key={idx}
-        className="my-3 text-xs sm:text-sm text-[var(--color-text)] leading-relaxed font-sans opacity-95"
+        className="my-3.5 text-sm sm:text-base text-[var(--color-text-secondary)] leading-relaxed font-sans"
       >
         {trimmed}
       </p>
@@ -118,54 +118,68 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
   useEffect(() => {
     const handleUrlCheck = () => {
       if (typeof window === 'undefined') return
-      const params = new URLSearchParams(window.location.search)
-      const queryEssay = params.get('essay')
-      const viewParam = params.get('view')
 
-      const pathname = window.location.pathname.replace(/\/+$/, '') || '/'
-      let pathEssay: string | null = null
-      if (pathname.startsWith('/essay/')) {
-        pathEssay = decodeURIComponent(pathname.replace(/^\/essay\//, ''))
-      } else if (pathname.startsWith('/essays/')) {
-        pathEssay = decodeURIComponent(pathname.replace(/^\/essays\//, ''))
-      }
+      let targetSlug = ''
+      let targetFullView = false
 
-      const hash = window.location.hash
-      let hashEssay: string | null = null
-      if (hash.startsWith('#essay-')) {
-        hashEssay = decodeURIComponent(hash.replace(/^#essay-/, ''))
-      } else if (hash.startsWith('#essay/')) {
-        hashEssay = decodeURIComponent(hash.replace(/^#essay\//, ''))
-      }
-
-      const targetSlug = (queryEssay || pathEssay || hashEssay || '').trim().toLowerCase()
-      if (!targetSlug) {
-        if (activeEssay) {
-          setActiveEssay(null)
+      // 1. Check Query Params (?essay=slug&view=full)
+      const urlParams = new URLSearchParams(window.location.search)
+      const queryEssay = urlParams.get('essay')
+      if (queryEssay) {
+        targetSlug = decodeURIComponent(queryEssay)
+        if (urlParams.get('view') === 'full') {
+          targetFullView = true
         }
-        return
       }
 
-      const found = essays.find(
-        (e) =>
-          (e.slug && e.slug.toLowerCase() === targetSlug) ||
-          e.id.toLowerCase() === targetSlug ||
-          e.title.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-') === targetSlug
-      )
+      // 2. Check Path (/essay/slug or /essays/slug)
+      if (!targetSlug) {
+        const path = window.location.pathname
+        if (path.startsWith('/essay/')) {
+          targetSlug = decodeURIComponent(path.replace(/^\/essay\//, '').replace(/\/+$/, ''))
+          targetFullView = true
+        } else if (path.startsWith('/essays/')) {
+          targetSlug = decodeURIComponent(path.replace(/^\/essays\//, '').replace(/\/+$/, ''))
+          targetFullView = true
+        }
+      }
 
-      if (found) {
-        const wantsFull =
-          viewParam === 'full' ||
-          Boolean(pathEssay) ||
-          hash.includes('full=true')
-        setActiveEssay(found)
-        setViewMode(wantsFull ? 'full' : 'modal')
-        recordEssayView(found.id)
+      // 3. Check Hash (#essay-slug or #essay/slug)
+      if (!targetSlug && window.location.hash) {
+        const hash = window.location.hash
+        if (hash.startsWith('#essay-')) {
+          targetSlug = decodeURIComponent(hash.replace(/^#essay-/, ''))
+        } else if (hash.startsWith('#essay/')) {
+          targetSlug = decodeURIComponent(hash.replace(/^#essay\//, ''))
+        }
+      }
+
+      if (targetSlug && essays.length > 0) {
+        const matched = essays.find(
+          (e) =>
+            e.slug?.toLowerCase() === targetSlug.toLowerCase() ||
+            e.id.toLowerCase() === targetSlug.toLowerCase()
+        )
+        if (matched) {
+          setActiveEssay(matched)
+          setViewMode(targetFullView ? 'full' : 'modal')
+          // Trigger view count increment
+          recordEssayView(matched.id)
+          setInteractions((prev) => {
+            const current = prev[matched.id] || { essayId: matched.id, views: 0, likes: 0, comments: [] }
+            return {
+              ...prev,
+              [matched.id]: {
+                ...current,
+                views: (current.views || 0) + 1,
+              },
+            }
+          })
+        }
       }
     }
 
     handleUrlCheck()
-
     window.addEventListener('popstate', handleUrlCheck)
     window.addEventListener('hashchange', handleUrlCheck)
     return () => {
@@ -174,19 +188,20 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
     }
   }, [essays])
 
-  // Open essay & record view with URL update
+  // Open an essay
   const handleOpenEssay = (essay: Essay, mode: 'modal' | 'full' = 'modal') => {
     setActiveEssay(essay)
     setViewMode(mode)
-    recordEssayView(essay.id)
 
-    // Sync URL bar so the current essay is bookmarkable & shareable
+    // Update URL query state cleanly without full reload
     try {
-      const url = `${window.location.origin}/?essay=${encodeURIComponent(essay.slug || essay.id)}${mode === 'full' ? '&view=full' : ''}`
-      window.history.pushState({ essayId: essay.id, mode }, '', url)
+      const modeParam = mode === 'full' ? '&view=full' : ''
+      const newUrl = `${window.location.origin}/?essay=${encodeURIComponent(essay.slug || essay.id)}${modeParam}`
+      window.history.pushState(null, '', newUrl)
     } catch {}
 
-    // Optimistically increment view count
+    // Record view in background
+    recordEssayView(essay.id)
     setInteractions((prev) => {
       const current = prev[essay.id] || { essayId: essay.id, views: 0, likes: 0, comments: [] }
       return {
@@ -331,11 +346,11 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
       <div className="space-y-6">
         {/* Breadcrumb row for full page view */}
         {isFullPage && (
-          <div className="flex items-center gap-2 text-xs font-mono text-[var(--color-muted)]">
+          <div className="flex items-center gap-2 text-xs text-[var(--color-muted)] font-medium">
             <button
               type="button"
               onClick={handleCloseEssay}
-              className="hover:text-[var(--color-text)] cursor-pointer"
+              className="hover:text-[var(--color-text)] cursor-pointer tap-spring"
             >
               Portfolio
             </button>
@@ -351,16 +366,16 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
           <h1
             className={`${
               isFullPage ? 'text-3xl sm:text-4xl lg:text-5xl' : 'text-2xl sm:text-3xl'
-            } font-bold tracking-tight text-[var(--color-text)] leading-tight`}
+            } font-semibold tracking-tight text-[var(--color-text)] leading-[1.18]`}
           >
             {activeEssay.title}
           </h1>
-          <p className="mt-3 text-sm leading-relaxed text-[var(--color-muted)] font-mono border-l-2 border-[var(--color-border-hover)] pl-3">
+          <p className="mt-3.5 text-sm sm:text-base leading-relaxed text-[var(--color-text-secondary)] border-l-2 border-blue-500/50 pl-3.5">
             {activeEssay.excerpt}
           </p>
 
           {isFullPage && (
-            <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-mono text-[var(--color-muted)] border-t border-[var(--color-border)] pt-3">
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-[var(--color-muted)] border-t border-[var(--color-border)] pt-3 font-medium">
               <span className="font-semibold text-[var(--color-text)]">Junaid</span>
               <span>•</span>
               <span>{activeEssay.date}</span>
@@ -374,7 +389,7 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
 
         {/* Attached Cover / Architecture Visual */}
         {activeEssay.coverImage && (
-          <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+          <div className="overflow-hidden rounded-3xl border border-[var(--color-border)] bg-[var(--color-bg)]">
             <img
               src={activeEssay.coverImage}
               alt={activeEssay.title}
@@ -389,20 +404,20 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
             href={activeEssay.externalLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5 text-xs font-mono text-[var(--color-text)] transition-all hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface)]"
+            className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] p-4 text-xs text-[var(--color-text)] transition-all hover:border-[var(--color-border-hover)] tap-spring"
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <span className="text-base">🔗</span>
               <div>
                 <p className="font-semibold">
                   {activeEssay.externalLinkLabel || 'Attached Resource'}
                 </p>
-                <p className="text-[10px] text-[var(--color-muted)] truncate max-w-md">
+                <p className="text-[11px] text-[var(--color-muted)] truncate max-w-md">
                   {activeEssay.externalLink}
                 </p>
               </div>
             </div>
-            <span className="text-xs text-[var(--color-muted)]">Open ↗</span>
+            <span className="text-xs text-[var(--color-muted)] font-medium">Open ↗</span>
           </a>
         )}
 
@@ -417,10 +432,10 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
             <button
               type="button"
               onClick={() => handleLike(activeEssay.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-xs font-mono transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-medium transition-all tap-spring cursor-pointer ${
                 likedMap[activeEssay.id]
-                  ? 'border-red-500/50 bg-red-500/10 text-red-400 font-semibold'
-                  : 'border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:border-red-500/40 hover:text-red-400'
+                  ? 'border-red-500/50 bg-red-500/10 text-red-500 font-semibold'
+                  : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:border-red-500/40 hover:text-red-500'
               }`}
             >
               <svg
@@ -443,41 +458,36 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
             <button
               type="button"
               onClick={() => handleShare(activeEssay, isFullPage ? 'full' : 'modal')}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] cursor-pointer"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-medium text-[var(--color-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] tap-spring cursor-pointer"
             >
-              <span>{copiedShare ? '✓ Copied' : 'Share ↗'}</span>
+              <span>{copiedShare ? '✓ Link Copied' : 'Share ↗'}</span>
             </button>
           </div>
 
-          <div className="text-xs font-mono text-[var(--color-muted)]">
-            👁 <strong className="text-[var(--color-text)]">{activeStats?.views || 0}</strong> views
+          <div className="text-xs text-[var(--color-muted)] font-medium">
+            <span>👁️ {activeStats?.views || 0} total reads</span>
           </div>
         </div>
 
-        {/* ================= COMMENTS & DISCUSSION ================= */}
+        {/* Reader Discussion / Comments Section */}
         <div className="mt-8 pt-6 border-t border-[var(--color-border)] space-y-5">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold tracking-tight text-[var(--color-text)] font-mono">
-              Discussion ({activeStats?.comments?.length || 0})
-            </h4>
-            <span className="text-[11px] font-mono text-[var(--color-muted)]">
-              Share your technical perspective
-            </span>
+            <h3 className="text-base font-semibold text-[var(--color-text)] tracking-tight">
+              Discussion & Reader Notes ({activeStats?.comments?.length || 0})
+            </h3>
+            <span className="text-xs text-[var(--color-muted)]">Open to everyone</span>
           </div>
 
           {/* Comment Form */}
-          <form
-            onSubmit={handleCommentSubmit}
-            className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4"
-          >
+          <form onSubmit={handleCommentSubmit} className="space-y-3 rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
             <div>
               <input
                 type="text"
-                placeholder="Your name or handle (e.g. Alex or @dev)"
+                placeholder="Your name or handle (optional)"
                 value={authorName}
                 onChange={(e) => setAuthorName(e.target.value)}
                 maxLength={50}
-                className="w-full rounded border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-1.5 text-xs font-mono text-[var(--color-text)] placeholder-[var(--color-muted)] focus:outline-none focus:border-[var(--color-text)]"
+                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-2 text-xs text-[var(--color-text)] placeholder-[var(--color-muted)] focus:outline-none focus:border-[var(--color-accent)] transition-all"
               />
             </div>
 
@@ -489,19 +499,19 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
                 onChange={(e) => setCommentText(e.target.value)}
                 maxLength={1000}
                 required
-                className="w-full rounded border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-2 text-xs font-sans text-[var(--color-text)] placeholder-[var(--color-muted)] focus:outline-none focus:border-[var(--color-text)] resize-none"
+                className="w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-2.5 text-xs text-[var(--color-text)] placeholder-[var(--color-muted)] focus:outline-none focus:border-[var(--color-accent)] resize-none transition-all"
               />
             </div>
 
             {commentError && (
-              <p className="text-[11px] font-mono text-red-400">{commentError}</p>
+              <p className="text-xs text-red-500 font-medium">{commentError}</p>
             )}
 
             <div className="flex items-center justify-end gap-2">
               <button
                 type="submit"
                 disabled={isSubmittingComment || !commentText.trim()}
-                className="btn-primary px-4 py-1.5 text-xs font-mono cursor-pointer disabled:opacity-50"
+                className="btn-primary px-4 py-1.5 text-xs tap-spring cursor-pointer disabled:opacity-50"
               >
                 {isSubmittingComment ? 'Posting...' : 'Post Comment'}
               </button>
@@ -514,13 +524,13 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
               activeStats.comments.map((c) => (
                 <div
                   key={c.id}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]/60 p-3.5 space-y-1.5 text-left"
+                  className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 space-y-1.5 text-left"
                 >
-                  <div className="flex items-center justify-between text-[11px] font-mono">
+                  <div className="flex items-center justify-between text-xs">
                     <span className="font-semibold text-[var(--color-text)]">
                       {c.authorName || 'Anonymous Reader'}
                     </span>
-                    <span className="text-[10px] text-[var(--color-muted)]">
+                    <span className="text-[11px] text-[var(--color-muted)]">
                       {new Date(c.createdAt).toLocaleDateString(undefined, {
                         month: 'short',
                         day: 'numeric',
@@ -528,13 +538,13 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
                       })}
                     </span>
                   </div>
-                  <p className="text-xs leading-relaxed text-[var(--color-text)] whitespace-pre-wrap">
+                  <p className="text-xs sm:text-sm leading-relaxed text-[var(--color-text-secondary)] whitespace-pre-wrap">
                     {c.content}
                   </p>
                 </div>
               ))
             ) : (
-              <div className="p-6 text-center text-xs font-mono text-[var(--color-muted)] rounded-lg border border-dashed border-[var(--color-border)]">
+              <div className="p-6 text-center text-xs text-[var(--color-muted)] rounded-2xl border border-dashed border-[var(--color-border)]">
                 No comments yet. Start the conversation above!
               </div>
             )}
@@ -545,26 +555,23 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
   }
 
   return (
-    <section id="essays" className="mb-20 scroll-mt-20">
+    <section id="essays" className="mb-24 scroll-mt-24">
       {/* Section Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="font-mono text-xs uppercase tracking-wider text-[var(--color-muted)]">
-            02.5 / Perspectives & Writing
-          </span>
-          <div className="h-px flex-1 bg-[var(--color-border)] opacity-60" />
+      <div className="pb-6">
+        <div className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400">
+          <span>Perspectives & Writing</span>
         </div>
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--color-text)]">
+        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--color-text)] sm:text-3xl">
           Technical Essays & Notes
         </h2>
-        <p className="mt-2 text-xs sm:text-sm leading-relaxed text-[var(--color-muted)] max-w-2xl">
+        <p className="mt-1.5 text-sm sm:text-base text-[var(--color-muted)] max-w-2xl">
           Deep dives into system architecture, developer tooling friction, AST parsing, and spatial algorithms. Includes live analytics and open discussion.
         </p>
       </div>
 
       {/* Category Pills */}
       {categories.length > 2 && (
-        <div className="flex flex-wrap items-center gap-2 mb-6">
+        <div className="mb-6 inline-flex flex-wrap items-center gap-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] p-1 text-xs border border-[var(--color-border)]">
           {categories.map((cat) => {
             const isSelected = selectedCategory === cat
             return (
@@ -572,10 +579,10 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
                 key={cat}
                 type="button"
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1 text-xs font-mono rounded-full border transition-all cursor-pointer ${
+                className={`rounded-full px-3 py-1.5 transition-all tap-spring cursor-pointer ${
                   isSelected
-                    ? 'border-[var(--color-text)] bg-[var(--color-text)] text-[var(--color-bg)] font-medium shadow-xs'
-                    : 'border-[var(--color-border)] bg-[var(--color-panel)] text-[var(--color-muted)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)]'
+                    ? 'filter-btn-active'
+                    : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
                 }`}
               >
                 {cat}
@@ -586,7 +593,7 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
       )}
 
       {/* Essays Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {filteredEssays.map((essay) => {
           const stats = interactions[essay.id] || { views: 0, likes: 0, comments: [] }
           const isLiked = Boolean(likedMap[essay.id])
@@ -596,20 +603,20 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
             <article
               key={essay.id}
               onClick={() => handleOpenEssay(essay)}
-              className="group relative flex flex-col justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--color-border-hover)] hover:shadow-sm cursor-pointer"
+              className="glass-card rounded-3xl p-6 flex flex-col justify-between group cursor-pointer tap-spring"
             >
               <div>
                 {/* Meta Header */}
-                <div className="flex items-center justify-between text-[11px] font-mono text-[var(--color-muted)] mb-3">
-                  <span className="px-2 py-0.5 rounded border border-[var(--color-border)] bg-[var(--color-bg)] uppercase tracking-wider text-[10px]">
+                <div className="flex items-center justify-between text-xs text-[var(--color-muted)] mb-3">
+                  <span className="rounded-full bg-black/[0.04] dark:bg-white/[0.06] px-2.5 py-0.5 font-medium text-[var(--color-text-secondary)]">
                     {essay.category}
                   </span>
-                  <span>{essay.readingTime || '4 min read'}</span>
+                  <span className="text-[11px] font-medium">{essay.readingTime || '4 min read'}</span>
                 </div>
 
                 {/* Optional Attached Cover Image Thumbnail */}
                 {essay.coverImage && (
-                  <div className="mb-3.5 overflow-hidden rounded-lg border border-[var(--color-border)] aspect-video bg-[var(--color-bg)]">
+                  <div className="mb-4 overflow-hidden rounded-2xl aspect-video bg-black/[0.03] dark:bg-white/[0.03]">
                     <img
                       src={essay.coverImage}
                       alt={essay.title}
@@ -620,18 +627,18 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
                 )}
 
                 {/* Title */}
-                <h3 className="text-base font-semibold leading-snug tracking-tight text-[var(--color-text)] transition-colors group-hover:text-blue-400">
+                <h3 className="text-base font-semibold leading-snug tracking-tight text-[var(--color-text)] group-hover:text-blue-500 transition-colors">
                   {essay.title}
                 </h3>
 
                 {/* Excerpt */}
-                <p className="mt-2 text-xs leading-relaxed text-[var(--color-muted)] line-clamp-3">
+                <p className="mt-2.5 text-xs sm:text-sm leading-relaxed text-[var(--color-text-secondary)] line-clamp-3">
                   {essay.excerpt}
                 </p>
 
                 {/* Attached Link Badge */}
                 {essay.externalLink && (
-                  <div className="mt-3 flex items-center gap-1.5 text-[11px] font-mono text-[var(--color-muted)] group-hover:text-[var(--color-text)]">
+                  <div className="mt-3 flex items-center gap-1.5 text-xs text-[var(--color-muted)] group-hover:text-[var(--color-text)]">
                     <span className="text-xs">🔗</span>
                     <span className="truncate">{essay.externalLinkLabel || 'Attached Resource'}</span>
                   </div>
@@ -639,7 +646,7 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
               </div>
 
               {/* Card Footer: Live Counters */}
-              <div className="mt-5 pt-3.5 border-t border-[var(--color-border)] flex items-center justify-between text-[11px] font-mono text-[var(--color-muted)]">
+              <div className="mt-5 pt-3.5 border-t border-[var(--color-border)] flex items-center justify-between text-xs text-[var(--color-muted)]">
                 <div className="flex items-center gap-3">
                   <span className="flex items-center gap-1" title="Total views">
                     <svg className="w-3.5 h-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -653,8 +660,8 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
                     type="button"
                     onClick={(e) => handleLike(essay.id, e)}
                     title={isLiked ? 'Unlike' : 'Like'}
-                    className={`flex items-center gap-1 transition-colors cursor-pointer hover:text-red-400 ${
-                      isLiked ? 'text-red-400 font-medium' : ''
+                    className={`flex items-center gap-1 transition-colors cursor-pointer hover:text-red-500 ${
+                      isLiked ? 'text-red-500 font-medium' : ''
                     }`}
                   >
                     <svg
@@ -677,7 +684,7 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
                 </div>
 
                 <div className="flex items-center gap-2.5">
-                  <span className="text-[11px] font-mono text-[var(--color-text)] group-hover:translate-x-0.5 transition-transform font-medium">
+                  <span className="text-xs text-[var(--color-text)] group-hover:translate-x-0.5 transition-transform font-medium">
                     Read →
                   </span>
                   <button
@@ -687,7 +694,7 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
                       handleOpenEssay(essay, 'full')
                     }}
                     title="Open in full page view"
-                    className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] underline underline-offset-4 cursor-pointer"
+                    className="hidden sm:inline-flex items-center gap-1 text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)] underline underline-offset-4 cursor-pointer"
                   >
                     <span>Full page</span>
                     <span>↗</span>
@@ -707,12 +714,12 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
           className="fixed inset-0 z-50 overflow-y-auto bg-[var(--color-bg)] text-[var(--color-text)] transition-colors duration-200"
         >
           {/* Top Sticky Header */}
-          <header className="sticky top-0 z-30 border-b border-[var(--color-border)] bg-[var(--color-bg)]/95 backdrop-blur-md">
+          <header className="sticky top-0 z-30 border-b border-[var(--color-border)] bg-[var(--color-surface)]/85 backdrop-blur-xl">
             <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3.5">
               <button
                 type="button"
                 onClick={handleCloseEssay}
-                className="group flex items-center gap-2 text-xs font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] cursor-pointer transition-colors"
+                className="group flex items-center gap-2 text-xs text-[var(--color-muted)] hover:text-[var(--color-text)] cursor-pointer transition-colors tap-spring font-medium"
               >
                 <span className="transition-transform group-hover:-translate-x-1">←</span>
                 <span>Back to Portfolio</span>
@@ -729,7 +736,7 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
                     } catch {}
                   }}
                   title="Switch to compact modal view"
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] cursor-pointer transition-colors"
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-xs text-[var(--color-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] cursor-pointer transition-colors tap-spring font-medium"
                 >
                   <span>⤡</span>
                   <span>Compact Modal</span>
@@ -738,10 +745,10 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
                 <button
                   type="button"
                   onClick={() => handleLike(activeEssay.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-mono transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all tap-spring cursor-pointer ${
                     likedMap[activeEssay.id]
-                      ? 'border-red-500/50 bg-red-500/10 text-red-400 font-semibold'
-                      : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:border-red-500/40 hover:text-red-400'
+                      ? 'border-red-500/50 bg-red-500/10 text-red-500 font-semibold'
+                      : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:border-red-500/40 hover:text-red-500'
                   }`}
                 >
                   <svg
@@ -763,7 +770,7 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
                 <button
                   type="button"
                   onClick={() => handleShare(activeEssay, 'full')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] cursor-pointer transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-xs text-[var(--color-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] cursor-pointer transition-colors tap-spring font-medium"
                 >
                   <span>{copiedShare ? '✓ Copied' : 'Share ↗'}</span>
                 </button>
@@ -772,7 +779,7 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
                   type="button"
                   onClick={handleCloseEssay}
                   aria-label="Close essay"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] cursor-pointer transition-colors"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] cursor-pointer transition-colors tap-spring"
                 >
                   ✕
                 </button>
@@ -792,17 +799,17 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/50 backdrop-blur-md animate-in fade-in duration-200"
           onClick={handleCloseEssay}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="relative flex flex-col w-full max-w-3xl max-h-[92vh] rounded-2xl border border-[var(--color-border)] bg-[var(--color-panel)] shadow-2xl overflow-hidden text-left"
+            className="relative flex flex-col w-full max-w-3xl max-h-[92vh] rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl overflow-hidden text-left animate-in zoom-in-95 duration-200"
           >
             {/* Modal Top Bar */}
-            <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-bg)]/80 px-6 py-4 backdrop-blur-md">
-              <div className="flex items-center gap-2 text-xs font-mono text-[var(--color-muted)]">
-                <span className="px-2 py-0.5 rounded border border-[var(--color-border)] uppercase tracking-wider text-[10px]">
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)]/80 px-6 py-4 backdrop-blur-md">
+              <div className="flex items-center gap-2 text-xs text-[var(--color-muted)] font-medium">
+                <span className="rounded-full bg-black/[0.04] dark:bg-white/[0.06] px-2.5 py-0.5 text-xs text-[var(--color-text-secondary)]">
                   {activeEssay.category}
                 </span>
                 <span>•</span>
@@ -822,7 +829,7 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
                     } catch {}
                   }}
                   title="Expand to full page view"
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[var(--color-border)] text-xs font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] cursor-pointer transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-[var(--color-border)] text-xs text-[var(--color-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] cursor-pointer transition-colors tap-spring font-medium"
                 >
                   <span>⤢</span>
                   <span className="hidden sm:inline">Full Page</span>
@@ -832,7 +839,7 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
                   type="button"
                   onClick={handleCloseEssay}
                   aria-label="Close reader"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-muted)] transition-colors hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] cursor-pointer"
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--color-muted)] transition-colors hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] cursor-pointer tap-spring"
                 >
                   ✕
                 </button>
