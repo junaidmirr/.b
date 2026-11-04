@@ -76,6 +76,7 @@ export const renderEssayMarkdown = (text: string) => {
 export function EssaysSection({ essays }: EssaysSectionProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
   const [activeEssay, setActiveEssay] = useState<Essay | null>(null)
+  const [viewMode, setViewMode] = useState<'modal' | 'full'>('modal')
   const [interactions, setInteractions] = useState<EssayInteractionsMap>({})
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({})
 
@@ -102,21 +103,88 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
     setLikedMap(map)
   }, [essays])
 
-  // ESC to close modal
+  // ESC to close modal or full page view
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && activeEssay) {
-        setActiveEssay(null)
+        handleCloseEssay()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [activeEssay])
 
-  // Open essay & record view
-  const handleOpenEssay = (essay: Essay) => {
+  // Listen to URL query params, path, and hash to automatically open shared essays
+  useEffect(() => {
+    const handleUrlCheck = () => {
+      if (typeof window === 'undefined') return
+      const params = new URLSearchParams(window.location.search)
+      const queryEssay = params.get('essay')
+      const viewParam = params.get('view')
+
+      const pathname = window.location.pathname.replace(/\/+$/, '') || '/'
+      let pathEssay: string | null = null
+      if (pathname.startsWith('/essay/')) {
+        pathEssay = decodeURIComponent(pathname.replace(/^\/essay\//, ''))
+      } else if (pathname.startsWith('/essays/')) {
+        pathEssay = decodeURIComponent(pathname.replace(/^\/essays\//, ''))
+      }
+
+      const hash = window.location.hash
+      let hashEssay: string | null = null
+      if (hash.startsWith('#essay-')) {
+        hashEssay = decodeURIComponent(hash.replace(/^#essay-/, ''))
+      } else if (hash.startsWith('#essay/')) {
+        hashEssay = decodeURIComponent(hash.replace(/^#essay\//, ''))
+      }
+
+      const targetSlug = (queryEssay || pathEssay || hashEssay || '').trim().toLowerCase()
+      if (!targetSlug) {
+        if (activeEssay) {
+          setActiveEssay(null)
+        }
+        return
+      }
+
+      const found = essays.find(
+        (e) =>
+          (e.slug && e.slug.toLowerCase() === targetSlug) ||
+          e.id.toLowerCase() === targetSlug ||
+          e.title.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-') === targetSlug
+      )
+
+      if (found) {
+        const wantsFull =
+          viewParam === 'full' ||
+          Boolean(pathEssay) ||
+          hash.includes('full=true')
+        setActiveEssay(found)
+        setViewMode(wantsFull ? 'full' : 'modal')
+        recordEssayView(found.id)
+      }
+    }
+
+    handleUrlCheck()
+
+    window.addEventListener('popstate', handleUrlCheck)
+    window.addEventListener('hashchange', handleUrlCheck)
+    return () => {
+      window.removeEventListener('popstate', handleUrlCheck)
+      window.removeEventListener('hashchange', handleUrlCheck)
+    }
+  }, [essays])
+
+  // Open essay & record view with URL update
+  const handleOpenEssay = (essay: Essay, mode: 'modal' | 'full' = 'modal') => {
     setActiveEssay(essay)
+    setViewMode(mode)
     recordEssayView(essay.id)
+
+    // Sync URL bar so the current essay is bookmarkable & shareable
+    try {
+      const url = `${window.location.origin}/?essay=${encodeURIComponent(essay.slug || essay.id)}${mode === 'full' ? '&view=full' : ''}`
+      window.history.pushState({ essayId: essay.id, mode }, '', url)
+    } catch {}
 
     // Optimistically increment view count
     setInteractions((prev) => {
@@ -129,6 +197,15 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
         },
       }
     })
+  }
+
+  // Close essay and restore URL cleanly
+  const handleCloseEssay = () => {
+    setActiveEssay(null)
+    try {
+      const cleanPath = window.location.pathname.startsWith('/essay') ? '/' : window.location.pathname
+      window.history.pushState(null, '', `${cleanPath}#essays`)
+    } catch {}
   }
 
   // Handle like toggle
@@ -195,14 +272,38 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
     }
   }
 
-  const handleShare = (essay: Essay) => {
-    const url = `${window.location.origin}/#essay-${essay.slug || essay.id}`
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(url).then(() => {
-        setCopiedShare(true)
-        setTimeout(() => setCopiedShare(false), 2000)
-      })
+  // Share essay link with mobile native share or clipboard feedback
+  const handleShare = async (essay: Essay, mode: 'modal' | 'full' = viewMode) => {
+    const isFull = mode === 'full'
+    const url = `${window.location.origin}/?essay=${encodeURIComponent(essay.slug || essay.id)}${isFull ? '&view=full' : ''}`
+
+    // Try Web Share API on mobile phones
+    if (navigator.share && /mobile|android|iphone|ipad|ipod/i.test(navigator.userAgent)) {
+      try {
+        await navigator.share({
+          title: essay.title,
+          text: essay.excerpt,
+          url: url,
+        })
+        return
+      } catch {}
     }
+
+    // Fallback to clipboard
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url)
+      } else {
+        const el = document.createElement('textarea')
+        el.value = url
+        document.body.appendChild(el)
+        el.select()
+        document.execCommand('copy')
+        document.body.removeChild(el)
+      }
+      setCopiedShare(true)
+      setTimeout(() => setCopiedShare(false), 2200)
+    } catch {}
   }
 
   // Categories
@@ -221,6 +322,227 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
   }, [essays, selectedCategory])
 
   const activeStats = activeEssay ? interactions[activeEssay.id] || { views: 0, likes: 0, comments: [] } : null
+
+  // Reusable essay body content for both full-page and modal views
+  const renderEssayBody = (isFullPage: boolean) => {
+    if (!activeEssay) return null
+
+    return (
+      <div className="space-y-6">
+        {/* Breadcrumb row for full page view */}
+        {isFullPage && (
+          <div className="flex items-center gap-2 text-xs font-mono text-[var(--color-muted)]">
+            <button
+              type="button"
+              onClick={handleCloseEssay}
+              className="hover:text-[var(--color-text)] cursor-pointer"
+            >
+              Portfolio
+            </button>
+            <span>/</span>
+            <span>Essays</span>
+            <span>/</span>
+            <span className="text-[var(--color-text)]">{activeEssay.category}</span>
+          </div>
+        )}
+
+        {/* Essay Title */}
+        <div>
+          <h1
+            className={`${
+              isFullPage ? 'text-3xl sm:text-4xl lg:text-5xl' : 'text-2xl sm:text-3xl'
+            } font-bold tracking-tight text-[var(--color-text)] leading-tight`}
+          >
+            {activeEssay.title}
+          </h1>
+          <p className="mt-3 text-sm leading-relaxed text-[var(--color-muted)] font-mono border-l-2 border-[var(--color-border-hover)] pl-3">
+            {activeEssay.excerpt}
+          </p>
+
+          {isFullPage && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-mono text-[var(--color-muted)] border-t border-[var(--color-border)] pt-3">
+              <span className="font-semibold text-[var(--color-text)]">Junaid</span>
+              <span>•</span>
+              <span>{activeEssay.date}</span>
+              <span>•</span>
+              <span>{activeEssay.readingTime}</span>
+              <span>•</span>
+              <span>👁️ {activeStats?.views || 0} views</span>
+            </div>
+          )}
+        </div>
+
+        {/* Attached Cover / Architecture Visual */}
+        {activeEssay.coverImage && (
+          <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
+            <img
+              src={activeEssay.coverImage}
+              alt={activeEssay.title}
+              className={`w-full ${isFullPage ? 'max-h-[520px]' : 'max-h-[380px]'} object-cover`}
+            />
+          </div>
+        )}
+
+        {/* Attached External Link Banner */}
+        {activeEssay.externalLink && (
+          <a
+            href={activeEssay.externalLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5 text-xs font-mono text-[var(--color-text)] transition-all hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface)]"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-base">🔗</span>
+              <div>
+                <p className="font-semibold">
+                  {activeEssay.externalLinkLabel || 'Attached Resource'}
+                </p>
+                <p className="text-[10px] text-[var(--color-muted)] truncate max-w-md">
+                  {activeEssay.externalLink}
+                </p>
+              </div>
+            </div>
+            <span className="text-xs text-[var(--color-muted)]">Open ↗</span>
+          </a>
+        )}
+
+        {/* Markdown Body Content */}
+        <div className="border-t border-[var(--color-border)] pt-4">
+          {renderEssayMarkdown(activeEssay.content)}
+        </div>
+
+        {/* Engagement Bar */}
+        <div className="mt-8 pt-4 border-t border-[var(--color-border)] flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => handleLike(activeEssay.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-xs font-mono transition-all cursor-pointer ${
+                likedMap[activeEssay.id]
+                  ? 'border-red-500/50 bg-red-500/10 text-red-400 font-semibold'
+                  : 'border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:border-red-500/40 hover:text-red-400'
+              }`}
+            >
+              <svg
+                className="w-4 h-4"
+                fill={likedMap[activeEssay.id] ? 'currentColor' : 'none'}
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                />
+              </svg>
+              <span>{likedMap[activeEssay.id] ? 'Liked' : 'Like'}</span>
+              <span className="opacity-70">({activeStats?.likes || 0})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleShare(activeEssay, isFullPage ? 'full' : 'modal')}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] cursor-pointer"
+            >
+              <span>{copiedShare ? '✓ Copied' : 'Share ↗'}</span>
+            </button>
+          </div>
+
+          <div className="text-xs font-mono text-[var(--color-muted)]">
+            👁 <strong className="text-[var(--color-text)]">{activeStats?.views || 0}</strong> views
+          </div>
+        </div>
+
+        {/* ================= COMMENTS & DISCUSSION ================= */}
+        <div className="mt-8 pt-6 border-t border-[var(--color-border)] space-y-5">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold tracking-tight text-[var(--color-text)] font-mono">
+              Discussion ({activeStats?.comments?.length || 0})
+            </h4>
+            <span className="text-[11px] font-mono text-[var(--color-muted)]">
+              Share your technical perspective
+            </span>
+          </div>
+
+          {/* Comment Form */}
+          <form
+            onSubmit={handleCommentSubmit}
+            className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4"
+          >
+            <div>
+              <input
+                type="text"
+                placeholder="Your name or handle (e.g. Alex or @dev)"
+                value={authorName}
+                onChange={(e) => setAuthorName(e.target.value)}
+                maxLength={50}
+                className="w-full rounded border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-1.5 text-xs font-mono text-[var(--color-text)] placeholder-[var(--color-muted)] focus:outline-none focus:border-[var(--color-text)]"
+              />
+            </div>
+
+            <div>
+              <textarea
+                rows={3}
+                placeholder="Write a comment or ask a question about this architecture..."
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                maxLength={1000}
+                required
+                className="w-full rounded border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-2 text-xs font-sans text-[var(--color-text)] placeholder-[var(--color-muted)] focus:outline-none focus:border-[var(--color-text)] resize-none"
+              />
+            </div>
+
+            {commentError && (
+              <p className="text-[11px] font-mono text-red-400">{commentError}</p>
+            )}
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="submit"
+                disabled={isSubmittingComment || !commentText.trim()}
+                className="btn-primary px-4 py-1.5 text-xs font-mono cursor-pointer disabled:opacity-50"
+              >
+                {isSubmittingComment ? 'Posting...' : 'Post Comment'}
+              </button>
+            </div>
+          </form>
+
+          {/* Comments List */}
+          <div className="space-y-3">
+            {activeStats?.comments && activeStats.comments.length > 0 ? (
+              activeStats.comments.map((c) => (
+                <div
+                  key={c.id}
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]/60 p-3.5 space-y-1.5 text-left"
+                >
+                  <div className="flex items-center justify-between text-[11px] font-mono">
+                    <span className="font-semibold text-[var(--color-text)]">
+                      {c.authorName || 'Anonymous Reader'}
+                    </span>
+                    <span className="text-[10px] text-[var(--color-muted)]">
+                      {new Date(c.createdAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-xs leading-relaxed text-[var(--color-text)] whitespace-pre-wrap">
+                    {c.content}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="p-6 text-center text-xs font-mono text-[var(--color-muted)] rounded-lg border border-dashed border-[var(--color-border)]">
+                No comments yet. Start the conversation above!
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <section id="essays" className="mb-20 scroll-mt-20">
@@ -354,22 +676,124 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
                   </span>
                 </div>
 
-                <span className="text-[11px] font-mono text-[var(--color-text)] group-hover:translate-x-0.5 transition-transform">
-                  Read →
-                </span>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-[11px] font-mono text-[var(--color-text)] group-hover:translate-x-0.5 transition-transform font-medium">
+                    Read →
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleOpenEssay(essay, 'full')
+                    }}
+                    title="Open in full page view"
+                    className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] underline underline-offset-4 cursor-pointer"
+                  >
+                    <span>Full page</span>
+                    <span>↗</span>
+                  </button>
+                </div>
               </div>
             </article>
           )
         })}
       </div>
 
-      {/* ================= FULL ESSAY READER MODAL ================= */}
-      {activeEssay && (
+      {/* ================= FULL PAGE ESSAY VIEW ================= */}
+      {activeEssay && viewMode === 'full' && (
+        <div
+          role="region"
+          aria-label={activeEssay.title}
+          className="fixed inset-0 z-50 overflow-y-auto bg-[var(--color-bg)] text-[var(--color-text)] transition-colors duration-200"
+        >
+          {/* Top Sticky Header */}
+          <header className="sticky top-0 z-30 border-b border-[var(--color-border)] bg-[var(--color-bg)]/95 backdrop-blur-md">
+            <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3.5">
+              <button
+                type="button"
+                onClick={handleCloseEssay}
+                className="group flex items-center gap-2 text-xs font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] cursor-pointer transition-colors"
+              >
+                <span className="transition-transform group-hover:-translate-x-1">←</span>
+                <span>Back to Portfolio</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode('modal')
+                    try {
+                      const url = `${window.location.origin}/?essay=${encodeURIComponent(activeEssay.slug || activeEssay.id)}`
+                      window.history.replaceState(null, '', url)
+                    } catch {}
+                  }}
+                  title="Switch to compact modal view"
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] cursor-pointer transition-colors"
+                >
+                  <span>⤡</span>
+                  <span>Compact Modal</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleLike(activeEssay.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-mono transition-all cursor-pointer ${
+                    likedMap[activeEssay.id]
+                      ? 'border-red-500/50 bg-red-500/10 text-red-400 font-semibold'
+                      : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:border-red-500/40 hover:text-red-400'
+                  }`}
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill={likedMap[activeEssay.id] ? 'currentColor' : 'none'}
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                    />
+                  </svg>
+                  <span>{activeStats?.likes || 0}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleShare(activeEssay, 'full')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-xs font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] cursor-pointer transition-colors"
+                >
+                  <span>{copiedShare ? '✓ Copied' : 'Share ↗'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCloseEssay}
+                  aria-label="Close essay"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] cursor-pointer transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* Full Page Reading Body */}
+          <main className="mx-auto max-w-3xl px-6 py-10 sm:py-16 space-y-8">
+            {renderEssayBody(true)}
+          </main>
+        </div>
+      )}
+
+      {/* ================= COMPACT ESSAY MODAL ================= */}
+      {activeEssay && viewMode === 'modal' && (
         <div
           role="dialog"
           aria-modal="true"
           className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setActiveEssay(null)}
+          onClick={handleCloseEssay}
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -387,179 +811,37 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
                 <span>{activeEssay.readingTime}</span>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setActiveEssay(null)}
-                aria-label="Close reader"
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-muted)] transition-colors hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] cursor-pointer"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode('full')
+                    try {
+                      const url = `${window.location.origin}/?essay=${encodeURIComponent(activeEssay.slug || activeEssay.id)}&view=full`
+                      window.history.replaceState(null, '', url)
+                    } catch {}
+                  }}
+                  title="Expand to full page view"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[var(--color-border)] text-xs font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] cursor-pointer transition-colors"
+                >
+                  <span>⤢</span>
+                  <span className="hidden sm:inline">Full Page</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCloseEssay}
+                  aria-label="Close reader"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-muted)] transition-colors hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             {/* Modal Scrollable Content */}
             <div className="flex-1 overflow-y-auto px-6 sm:px-10 py-6 sm:py-8 space-y-6">
-              {/* Essay Title */}
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--color-text)] leading-tight">
-                  {activeEssay.title}
-                </h1>
-                <p className="mt-3 text-sm leading-relaxed text-[var(--color-muted)] font-mono border-l-2 border-[var(--color-border-hover)] pl-3">
-                  {activeEssay.excerpt}
-                </p>
-              </div>
-
-              {/* Attached Cover / Architecture Visual */}
-              {activeEssay.coverImage && (
-                <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)]">
-                  <img
-                    src={activeEssay.coverImage}
-                    alt={activeEssay.title}
-                    className="w-full max-h-[380px] object-cover"
-                  />
-                </div>
-              )}
-
-              {/* Attached External Link Banner */}
-              {activeEssay.externalLink && (
-                <a
-                  href={activeEssay.externalLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3.5 text-xs font-mono text-[var(--color-text)] transition-all hover:border-[var(--color-border-hover)] hover:bg-[var(--color-surface)]"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">🔗</span>
-                    <div>
-                      <p className="font-semibold">{activeEssay.externalLinkLabel || 'Attached Resource'}</p>
-                      <p className="text-[10px] text-[var(--color-muted)] truncate max-w-md">{activeEssay.externalLink}</p>
-                    </div>
-                  </div>
-                  <span className="text-xs text-[var(--color-muted)]">Open ↗</span>
-                </a>
-              )}
-
-              {/* Markdown Body Content */}
-              <div className="border-t border-[var(--color-border)] pt-4">
-                {renderEssayMarkdown(activeEssay.content)}
-              </div>
-
-              {/* Engagement Bar */}
-              <div className="mt-8 pt-4 border-t border-[var(--color-border)] flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleLike(activeEssay.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-xs font-mono transition-all cursor-pointer ${
-                      likedMap[activeEssay.id]
-                        ? 'border-red-500/50 bg-red-500/10 text-red-400 font-semibold'
-                        : 'border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] hover:border-red-500/40 hover:text-red-400'
-                    }`}
-                  >
-                    <svg className="w-4 h-4" fill={likedMap[activeEssay.id] ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                    <span>{likedMap[activeEssay.id] ? 'Liked' : 'Like'}</span>
-                    <span className="opacity-70">({activeStats?.likes || 0})</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleShare(activeEssay)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-xs font-mono text-[var(--color-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] cursor-pointer"
-                  >
-                    <span>{copiedShare ? '✓ Copied' : 'Share ↗'}</span>
-                  </button>
-                </div>
-
-                <div className="text-xs font-mono text-[var(--color-muted)]">
-                  👁 <strong className="text-[var(--color-text)]">{activeStats?.views || 0}</strong> views
-                </div>
-              </div>
-
-              {/* ================= COMMENTS & DISCUSSION ================= */}
-              <div className="mt-8 pt-6 border-t border-[var(--color-border)] space-y-5">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold tracking-tight text-[var(--color-text)] font-mono">
-                    Discussion ({activeStats?.comments?.length || 0})
-                  </h4>
-                  <span className="text-[11px] font-mono text-[var(--color-muted)]">
-                    Share your technical perspective
-                  </span>
-                </div>
-
-                {/* Comment Form */}
-                <form onSubmit={handleCommentSubmit} className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="Your name or handle (e.g. Alex or @dev)"
-                      value={authorName}
-                      onChange={(e) => setAuthorName(e.target.value)}
-                      maxLength={50}
-                      className="w-full rounded border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-1.5 text-xs font-mono text-[var(--color-text)] placeholder-[var(--color-muted)] focus:outline-none focus:border-[var(--color-text)]"
-                    />
-                  </div>
-
-                  <div>
-                    <textarea
-                      rows={3}
-                      placeholder="Write a comment or ask a question about this architecture..."
-                      value={commentText}
-                      onChange={(e) => setCommentText(e.target.value)}
-                      maxLength={1000}
-                      required
-                      className="w-full rounded border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-2 text-xs font-sans text-[var(--color-text)] placeholder-[var(--color-muted)] focus:outline-none focus:border-[var(--color-text)] resize-none"
-                    />
-                  </div>
-
-                  {commentError && (
-                    <p className="text-[11px] font-mono text-red-400">{commentError}</p>
-                  )}
-
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      type="submit"
-                      disabled={isSubmittingComment || !commentText.trim()}
-                      className="btn-primary px-4 py-1.5 text-xs font-mono cursor-pointer disabled:opacity-50"
-                    >
-                      {isSubmittingComment ? 'Posting...' : 'Post Comment'}
-                    </button>
-                  </div>
-                </form>
-
-                {/* Comments List */}
-                <div className="space-y-3">
-                  {activeStats?.comments && activeStats.comments.length > 0 ? (
-                    activeStats.comments.map((c) => (
-                      <div
-                        key={c.id}
-                        className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)]/60 p-3.5 space-y-1.5 text-left"
-                      >
-                        <div className="flex items-center justify-between text-[11px] font-mono">
-                          <span className="font-semibold text-[var(--color-text)]">
-                            {c.authorName || 'Anonymous Reader'}
-                          </span>
-                          <span className="text-[10px] text-[var(--color-muted)]">
-                            {new Date(c.createdAt).toLocaleDateString(undefined, {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}
-                          </span>
-                        </div>
-                        <p className="text-xs leading-relaxed text-[var(--color-text)] whitespace-pre-wrap">
-                          {c.content}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-6 text-center text-xs font-mono text-[var(--color-muted)] rounded-lg border border-dashed border-[var(--color-border)]">
-                      No comments yet. Start the conversation above!
-                    </div>
-                  )}
-                </div>
-              </div>
+              {renderEssayBody(false)}
             </div>
           </div>
         </div>

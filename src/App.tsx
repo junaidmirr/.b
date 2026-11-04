@@ -89,7 +89,12 @@ function resolveCurrentRoute(): RouteState {
   if (
     normalized === '/' ||
     normalized === '/index.html' ||
-    normalized === '/7c848149d5bed83d6bced0b8f1c39d47.txt'
+    normalized === '/7c848149d5bed83d6bced0b8f1c39d47.txt' ||
+    normalized.startsWith('/essay/') ||
+    normalized.startsWith('/essays/') ||
+    window.location.search.includes('essay=') ||
+    hash.startsWith('#essay-') ||
+    hash.startsWith('#essay/')
   ) {
     return { type: 'home' }
   }
