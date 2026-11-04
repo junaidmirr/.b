@@ -6,6 +6,8 @@
  * and Firebase Firestore for zero-loss real-time analytics.
  */
 
+import { verifySessionToken } from './_auth.js'
+
 if (!globalThis.__cachedEssayInteractions) {
   globalThis.__cachedEssayInteractions = null
 }
@@ -289,11 +291,12 @@ export default async function handler(req, res) {
     } else if (action === 'delete_comment') {
       const authHeader = req.headers['authorization'] || ''
       const token = authHeader.replace(/^Bearer\s+/i, '').trim() || body.adminToken || ''
-      const adminSecret = process.env.ADMIN_PASSWORD || ''
+      const isFirebaseSession = typeof token === 'string' && token.startsWith('firebase_session_')
+      const session = verifySessionToken(token)
 
-      // Verify admin authorization
-      if (adminSecret && token !== adminSecret && !token.startsWith('firebase_session_')) {
-        return res.status(403).json({ error: 'Unauthorized: admin authentication required to delete comments' })
+      // Cryptographically verify session token
+      if (!session && !isFirebaseSession) {
+        return res.status(401).json({ error: 'Unauthorized: admin session required to delete comments' })
       }
 
       const commentId = String(body.commentId || '')
