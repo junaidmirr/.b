@@ -2,9 +2,9 @@
   {
     "id": "sess_1793810788171_wsoxt",
     "createdAt": "2026-11-04T16:46:28.171Z",
-    "updatedAt": "2026-11-04T16:46:28.178Z",
+    "updatedAt": "2026-11-04T16:46:33.982Z",
     "summary": "hi",
-    "messageCount": 1,
+    "messageCount": 2,
     "browser": "Instagram In-App",
     "userAgent": "Mozilla/5.0 (Linux; Android 12; Pixel 3 Build/SP1A.210812.016.C2; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/157.0.8103.31 Mobile Safari/537.36 Instagram 454.0.0.43.77 Android (31/1",
     "messages": [
@@ -12,7 +12,13 @@
         "id": "u_1793810788167",
         "role": "user",
         "content": "hi",
-        "timestamp": "2026-11-04T16:46:28.181Z"
+        "timestamp": "2026-11-04T16:46:33.984Z"
+      },
+      {
+        "id": "a_1793810788167",
+        "role": "assistant",
+        "content": "Hello! I am Junaid's portfolio assistant. You can ask me about his software projects like doc-engine or CoolPath, his engineering skills, or how to get in touch with him. How can I help you today?",
+        "timestamp": "2026-11-04T16:46:33.984Z"
       }
     ]
   },
