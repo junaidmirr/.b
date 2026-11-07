@@ -1,5 +1,22 @@
 [
   {
+    "id": "sess_1794053982416_g70lf",
+    "createdAt": "2026-11-07T12:19:42.418Z",
+    "updatedAt": "2026-11-07T12:19:42.431Z",
+    "summary": "what can you do for me",
+    "messageCount": 1,
+    "browser": "Chrome Mobile",
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36",
+    "messages": [
+      {
+        "id": "u_1794053982406",
+        "role": "user",
+        "content": "what can you do for me",
+        "timestamp": "2026-11-07T12:19:42.439Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1793961501871_x4q7d",
     "createdAt": "2026-11-06T10:38:21.871Z",
     "updatedAt": "2026-11-06T10:38:24.399Z",
