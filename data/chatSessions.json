@@ -2,23 +2,23 @@
   {
     "id": "sess_1794487274681_zevqv",
     "createdAt": "2026-11-12T12:41:14.681Z",
-    "updatedAt": "2026-11-12T12:41:14.681Z",
-    "summary": "How does Layer AST parsing work?",
+    "updatedAt": "2026-11-12T13:01:48.894Z",
+    "summary": "Tell me about doc-engine",
     "messageCount": 2,
     "browser": "Firefox",
     "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:159.0) Gecko/20100101 Firefox/159.0",
     "messages": [
       {
-        "id": "user-1794487274093",
+        "id": "user-1794488506848",
         "role": "user",
-        "content": "How does Layer AST parsing work?",
-        "timestamp": "2026-11-12T12:41:14.681Z"
+        "content": "Tell me about doc-engine",
+        "timestamp": "2026-11-12T13:01:48.894Z"
       },
       {
-        "id": "assistant-1794487274093",
+        "id": "assistant-1794488506848",
         "role": "assistant",
-        "content": "I'm currently unable to reply: Server returned status 405",
-        "timestamp": "2026-11-12T12:41:14.681Z"
+        "content": "doc-engine is a high-performance, headless document layout and vector rendering engine built for React and TypeScript. It solves the issue of heavy, server-dependent PDF generation by calculating layouts in pure TypeScript.\n\nKey features include emitting native vector PDF 1.7 streams and providing 60 FPS HTML5 Canvas previews without requiring headless browsers like Puppeteer or server daemons.\n\nTech stack: TypeScript, React 19, HTML5 Canvas, and the PDF 1.7 specification. It is available as an npm package (@worklabs05/doc-engine).\n\nGitHub: https://github.com/junaidmirr/doc-engine.git\nDemo: https://docengine.worklabs.studio",
+        "timestamp": "2026-11-12T13:01:48.894Z"
       }
     ]
   },
