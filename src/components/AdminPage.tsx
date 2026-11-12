@@ -12,6 +12,7 @@ import { subscribeToChatSessions, deleteChatSession } from '../services/chatLogS
 import { generateProjectFromGithub } from '../services/aiAutofillService'
 import {
   fetchEssayInteractions,
+  subscribeToEssayInteractions,
   deleteEssayComment,
   type EssayInteractionsMap,
 } from '../services/essayService'
@@ -202,6 +203,10 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
   useEffect(() => {
     if (currentTab === 'essays') {
       loadInteractions()
+      const unsub = subscribeToEssayInteractions((map) => {
+        setEssayInteractions((prev) => ({ ...prev, ...map }))
+      })
+      return () => unsub()
     }
   }, [currentTab])
 

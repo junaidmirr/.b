@@ -52,6 +52,55 @@ function getFirebaseConfig() {
   }
 }
 
+async function fetchInteractionsFromFirestore() {
+  const { apiKey, projectId } = getFirebaseConfig()
+  if (!apiKey || !projectId) return null
+
+  try {
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/portfolio/essay_interactions?key=${apiKey}`
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const doc = await res.json()
+    const rawInteractions = doc?.fields?.interactions?.stringValue
+    if (rawInteractions) {
+      const parsed = JSON.parse(rawInteractions)
+      return parsed && typeof parsed === 'object' ? parsed : null
+    }
+  } catch (err) {
+    console.warn('Error reading essay interactions from Firestore:', err)
+  }
+  return null
+}
+
+async function saveInteractionsToFirestore(interactions) {
+  const { apiKey, projectId } = getFirebaseConfig()
+  if (!apiKey || !projectId) return false
+
+  try {
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/portfolio/essay_interactions?key=${apiKey}`
+    const body = {
+      fields: {
+        interactions: {
+          stringValue: JSON.stringify(interactions),
+        },
+        updatedAt: {
+          stringValue: new Date().toISOString(),
+        },
+      },
+    }
+
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    return res.ok
+  } catch (err) {
+    console.warn('Error saving essay interactions to Firestore:', err)
+    return false
+  }
+}
+
 function getGitHubConfig() {
   return {
     token: process.env.GITHUB_TOKEN || process.env.GH_TOKEN || process.env.GITHUB_PAT || '',
@@ -222,14 +271,29 @@ export default async function handler(req, res) {
     return res.status(204).end()
   }
 
-  // Helper to load current interactions
+  // Helper to load current interactions from Firestore -> GitHub -> default
   const loadInteractions = async () => {
+    // 1. Check memory cache first
     if (globalThis.__cachedEssayInteractions) {
       return { ...DEFAULT_INTERACTIONS, ...globalThis.__cachedEssayInteractions }
     }
-    const { data } = await fetchInteractionsFromGitHub()
-    const merged = { ...DEFAULT_INTERACTIONS, ...(data || {}) }
+
+    // 2. Fetch authoritative state from Firebase Firestore
+    const firestoreData = await fetchInteractionsFromFirestore()
+    if (firestoreData && typeof firestoreData === 'object') {
+      const merged = { ...DEFAULT_INTERACTIONS, ...firestoreData }
+      globalThis.__cachedEssayInteractions = merged
+      return merged
+    }
+
+    // 3. Fallback to GitHub commit cache
+    const { data: githubData } = await fetchInteractionsFromGitHub()
+    const merged = { ...DEFAULT_INTERACTIONS, ...(githubData || {}) }
     globalThis.__cachedEssayInteractions = merged
+
+    // Attempt to seed Firestore so it has the baseline data
+    saveInteractionsToFirestore(merged).catch(() => {})
+
     return merged
   }
 
@@ -309,6 +373,9 @@ export default async function handler(req, res) {
 
     all[essayId] = current
     globalThis.__cachedEssayInteractions = all
+
+    // Persist immediately to Firebase Firestore (authoritative real-time storage)
+    await saveInteractionsToFirestore(all)
 
     // Async commit to GitHub with [skip ci]
     commitInteractionsToGitHub(all).catch(() => {})

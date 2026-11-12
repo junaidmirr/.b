@@ -511,7 +511,7 @@ export default function App() {
               </a>
             )}
             <a
-              href={`mailto:${portfolioData.profile.email || 'junaidmeer055@gmail.com'}`}
+              href={`mailto:${portfolioData.profile.email || 'contact@junaidmir.me'}`}
               className="editorial-link"
             >
               Email [↗]

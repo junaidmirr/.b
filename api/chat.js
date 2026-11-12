@@ -101,15 +101,16 @@ export default async function handler(req, res) {
     }
 
     const portfolio = getPortfolioContext()
-    const profile = portfolio?.profile || {
-      name: 'Junaid',
-      role: 'Software Developer',
-      headline: 'Software Developer',
-      bio: "Computer Engineering student and software engineer with expertise in native Android (Kotlin, Jetpack Compose), modern web engineering (React 19, TypeScript), systems tooling (Rust, Tauri upstream contributor), and AI architectures.",
-      location: 'Bangalore, India',
-      email: 'junaidmeer055@gmail.com',
-      github: 'https://github.com/junaidmirr',
-      linkedin: 'https://www.linkedin.com/in/junaid-mir-68b87b1b9/',
+    const rawProfile = portfolio?.profile || {}
+    const profile = {
+      name: rawProfile.name || 'Junaid Mir',
+      role: rawProfile.role || 'Software Developer',
+      headline: rawProfile.headline || 'Software Developer',
+      bio: rawProfile.bio || "Computer Engineering student and software engineer with expertise in native Android (Kotlin, Jetpack Compose), modern web engineering (React 19, TypeScript), systems tooling (Rust, Tauri upstream contributor), and AI architectures.",
+      location: rawProfile.location || 'Bangalore, India',
+      email: 'contact@junaidmir.me',
+      github: rawProfile.github || 'https://github.com/junaidmirr',
+      linkedin: rawProfile.linkedin || 'https://www.linkedin.com/in/junaid-mir-68b87b1b9/',
     }
 
     const { matched, isExplicit } = getMatchingProjects(portfolio?.projects || [], message)
@@ -136,6 +137,7 @@ CRITICAL INSTRUCTIONS:
 1. When asked about a specific project, describe THAT project directly: architecture, problem it solves, tech stack, and links.
 2. DO NOT start with Junaid's general bio unless the user explicitly asks "Who is Junaid?" or "Tell me about yourself".
 3. Keep answers sharp, factual, and formatted cleanly with Markdown.
+4. For email or contact requests, ALWAYS provide contact@junaidmir.me. Never mention or provide any other personal email.
 
 --- REFERENCE KNOWLEDGE BASE ---
 Profile:

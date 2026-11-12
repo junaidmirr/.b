@@ -1,7 +1,8 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import type { Essay } from '../types'
 import {
-  fetchEssayInteractions,
+  subscribeToEssayInteractions,
+  getCachedInteractions,
   recordEssayView,
   toggleEssayLike,
   hasLikedEssay,
@@ -82,7 +83,7 @@ export const renderEssayMarkdown = (text: string) => {
 export function EssaysSection({ essays }: EssaysSectionProps) {
   const [activeEssay, setActiveEssay] = useState<Essay | null>(null)
   const [viewMode, setViewMode] = useState<'modal' | 'full'>('modal')
-  const [interactions, setInteractions] = useState<EssayInteractionsMap>({})
+  const [interactions, setInteractions] = useState<EssayInteractionsMap>(getCachedInteractions)
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({})
 
   // Comment form state
@@ -92,11 +93,12 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
   const [commentError, setCommentError] = useState('')
   const [copiedShare, setCopiedShare] = useState(false)
 
-  // Fetch live views, likes, and comments
+  // Real-time synchronization of views, likes, and comments from Firebase & API
   useEffect(() => {
-    fetchEssayInteractions().then((data) => {
-      setInteractions(data)
+    const unsubscribe = subscribeToEssayInteractions((data) => {
+      setInteractions((prev) => ({ ...prev, ...data }))
     })
+    return () => unsubscribe()
   }, [])
 
   // Sync liked state from local storage
@@ -168,15 +170,30 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
         if (matched) {
           setActiveEssay(matched)
           setViewMode(targetFullView ? 'full' : 'modal')
-          recordEssayView(matched.id)
+          // Optimistically increment view count
           setInteractions((prev) => {
             const current = prev[matched.id] || { essayId: matched.id, views: 0, likes: 0, comments: [] }
             return {
               ...prev,
               [matched.id]: {
                 ...current,
-                views: (current.views || 0) + 1,
+                views: (Number(current.views) || 0) + 1,
               },
+            }
+          })
+          // Persist view to Firebase and update with authoritative count
+          recordEssayView(matched.id).then((serverViews) => {
+            if (typeof serverViews === 'number') {
+              setInteractions((prev) => {
+                const current = prev[matched.id] || { essayId: matched.id, views: 0, likes: 0, comments: [] }
+                return {
+                  ...prev,
+                  [matched.id]: {
+                    ...current,
+                    views: serverViews,
+                  },
+                }
+              })
             }
           })
         }
@@ -193,7 +210,7 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
   }, [essays])
 
   // Open an essay
-  const handleOpenEssay = (essay: Essay, mode: 'modal' | 'full' = 'modal') => {
+  const handleOpenEssay = async (essay: Essay, mode: 'modal' | 'full' = 'modal') => {
     setActiveEssay(essay)
     setViewMode(mode)
 
@@ -203,17 +220,32 @@ export function EssaysSection({ essays }: EssaysSectionProps) {
       window.history.pushState(null, '', newUrl)
     } catch {}
 
-    recordEssayView(essay.id)
+    // Optimistically update views locally
     setInteractions((prev) => {
       const current = prev[essay.id] || { essayId: essay.id, views: 0, likes: 0, comments: [] }
       return {
         ...prev,
         [essay.id]: {
           ...current,
-          views: (current.views || 0) + 1,
+          views: (Number(current.views) || 0) + 1,
         },
       }
     })
+
+    // Record in Firebase & update state with verified count
+    const serverViews = await recordEssayView(essay.id)
+    if (typeof serverViews === 'number') {
+      setInteractions((prev) => {
+        const current = prev[essay.id] || { essayId: essay.id, views: 0, likes: 0, comments: [] }
+        return {
+          ...prev,
+          [essay.id]: {
+            ...current,
+            views: serverViews,
+          },
+        }
+      })
+    }
   }
 
   // Close essay and restore URL cleanly
