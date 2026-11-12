@@ -1,5 +1,28 @@
 [
   {
+    "id": "sess_1794487121728_jtmyj",
+    "createdAt": "2026-11-12T12:38:41.728Z",
+    "updatedAt": "2026-11-12T12:38:41.728Z",
+    "summary": "hi",
+    "messageCount": 2,
+    "browser": "Firefox",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:159.0) Gecko/20100101 Firefox/159.0",
+    "messages": [
+      {
+        "id": "user-1794487081011",
+        "role": "user",
+        "content": "hi",
+        "timestamp": "2026-11-12T12:38:41.729Z"
+      },
+      {
+        "id": "assistant-1794487081011",
+        "role": "assistant",
+        "content": "I'm currently unable to reply: Server returned status 405",
+        "timestamp": "2026-11-12T12:38:41.729Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1794487061897_gll0s",
     "createdAt": "2026-11-12T12:37:41.897Z",
     "updatedAt": "2026-11-12T12:37:45.064Z",
