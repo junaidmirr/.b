@@ -1,5 +1,28 @@
 [
   {
+    "id": "sess_1794487274681_zevqv",
+    "createdAt": "2026-11-12T12:41:14.681Z",
+    "updatedAt": "2026-11-12T12:41:14.681Z",
+    "summary": "How does Layer AST parsing work?",
+    "messageCount": 2,
+    "browser": "Firefox",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:159.0) Gecko/20100101 Firefox/159.0",
+    "messages": [
+      {
+        "id": "user-1794487274093",
+        "role": "user",
+        "content": "How does Layer AST parsing work?",
+        "timestamp": "2026-11-12T12:41:14.681Z"
+      },
+      {
+        "id": "assistant-1794487274093",
+        "role": "assistant",
+        "content": "I'm currently unable to reply: Server returned status 405",
+        "timestamp": "2026-11-12T12:41:14.681Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1794487121728_jtmyj",
     "createdAt": "2026-11-12T12:38:41.728Z",
     "updatedAt": "2026-11-12T12:38:41.728Z",
