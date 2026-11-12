@@ -47,9 +47,16 @@
     ]
   },
   "essay-vector-pdf-engine": {
-    "views": 266,
+    "views": 267,
     "likes": 20,
     "comments": [
+      {
+        "id": "c_1794515547861_bhkh",
+        "essayId": "essay-vector-pdf-engine",
+        "authorName": "@Author",
+        "content": "Absolutely @DavidChen",
+        "createdAt": "2026-11-12T20:32:27.861Z"
+      },
       {
         "id": "c_6",
         "essayId": "essay-vector-pdf-engine",
