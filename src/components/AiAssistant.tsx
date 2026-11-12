@@ -167,52 +167,65 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
     let finalReply = ''
 
     try {
-      const response = await fetch('/api/assistant', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: textToSend,
           history: messages
             .filter((m) => m.id !== 'welcome')
+            .slice(-6)
             .map((m) => ({ role: m.role, content: m.content })),
         }),
       })
 
       if (!response.ok) {
-        throw new Error(`Server returned status ${response.status}`)
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `Server returned status ${response.status}`)
       }
 
-      if (response.body && typeof ReadableStream !== 'undefined') {
-        const reader = response.body.getReader()
-        const decoder = new TextDecoder()
-        let done = false
+      if (!response.body) {
+        throw new Error('No response stream available')
+      }
 
-        while (!done) {
-          const { value, done: streamDone } = await reader.read()
-          done = streamDone
-          if (value) {
-            const chunk = decoder.decode(value, { stream: !done })
-            finalReply += chunk
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === assistantMsgId ? { ...msg, content: finalReply } : msg
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed.startsWith('data:')) continue
+
+          const raw = trimmed.slice(5).trim()
+          if (raw === '[DONE]') break
+
+          try {
+            const parsed = JSON.parse(raw)
+            if (parsed.text) {
+              finalReply += parsed.text
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === assistantMsgId ? { ...msg, content: finalReply } : msg
+                )
               )
-            )
-          }
+            } else if (parsed.error) {
+              finalReply += `\n[Error: ${parsed.error}]`
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === assistantMsgId ? { ...msg, content: finalReply } : msg
+                )
+              )
+            }
+          } catch {}
         }
-      } else {
-        const text = await response.text()
-        try {
-          const data = JSON.parse(text)
-          finalReply = data.reply || data.response || text
-        } catch {
-          finalReply = text
-        }
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantMsgId ? { ...msg, content: finalReply } : msg
-          )
-        )
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to connect to AI Assistant'

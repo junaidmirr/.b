@@ -1,9 +1,10 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, lazy, Suspense, useId, type FormEvent } from 'react'
 import { getPortfolioData } from './portfolioDataManager'
 import { subscribeToPortfolio } from './services/portfolioService'
 import { ErrorPage } from './components/ErrorPage'
 import { EssaysSection } from './components/EssaysSection'
 import { TodoPlaceholder } from './components/TodoPlaceholder'
+import { TurnstileCaptcha } from './components/TurnstileCaptcha'
 import { AiAssistant } from './components/AiAssistant'
 import type { Theme, PortfolioData } from './types'
 
@@ -81,6 +82,15 @@ export default function App() {
   const [copiedEmail, setCopiedEmail] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+  // Contact form state
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY
+  const formId = useId()
+  const [captchaToken, setCaptchaToken] = useState('')
+  const [captchaError, setCaptchaError] = useState('')
+  const [submitError, setSubmitError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [messageSent, setMessageSent] = useState(false)
+
   // Real-time synchronization
   useEffect(() => {
     const unsubscribe = subscribeToPortfolio((liveData) => {
@@ -136,9 +146,72 @@ export default function App() {
   }
 
   const copyEmail = () => {
-    navigator.clipboard.writeText(portfolioData.profile.email || 'junaidmeer055@gmail.com')
+    navigator.clipboard.writeText(portfolioData.profile.email || 'contact@junaidmir.me')
     setCopiedEmail(true)
     setTimeout(() => setCopiedEmail(false), 2200)
+  }
+
+  const handleContactSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const form = e.currentTarget
+    const formData = new FormData(form)
+    const name = String(formData.get('name') || '').trim()
+    const email = String(formData.get('email') || '').trim()
+    const message = String(formData.get('message') || '').trim()
+
+    if (!name) {
+      setSubmitError('Please enter your name.')
+      return
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setSubmitError('Please enter a valid email address.')
+      return
+    }
+
+    if (!message) {
+      setSubmitError('Please enter a message.')
+      return
+    }
+
+    if (!captchaToken && turnstileSiteKey) {
+      setCaptchaError('Please complete the verification check before sending.')
+      return
+    }
+
+    setCaptchaError('')
+    setSubmitError('')
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          email,
+          message,
+          captchaToken,
+        }),
+      })
+
+      const payload = (await response.json()) as { error?: string }
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to send your message.')
+      }
+
+      setMessageSent(true)
+      form.reset()
+      setCaptchaToken('')
+      setTimeout(() => {
+        setMessageSent(false)
+      }, 5000)
+    } catch (err) {
+      setCaptchaToken('')
+      setSubmitError(err instanceof Error ? err.message : 'Failed to send your message.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   // Render error page if route is error
@@ -667,8 +740,8 @@ export default function App() {
           </div>
         </section>
 
-        {/* 8. Contact: One Large Email Link, Copy Action, Socials */}
-        <section id="contact" className="scroll-mt-16 space-y-6 pt-4 border-t border-[var(--color-border)]">
+        {/* 8. Contact: One Large Email Link, Copy Action, Socials & Contact Form */}
+        <section id="contact" className="scroll-mt-16 space-y-8 pt-4 border-t border-[var(--color-border)]">
           <div className="max-w-[720px] space-y-4">
             <h2 className="font-mono text-xs uppercase tracking-wider text-[var(--color-text-subtle)] font-medium">
               Contact
@@ -676,10 +749,10 @@ export default function App() {
 
             <div className="space-y-3">
               <a
-                href={`mailto:${portfolioData.profile.email || 'junaidmeer055@gmail.com'}`}
+                href={`mailto:${portfolioData.profile.email || 'contact@junaidmir.me'}`}
                 className="font-display text-xl sm:text-2xl md:text-3xl lg:text-4xl font-medium tracking-tight text-[var(--color-text)] hover:text-[var(--color-accent)] transition-colors block break-words"
               >
-                Say hello — {portfolioData.profile.email || 'junaidmeer055@gmail.com'}
+                Say hello — {portfolioData.profile.email || 'contact@junaidmir.me'}
               </a>
 
               <div className="flex flex-wrap items-center gap-4 text-xs font-mono pt-1">
@@ -712,6 +785,96 @@ export default function App() {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Editorial Contact Form */}
+          <div className="max-w-[620px] pt-2">
+            <p className="text-sm text-[var(--color-text-muted)] mb-5">
+              Have a question, collaboration inquiry, or project proposal? Send a note directly:
+            </p>
+
+            <form onSubmit={handleContactSubmit} className="space-y-4 font-mono text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label htmlFor={`${formId}-name`} className="block uppercase tracking-wider text-[var(--color-text-subtle)] font-medium">
+                    Name
+                  </label>
+                  <input
+                    id={`${formId}-name`}
+                    type="text"
+                    name="name"
+                    required
+                    placeholder="Your name"
+                    className="w-full rounded-[4px] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] font-sans placeholder:text-[var(--color-text-subtle)]/60 focus:border-[var(--color-accent)] focus:outline-none transition-colors"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor={`${formId}-email`} className="block uppercase tracking-wider text-[var(--color-text-subtle)] font-medium">
+                    Email
+                  </label>
+                  <input
+                    id={`${formId}-email`}
+                    type="email"
+                    name="email"
+                    required
+                    placeholder="name@example.com"
+                    className="w-full rounded-[4px] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] font-sans placeholder:text-[var(--color-text-subtle)]/60 focus:border-[var(--color-accent)] focus:outline-none transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor={`${formId}-message`} className="block uppercase tracking-wider text-[var(--color-text-subtle)] font-medium">
+                  Message
+                </label>
+                <textarea
+                  id={`${formId}-message`}
+                  name="message"
+                  rows={4}
+                  required
+                  placeholder="Describe your inquiry, role, or project..."
+                  className="w-full resize-y rounded-[4px] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] font-sans placeholder:text-[var(--color-text-subtle)]/60 focus:border-[var(--color-accent)] focus:outline-none transition-colors"
+                />
+              </div>
+
+              {turnstileSiteKey ? (
+                <div className="pt-1">
+                  <TurnstileCaptcha
+                    open={true}
+                    siteKey={turnstileSiteKey}
+                    theme={theme}
+                    onVerify={(token) => {
+                      setCaptchaToken(token)
+                      setCaptchaError('')
+                    }}
+                    onExpire={() => setCaptchaToken('')}
+                  />
+                </div>
+              ) : null}
+
+              {captchaError && (
+                <p className="text-xs text-[var(--color-accent)]">{captchaError}</p>
+              )}
+              {submitError && (
+                <p className="text-xs text-[var(--color-accent)]">{submitError}</p>
+              )}
+              {messageSent && (
+                <p className="border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-text)]">
+                  Message sent successfully. I will get back to you soon.
+                </p>
+              )}
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={isSubmitting || messageSent || (Boolean(turnstileSiteKey) && !captchaToken)}
+                  className="rounded-[4px] border border-[var(--color-border)] bg-[var(--color-text)] text-[var(--color-surface)] px-5 py-2.5 font-mono text-xs tracking-wider uppercase hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
+                >
+                  {isSubmitting ? 'Sending...' : messageSent ? 'Sent' : 'Send Message [→]'}
+                </button>
+              </div>
+            </form>
           </div>
         </section>
       </main>
