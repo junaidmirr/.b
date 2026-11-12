@@ -24,13 +24,11 @@
   ],
   "projects": [
     {
+      "liveUrl": "",
       "fullDescription": "### Why Layer\nIf you use coding agents like Claude Code or Cursor on production repositories, they default to naive file dumps, burning 100k+ tokens while losing architectural context. Agents often break downstream dependencies they cannot see, turning simple refactors into hallucination-prone guessing games. Layer mediates between the LLM and the filesystem via the Model Context Protocol, replacing bulk file reads with surgical symbol retrieval.\n\n### Architecture & Implementation\nLayer leverages Tree-sitter to perform incremental parsing of local source code. By maintaining an in-memory representation of the codebase, it performs AST traversal to map symbols, call sites, and definitions. This allows agents to request specific function slices or method implementations rather than entire files.\n\n### Key Subsystems\n- **Incremental AST Parser**: Updates symbol indices in sub-15ms bursts, ensuring the agent interacts with current code state without triggering full compiler rebuilds.\n- **Call-Graph Navigator**: Tracks cross-file dependencies and imports, allowing agents to perform impact analysis before applying edits.\n- **MCP Protocol Bridge**: Implements standard Model Context Protocol primitives to pipe structured code metadata into context-limited LLM windows.\n\n### Performance & Benchmarks\nIn controlled benchmarks against the Ghidra codebase, Layer reduced total token consumption from 5.9M to 0.8M per task. This 87 percent reduction in input/reasoning overhead leads to nearly 3x faster resolution times for complex bug fixes.",
-      "features": [
-        "Sub-15ms incremental syntax indexing via Tree-sitter ASTs",
-        "Automated call-graph analysis to prevent regression on downstream dependencies",
-        "Surgical symbol extraction to reduce context window pollution",
-        "Native MCP integration for compatibility with Claude and Cursor"
-      ],
+      "githubUrl": "https://github.com/junaidmirr/layer",
+      "title": "Layer",
+      "linkLabel": "View case study",
       "technologies": [
         {
           "details": "Uses Tree-sitter grammars to map global symbol tables, enabling rapid lookup of definitions and references without parsing overhead.",
@@ -41,12 +39,7 @@
           "details": "Asynchronous event loop built in Rust, handling JSON-RPC streams to provide agents with precise code slices and metadata on demand."
         }
       ],
-      "category": "System Architecture",
-      "linkLabel": "View case study",
-      "title": "Layer",
-      "liveUrl": "",
       "icon": "code",
-      "githubUrl": "https://github.com/junaidmirr/layer",
       "stack": [
         "Rust",
         "Tree-sitter",
@@ -54,10 +47,16 @@
         "Tokio",
         "LLVM-IR Toolchains"
       ],
-      "description": "An MCP server that uses Tree-sitter AST navigation to slash token overhead and improve agent accuracy in large codebases."
+      "features": [
+        "Sub-15ms incremental syntax indexing via Tree-sitter ASTs",
+        "Automated call-graph analysis to prevent regression on downstream dependencies",
+        "Surgical symbol extraction to reduce context window pollution",
+        "Native MCP integration for compatibility with Claude and Cursor"
+      ],
+      "description": "An MCP server that uses Tree-sitter AST navigation to slash token overhead and improve agent accuracy in large codebases.",
+      "category": "System Architecture"
     },
     {
-      "liveUrl": "https://docengine.worklabs.studio",
       "stack": [
         "TypeScript",
         "React",
@@ -65,11 +64,11 @@
         "HTML5 Canvas",
         "npm package"
       ],
-      "fullDescription": "doc-engine (@worklabs05/doc-engine) is an open source headless document layout and vector rendering engine for React and TypeScript. Unlike traditional approaches that depend on bloated headless Chromium instances (Puppeteer) or heavy Python daemons, doc-engine calculates document layout coordinates in pure TypeScript and emits native vector PDF 1.7 operators and 60 FPS Canvas previews with zero server side overhead.",
-      "category": "Featured Open Source, Vector PDF Engine",
-      "icon": "code",
-      "title": "doc-engine",
+      "liveUrl": "https://docengine.worklabs.studio",
       "linkLabel": "View case study",
+      "icon": "code",
+      "category": "Featured Open Source, Vector PDF Engine",
+      "githubUrl": "https://github.com/junaidmirr/doc-engine.git",
       "features": [
         "Emits native vector PDF 1.7 paths, text operators, and shapes (no rasterization)",
         "Natural Top Left web coordinates (0,0) automatically converted to PDF standard Bottom Left coordinates",
@@ -81,8 +80,8 @@
       "description": "A high performance headless document layout and vector rendering engine for React and TypeScript. Renders searchable vector PDF 1.7 streams and 60 FPS HTML5 Canvas previews without headless browsers or server daemons.",
       "technologies": [
         {
-          "name": "Core Engine",
-          "details": "TypeScript, Abstract Syntax Tree (AST), Document Coordinate Matrix, PDF 1.7 Spec"
+          "details": "TypeScript, Abstract Syntax Tree (AST), Document Coordinate Matrix, PDF 1.7 Spec",
+          "name": "Core Engine"
         },
         {
           "details": "PdfRenderer (Binary vector stream serializer), CanvasRenderer (60 FPS Canvas 2D Context)",
@@ -93,29 +92,32 @@
           "details": "React 19 Components, usePDF Hook, useDocument Hook, DocumentViewer component"
         },
         {
-          "details": "Published to npm (@worklabs05/doc-engine), Vite, Rollup, ESM and CJS Dual Exports",
-          "name": "Distribution"
+          "name": "Distribution",
+          "details": "Published to npm (@worklabs05/doc-engine), Vite, Rollup, ESM and CJS Dual Exports"
         }
       ],
-      "githubUrl": "https://github.com/junaidmirr/doc-engine.git"
+      "title": "doc-engine",
+      "fullDescription": "doc-engine (@worklabs05/doc-engine) is an open source headless document layout and vector rendering engine for React and TypeScript. Unlike traditional approaches that depend on bloated headless Chromium instances (Puppeteer) or heavy Python daemons, doc-engine calculates document layout coordinates in pure TypeScript and emits native vector PDF 1.7 operators and 60 FPS Canvas previews with zero server side overhead."
     },
     {
-      "liveUrl": "https://github.com/tauri-apps/tauri/pull/15634",
-      "title": "Tauri Core CLI",
-      "features": [
-        "Official upstream contribution to tauri-apps/tauri merged for Tauri 2 release",
-        "Automatic prompt skipping when stdin is not a terminal in tauri init",
-        "Eliminated requirement for passing --ci explicitly in headless environments",
-        "Prevented IO blocking and panics in automated CI test runners"
-      ],
+      "linkLabel": "View contribution details",
       "stack": [
         "Rust",
         "Tauri CLI",
         "Open Source",
         "CI Workflows"
       ],
-      "fullDescription": "Contributed directly to the official Tauri repository (tauri-apps/tauri) in release 2.12. Enhanced the tauri init command so that when stdin is not a terminal, the CLI automatically skips interactive prompts, preventing IO errors in continuous integration scripts and automated build environments.",
+      "liveUrl": "https://github.com/tauri-apps/tauri/pull/15634",
       "githubUrl": "https://github.com/tauri-apps/tauri/pull/15634",
+      "fullDescription": "Contributed directly to the official Tauri repository (tauri-apps/tauri) in release 2.12. Enhanced the tauri init command so that when stdin is not a terminal, the CLI automatically skips interactive prompts, preventing IO errors in continuous integration scripts and automated build environments.",
+      "features": [
+        "Official upstream contribution to tauri-apps/tauri merged for Tauri 2 release",
+        "Automatic prompt skipping when stdin is not a terminal in tauri init",
+        "Eliminated requirement for passing --ci explicitly in headless environments",
+        "Prevented IO blocking and panics in automated CI test runners"
+      ],
+      "description": "Upstream contribution to the official Tauri desktop framework CLI (tauri init) enabling automatic prompt skipping in non interactive terminal and CI environments.",
+      "title": "Tauri Core CLI",
       "technologies": [
         {
           "details": "tauri-apps/tauri (Official Tauri Core)",
@@ -130,33 +132,11 @@
           "details": "Pull Request #15634 (Tauri 2 Release)"
         }
       ],
-      "icon": "code",
-      "description": "Upstream contribution to the official Tauri desktop framework CLI (tauri init) enabling automatic prompt skipping in non interactive terminal and CI environments.",
-      "linkLabel": "View contribution details",
-      "category": "Open Source Contribution"
+      "category": "Open Source Contribution",
+      "icon": "code"
     },
     {
-      "githubUrl": "https://github.com/junaidmirr/coolpath_main",
-      "linkLabel": "View case study",
-      "fullDescription": "CoolPath is an AI powered microclimate navigation engine designed to protect pedestrians, runners, and cyclists from extreme urban heat islands. By combining high resolution thermal rasters from FortyGuard with OpenStreetMap topology, Gemini 2.0 natural language parsing, and human thermodynamic physiological modeling, CoolPath routes travelers through shaded, microclimate cooled pathways.",
-      "technologies": [
-        {
-          "name": "Spatial Backend",
-          "details": "Python, FastAPI, Shapely (STRtree), NetworkX, OpenStreetMap (OSM) Topology"
-        },
-        {
-          "details": "Google Gemini 2.0 Flash, AWS Polly Speech Engine, Open Meteo Weather API",
-          "name": "AI & Voice Synthesis"
-        },
-        {
-          "name": "Thermal Intelligence",
-          "details": "FortyGuard Spatial Heat Raster API, Core Thermodynamic Heat Storage Equations"
-        },
-        {
-          "name": "Universal Frontend",
-          "details": "Expo, React Native for Web, TypeScript, Tailwind CSS"
-        }
-      ],
+      "icon": "globe",
       "features": [
         "Multi objective Pareto routing solver (Fastest vs Shaded vs Balanced thermal paths)",
         "Sub millisecond spatial indexing using Shapely STRtree point in polygon bounding box search",
@@ -166,8 +146,8 @@
         "Universal frontend built with Expo React Native compiling to responsive web"
       ],
       "title": "CoolPath",
-      "icon": "globe",
-      "liveUrl": "#",
+      "category": "AI Microclimate Navigation Engine",
+      "linkLabel": "View case study",
       "stack": [
         "Python",
         "FastAPI",
@@ -175,22 +155,30 @@
         "Gemini 2.0",
         "FortyGuard API"
       ],
-      "category": "AI Microclimate Navigation Engine",
-      "description": "Intelligent urban heat aware route planner combining FortyGuard thermal rasters, thermodynamic physiological modeling, and Gemini 2.0 to navigate pedestrians and athletes through shade rich pathways."
+      "liveUrl": "#",
+      "githubUrl": "https://github.com/junaidmirr/coolpath_main",
+      "fullDescription": "CoolPath is an AI powered microclimate navigation engine designed to protect pedestrians, runners, and cyclists from extreme urban heat islands. By combining high resolution thermal rasters from FortyGuard with OpenStreetMap topology, Gemini 2.0 natural language parsing, and human thermodynamic physiological modeling, CoolPath routes travelers through shaded, microclimate cooled pathways.",
+      "description": "Intelligent urban heat aware route planner combining FortyGuard thermal rasters, thermodynamic physiological modeling, and Gemini 2.0 to navigate pedestrians and athletes through shade rich pathways.",
+      "technologies": [
+        {
+          "details": "Python, FastAPI, Shapely (STRtree), NetworkX, OpenStreetMap (OSM) Topology",
+          "name": "Spatial Backend"
+        },
+        {
+          "name": "AI & Voice Synthesis",
+          "details": "Google Gemini 2.0 Flash, AWS Polly Speech Engine, Open Meteo Weather API"
+        },
+        {
+          "name": "Thermal Intelligence",
+          "details": "FortyGuard Spatial Heat Raster API, Core Thermodynamic Heat Storage Equations"
+        },
+        {
+          "details": "Expo, React Native for Web, TypeScript, Tailwind CSS",
+          "name": "Universal Frontend"
+        }
+      ]
     },
     {
-      "description": "An on the go easy AI resume builder and editor with Gemini integration.",
-      "title": "ResuMagic",
-      "category": "Full Stack AI App",
-      "stack": [
-        "React 19",
-        "Flask",
-        "Gemini AI",
-        "Firebase"
-      ],
-      "linkLabel": "View case study",
-      "fullDescription": "ResuMagic is a modern AI powered resume builder designed to simplify the professional document creation process. It leverages Google Gemini AI to parse existing resumes, generate professional summaries, and provide real time editing suggestions. The app features a high fidelity editor with real time PDF preview and background removal for profile photos.",
-      "liveUrl": "https://resumagic-ai-resume-builder.vercel.app",
       "features": [
         "AI powered resume parsing and generation",
         "Real time PDF preview and printing",
@@ -199,20 +187,25 @@
         "Responsive design with Tailwind CSS 4",
         "Captcha protection with Cloudflare Turnstile"
       ],
-      "githubUrl": "",
-      "icon": "spark",
+      "category": "Full Stack AI App",
+      "stack": [
+        "React 19",
+        "Flask",
+        "Gemini AI",
+        "Firebase"
+      ],
       "technologies": [
         {
           "details": "React 19, TypeScript, Vite, Tailwind CSS 4, React Router DOM 7, Lucide React, react-to-print",
           "name": "Frontend"
         },
         {
-          "name": "AI Engine",
-          "details": "@google/generative-ai (Gemini AI SDK), google-generativeai"
+          "details": "@google/generative-ai (Gemini AI SDK), google-generativeai",
+          "name": "AI Engine"
         },
         {
-          "details": "Flask (Python), ReportLab (PDF Gen), PyMuPDF (PDF Parsing), python-docx (Word support)",
-          "name": "Backend"
+          "name": "Backend",
+          "details": "Flask (Python), ReportLab (PDF Gen), PyMuPDF (PDF Parsing), python-docx (Word support)"
         },
         {
           "name": "Image Processing",
@@ -222,38 +215,25 @@
           "details": "Firebase Auth & Firestore, Vercel, Cloudflare Turnstile, SMTP Integration (Mailjet)",
           "name": "Services & Infra"
         }
-      ]
+      ],
+      "linkLabel": "View case study",
+      "icon": "spark",
+      "title": "ResuMagic",
+      "githubUrl": "",
+      "fullDescription": "ResuMagic is a modern AI powered resume builder designed to simplify the professional document creation process. It leverages Google Gemini AI to parse existing resumes, generate professional summaries, and provide real time editing suggestions. The app features a high fidelity editor with real time PDF preview and background removal for profile photos.",
+      "description": "An on the go easy AI resume builder and editor with Gemini integration.",
+      "liveUrl": "https://resumagic-ai-resume-builder.vercel.app"
     },
     {
-      "title": "Edugate",
-      "fullDescription": "Edugate is a modern, feature rich Android application designed to facilitate virtual classrooms and real time collaboration. Built entirely with Jetpack Compose and powered by Agora and Firebase, it provides a seamless experience for educators and students to connect, share screens, and manage educational resources.",
-      "features": [
-        "Real time Video Conferencing powered by Agora RTC SDK",
-        "Live Screen Sharing with foreground service integration",
-        "Secure Authentication with Google Sign In and Firebase",
-        "Comprehensive Document Management (Excel, Word, PDF)",
-        "Secure Cloud Storage for educational materials",
-        "Real time data synchronization via Firestore",
-        "Modern, responsive UI built with Jetpack Compose"
-      ],
-      "stack": [
-        "Kotlin",
-        "Jetpack Compose",
-        "Agora RTC",
-        "Firebase"
-      ],
-      "liveUrl": "#",
-      "githubUrl": "https://github.com/junaidmirr/Edugate-a-smart-classroom-app.git",
       "category": "Virtual Classroom App",
-      "icon": "rocket",
       "technologies": [
         {
           "details": "Kotlin, Jetpack Compose, MVVM Architecture, Navigation Compose, Coil, Lifecycle KTX",
           "name": "Frontend & UI"
         },
         {
-          "details": "Agora RTC Full SDK (v4.6.3), Screen Sharing Service (MediaProjection API)",
-          "name": "RTC & Collaboration"
+          "name": "RTC & Collaboration",
+          "details": "Agora RTC Full SDK (v4.6.3), Screen Sharing Service (MediaProjection API)"
         },
         {
           "details": "Firebase Auth, Cloud Firestore, Realtime Database, Firebase Storage",
@@ -264,47 +244,37 @@
           "details": "Apache POI (XLSX, DOCX), OpenPDF / LibrePDF (PDF rendering)"
         },
         {
-          "name": "System Integration",
-          "details": "Foreground Services, Custom FileProvider (EdugateFileProvider)"
+          "details": "Foreground Services, Custom FileProvider (EdugateFileProvider)",
+          "name": "System Integration"
         }
       ],
-      "linkLabel": "View case study",
-      "description": "A feature rich Android app for real time video conferencing, screen sharing, and educational resource management."
-    },
-    {
-      "description": "AI enabled credit and inventory management app for small businesses.",
-      "technologies": [
-        {
-          "name": "Core Development",
-          "details": "Kotlin, Jetpack Compose, Clean Architecture, Material Design 3 (Material You)"
-        },
-        {
-          "name": "AI & Cloud",
-          "details": "Gemini 2.0 Flash, Google Generative AI SDK, Firebase Auth, Firestore, Storage, Android BOM"
-        },
-        {
-          "name": "Local Storage",
-          "details": "Room Database, SharedPreferences"
-        },
-        {
-          "name": "Multimedia",
-          "details": "CameraX, Coil (Image Loading), Apache POI (Excel Gen), FileProvider"
-        },
-        {
-          "details": "Jetpack Compose Navigation, Lifecycle, Coroutines & Flow, Version Catalogs",
-          "name": "Navigation & State"
-        }
+      "features": [
+        "Real time Video Conferencing powered by Agora RTC SDK",
+        "Live Screen Sharing with foreground service integration",
+        "Secure Authentication with Google Sign In and Firebase",
+        "Comprehensive Document Management (Excel, Word, PDF)",
+        "Secure Cloud Storage for educational materials",
+        "Real time data synchronization via Firestore",
+        "Modern, responsive UI built with Jetpack Compose"
       ],
-      "category": "FinTech AI App",
-      "title": "AI Credit and Inventory Management App",
+      "description": "A feature rich Android app for real time video conferencing, screen sharing, and educational resource management.",
       "stack": [
         "Kotlin",
-        "Compose",
-        "Gemini 2.0",
+        "Jetpack Compose",
+        "Agora RTC",
         "Firebase"
       ],
-      "liveUrl": "#",
+      "githubUrl": "https://github.com/junaidmirr/Edugate-a-smart-classroom-app.git",
       "linkLabel": "View case study",
+      "icon": "rocket",
+      "liveUrl": "#",
+      "title": "Edugate",
+      "fullDescription": "Edugate is a modern, feature rich Android application designed to facilitate virtual classrooms and real time collaboration. Built entirely with Jetpack Compose and powered by Agora and Firebase, it provides a seamless experience for educators and students to connect, share screens, and manage educational resources."
+    },
+    {
+      "title": "AI Credit and Inventory Management App",
+      "liveUrl": "#",
+      "fullDescription": "AI Credit and Inventory Management App is a comprehensive financial tool for small businesses, combining traditional credit management with modern AI features. It uses Gemini 2.0 Flash for real time product identification and financial data analysis, helping merchants manage their inventory and customer debts efficiently.",
       "features": [
         "Real time product identification via AI Vision",
         "Automated credit tracking and reminders",
@@ -313,20 +283,41 @@
         "Dark or Light mode with Material You theme",
         "Voice enabled chat assistant"
       ],
-      "githubUrl": "https://github.com/junaidmirr/Ai-integrated-credit-and-inventory-manager-app.git",
+      "linkLabel": "View case study",
+      "category": "FinTech AI App",
       "icon": "briefcase",
-      "fullDescription": "AI Credit and Inventory Management App is a comprehensive financial tool for small businesses, combining traditional credit management with modern AI features. It uses Gemini 2.0 Flash for real time product identification and financial data analysis, helping merchants manage their inventory and customer debts efficiently."
+      "technologies": [
+        {
+          "details": "Kotlin, Jetpack Compose, Clean Architecture, Material Design 3 (Material You)",
+          "name": "Core Development"
+        },
+        {
+          "details": "Gemini 2.0 Flash, Google Generative AI SDK, Firebase Auth, Firestore, Storage, Android BOM",
+          "name": "AI & Cloud"
+        },
+        {
+          "details": "Room Database, SharedPreferences",
+          "name": "Local Storage"
+        },
+        {
+          "details": "CameraX, Coil (Image Loading), Apache POI (Excel Gen), FileProvider",
+          "name": "Multimedia"
+        },
+        {
+          "name": "Navigation & State",
+          "details": "Jetpack Compose Navigation, Lifecycle, Coroutines & Flow, Version Catalogs"
+        }
+      ],
+      "stack": [
+        "Kotlin",
+        "Compose",
+        "Gemini 2.0",
+        "Firebase"
+      ],
+      "githubUrl": "https://github.com/junaidmirr/Ai-integrated-credit-and-inventory-manager-app.git",
+      "description": "AI enabled credit and inventory management app for small businesses."
     },
     {
-      "features": [
-        "Floating overlay menu for instant AI access",
-        "Real time screen capture and analysis",
-        "Voice to text and text to voice interaction",
-        "AI image editing (Nano Banana feature)",
-        "Cloud sync for history and credits",
-        "Offline first with Room database"
-      ],
-      "fullDescription": "Fapper AI is a revolutionary Android application that provides an on screen AI assistant. It allows users to interact with AI without leaving their current app, thanks to a sophisticated floating overlay menu. It features real time screen analysis, voice commands, and AI powered image editing.",
       "technologies": [
         {
           "name": "Core Development",
@@ -337,85 +328,94 @@
           "name": "Artificial Intelligence"
         },
         {
-          "details": "Firebase Authentication, Google Sign In, Cloud Firestore",
-          "name": "Backend & Auth"
+          "name": "Backend & Auth",
+          "details": "Firebase Authentication, Google Sign In, Cloud Firestore"
         },
         {
-          "name": "System Integration",
-          "details": "MediaProjection API, Foreground Services (FloatingService), WindowManager, Coil"
+          "details": "MediaProjection API, Foreground Services (FloatingService), WindowManager, Coil",
+          "name": "System Integration"
         },
         {
-          "details": "Clean Architecture, Jetpack Navigation, Gradle (Kotlin DSL), Version Catalog",
-          "name": "Architecture"
+          "name": "Architecture",
+          "details": "Clean Architecture, Jetpack Navigation, Gradle (Kotlin DSL), Version Catalog"
         }
       ],
-      "githubUrl": "https://github.com/junaidmirr/on-screen-Ai-assistant.git",
-      "icon": "layout",
+      "category": "Android AI Assistant",
+      "linkLabel": "View case study",
+      "features": [
+        "Floating overlay menu for instant AI access",
+        "Real time screen capture and analysis",
+        "Voice to text and text to voice interaction",
+        "AI image editing (Nano Banana feature)",
+        "Cloud sync for history and credits",
+        "Offline first with Room database"
+      ],
       "description": "An on screen AI assistant app for Android providing seamless interaction.",
       "liveUrl": "#",
-      "linkLabel": "View case study",
-      "category": "Android AI Assistant",
+      "title": "Ai assistant app",
+      "fullDescription": "Fapper AI is a revolutionary Android application that provides an on screen AI assistant. It allows users to interact with AI without leaving their current app, thanks to a sophisticated floating overlay menu. It features real time screen analysis, voice commands, and AI powered image editing.",
+      "icon": "layout",
+      "githubUrl": "https://github.com/junaidmirr/on-screen-Ai-assistant.git",
       "stack": [
         "Kotlin",
         "Compose",
         "Gemini 1.5",
         "Firebase"
-      ],
-      "title": "Ai assistant app"
+      ]
     }
   ],
   "essays": [
     {
+      "date": "Nov 4, 2026",
       "readingTime": "5 min read",
-      "coverImage": "https://maketecheasier.com/wp-content/uploads/2020/11/best-free-clipboard-managers-for-windows-feature.jpg",
       "title": "OpenClipper – Rethinking the Way We Copy and Paste",
-      "excerpt": "Copying and pasting are among the most frequently used operations in everyday computing. However, the traditional clipboard has a fundamental limitation: it allows users to work with only one active copied item at a time.",
+      "coverImage": "https://maketecheasier.com/wp-content/uploads/2020/11/best-free-clipboard-managers-for-windows-feature.jpg",
+      "category": "Tools",
+      "externalLinkLabel": "",
       "content": "# OpenClipper – Rethinking the Way We Copy and Paste\n\n## The Problem\n\nCopying and pasting are among the most frequently used operations in everyday computing. However, the traditional clipboard has a fundamental limitation: it allows users to work with only one active copied item at a time.\n\nConsider a situation where you are researching something across multiple browser tabs or applications and need to collect several pieces of information. You might need to copy a link, a paragraph, a code snippet, an image, and some other text.\n\nWith the traditional clipboard, every new copy replaces the previous one. This forces users to repeatedly switch between windows, copy individual items, navigate back to the destination, paste them, and repeat the entire process.\n\nThis creates unnecessary interruptions, wastes time, breaks concentration, and makes even simple information-transfer tasks inefficient.\n\nAlthough operating systems and third-party applications have introduced clipboard history and clipboard managers, the experience remains fragmented. Some provide history through a separate interface, some offer ecosystem-specific synchronization, and others lack a consistent, instant, numbered retrieval experience across platforms.\n\nThere is still an opportunity to make clipboard management significantly more seamless and universal.\n\n## Our Solution – OpenClipper\n\nOpenClipper is a universal, cross-platform clipboard management tool designed to eliminate the limitations of the traditional clipboard.\n\nInstead of replacing the previously copied item every time something new is copied, OpenClipper will automatically capture and maintain multiple clipboard entries, assigning each one its own unique, easily accessible number.\n\nFor example:\n\n- Copy the first item → Item 1.\n- Copy the second item → Item 2.\n- Copy the third item → Item 3.\n- Copy the fourth item → Item 4.\n\nWhen the user moves to another window, application, or browser tab, they can instantly retrieve any copied item using a keyboard shortcut, such as `Ctrl + Shift + 1` on Windows or `Cmd + Shift + 1` on macOS, without returning to the original source.\n\nThe same core experience is intended to work across Windows, macOS, Linux, and Android.\n\nOur vision goes beyond simply maintaining clipboard history. We want to create one unified clipboard experience where users can collect multiple items, retrieve them instantly, retain important entries, and access their clipboard across devices.\n\nWe aim to combine the best aspects of existing clipboard managers while focusing on speed, simplicity, accessibility, and cross-platform compatibility.\n\n**OpenClipper's mission is to eliminate repetitive copy-paste operations and make information transfer effortless.**\n\n**Copy anything. Keep everything you need. Paste anywhere.**",
       "externalLink": "",
-      "id": "essay-1793777485562",
+      "excerpt": "Copying and pasting are among the most frequently used operations in everyday computing. However, the traditional clipboard has a fundamental limitation: it allows users to work with only one active copied item at a time.",
       "slug": "openclipper-rethinking-the-way-we-copy-and-paste",
-      "date": "Nov 4, 2026",
-      "category": "Tools",
-      "externalLinkLabel": ""
+      "id": "essay-1793777485562"
     },
     {
-      "category": "System Architecture",
       "slug": "why-grep-fails-coding-agents",
-      "date": "Nov 2026",
-      "coverImage": "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80",
       "readingTime": "5 min read",
+      "coverImage": "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80",
       "id": "essay-grep-context-layer",
-      "content": "### The Fundamental Context Bottleneck\n\nIf you use autonomous coding agents like Claude Code, Cursor, Windsurf, or Codex on repositories with more than a few thousand lines of code, you have experienced this failure mode:\n\n1. The agent searches for a symbol using string matching or naive `grep`.\n2. It loads 5 to 10 entire source files into the context window.\n3. It burns 120,000+ tokens in a single reasoning step.\n4. It loses the original instruction thread due to context saturation.\n5. It hallucinates imports or breaks downstream callers.\n\nThe core issue is that LLMs operate on raw tokens, while software engineering operates on **symbol hierarchies, type definitions, and call graphs**.\n\n### Why String Matching Breaks at Scale\n\nWhen an agent edits a function signature, it doesn't need 400 lines of internal loop logic from neighboring functions. It needs three things:\n\n- The exact input/output interface of the symbol being modified.\n- The call sites across all files that invoke this symbol.\n- The active compilation errors isolated to the current edit.\n\nUsing string regex to extract this information fails on multi-line definitions, template metaprogramming, and nested scopes.\n\n### Surgical AST Slicing via Model Context Protocol\n\nThis is why I built **Layer**. Instead of treating source code as flat text files, Layer sits between the coding agent and the filesystem as an in-memory abstract syntax tree (AST) engine.\n\nUsing Tree-sitter grammars compiled in Rust, Layer parses source code incrementally in sub-15ms bursts. When an agent queries a function, Layer returns a surgical slice containing only the signature, docstring, and immediate dependency tree.\n\n```rust\n// Layer AST symbol resolution traversal\npub fn resolve_symbol_slice(tree: &Tree, source: &[u8], target: &str) -> Option<SymbolSlice> {\n    let mut cursor = tree.walk();\n    for node in tree.root_node().children(&mut cursor) {\n        if node.kind() == \"function_item\" && node_identifier(&node, source) == target {\n            return Some(SymbolSlice::from_node(node, source));\n        }\n    }\n    None\n}\n```\n\n### Benchmark Results: 87% Token Reduction\n\nIn controlled benchmarks against large codebases like Ghidra and Tokio:\n- Total token usage dropped from **5.9M tokens to 0.8M tokens** per session.\n- Mean time to resolution dropped from 8 minutes to 2.8 minutes.\n- Dependency breakage dropped to near zero because the agent receives an automated impact graph before confirming edits.\n\nContext efficiency isn't just about reducing inference costs. It directly determines whether an autonomous agent solves a complex bug or gets stuck in a hallucination loop.",
-      "externalLinkLabel": "View Layer on GitHub",
-      "excerpt": "Standard AI coding agents dump entire files into prompt windows, burning 100k+ tokens while losing architectural thread. Here is how Tree-sitter AST slicing and in-memory call graphs solve this at the protocol layer.",
       "externalLink": "https://github.com/junaidmirr/layer",
-      "title": "Why Grep-Based Context Fails Modern Coding Agents"
+      "content": "### The Fundamental Context Bottleneck\n\nIf you use autonomous coding agents like Claude Code, Cursor, Windsurf, or Codex on repositories with more than a few thousand lines of code, you have experienced this failure mode:\n\n1. The agent searches for a symbol using string matching or naive `grep`.\n2. It loads 5 to 10 entire source files into the context window.\n3. It burns 120,000+ tokens in a single reasoning step.\n4. It loses the original instruction thread due to context saturation.\n5. It hallucinates imports or breaks downstream callers.\n\nThe core issue is that LLMs operate on raw tokens, while software engineering operates on **symbol hierarchies, type definitions, and call graphs**.\n\n### Why String Matching Breaks at Scale\n\nWhen an agent edits a function signature, it doesn't need 400 lines of internal loop logic from neighboring functions. It needs three things:\n\n- The exact input/output interface of the symbol being modified.\n- The call sites across all files that invoke this symbol.\n- The active compilation errors isolated to the current edit.\n\nUsing string regex to extract this information fails on multi-line definitions, template metaprogramming, and nested scopes.\n\n### Surgical AST Slicing via Model Context Protocol\n\nThis is why I built **Layer**. Instead of treating source code as flat text files, Layer sits between the coding agent and the filesystem as an in-memory abstract syntax tree (AST) engine.\n\nUsing Tree-sitter grammars compiled in Rust, Layer parses source code incrementally in sub-15ms bursts. When an agent queries a function, Layer returns a surgical slice containing only the signature, docstring, and immediate dependency tree.\n\n```rust\n// Layer AST symbol resolution traversal\npub fn resolve_symbol_slice(tree: &Tree, source: &[u8], target: &str) -> Option<SymbolSlice> {\n    let mut cursor = tree.walk();\n    for node in tree.root_node().children(&mut cursor) {\n        if node.kind() == \"function_item\" && node_identifier(&node, source) == target {\n            return Some(SymbolSlice::from_node(node, source));\n        }\n    }\n    None\n}\n```\n\n### Benchmark Results: 87% Token Reduction\n\nIn controlled benchmarks against large codebases like Ghidra and Tokio:\n- Total token usage dropped from **5.9M tokens to 0.8M tokens** per session.\n- Mean time to resolution dropped from 8 minutes to 2.8 minutes.\n- Dependency breakage dropped to near zero because the agent receives an automated impact graph before confirming edits.\n\nContext efficiency isn't just about reducing inference costs. It directly determines whether an autonomous agent solves a complex bug or gets stuck in a hallucination loop.",
+      "excerpt": "Standard AI coding agents dump entire files into prompt windows, burning 100k+ tokens while losing architectural thread. Here is how Tree-sitter AST slicing and in-memory call graphs solve this at the protocol layer.",
+      "externalLinkLabel": "View Layer on GitHub",
+      "title": "Why Grep-Based Context Fails Modern Coding Agents",
+      "category": "System Architecture",
+      "date": "Nov 2026"
     },
     {
-      "id": "essay-coolpath-thermal-routing",
-      "slug": "microclimates-and-spatial-indexing",
       "content": "### The Flaw in Naive Pedestrian Routing\n\nGoogle Maps, Apple Maps, and OSRM optimize for a single objective function: **minimum physical distance or minimum transit time**.\n\nFor vehicles with climate control, this makes complete sense. For pedestrians walking in cities where summer temperatures exceed 40°C (104°F), direct sunlight and thermal radiation are the primary cost factors. Walking 300 meters under unshaded asphalt creates significantly more physical strain than walking 400 meters along a tree-lined pedestrian avenue.\n\n### Formulating Thermal Edge Friction\n\nTo solve this in **CoolPath**, we redefined the routing graph edge weight function:\n\n$$\\text{Weight}(e) = \\text{Length}(e) \\times \\left(1.0 + \\alpha \\cdot \\text{HeatIndex}(e) - \\beta \\cdot \\text{CanopyFactor}(e)\\right)$$\n\nWhere:\n- $\\alpha$ is the user's heat sensitivity factor.\n- $\\text{HeatIndex}(e)$ is derived from Landsat 8/9 thermal infrared sensors.\n- $\\beta \\cdot \\text{CanopyFactor}(e)$ represents shade density computed from municipal tree canopy polygons.\n\n### High-Throughput Spatial Indexing with Shapely\n\nOverlaying satellite thermal rasters onto street network vector graphs requires high-throughput spatial intersection queries. Querying raw polygons on every routing calculation is computationally prohibitive ($O(N \\times M)$).\n\nWe implemented spatial partitioning using **STRtree (Sort-Tile-Recursive R-tree)** structures in Shapely. By pre-indexing street segments into bounding-box hierarchies, spatial lookups drop to $O(\\log N)$, enabling real-time multi-criteria pathfinding in under 80 milliseconds.\n\n```python\nfrom shapely.strtree import STRtree\nfrom shapely.geometry import LineString, Polygon\n\ndef build_thermal_graph(street_edges, thermal_zones):\n    tree = STRtree([zone.geometry for zone in thermal_zones])\n    for edge in street_edges:\n        intersecting = tree.query(edge.geometry)\n        edge.thermal_cost = compute_weighted_exposure(edge, intersecting)\n```\n\n### Real-World Impact\n\nField tests in urban heat islands demonstrated a **32% reduction in direct solar exposure** with only a 7% average increase in overall walking time. Microclimate-aware navigation proves that physical context must include environmental physics, not just Euclidean coordinates.",
-      "excerpt": "Standard routing engines assume uniform travel friction across physical coordinates. CoolPath integrates dynamic satellite land-surface temperature grids into OpenStreetMap graphs to route pedestrians through shade and cooler corridors.",
-      "date": "Oct 2026",
-      "title": "Microclimates & Spatial Indexing: How CoolPath Computes Thermal Friction",
-      "readingTime": "4 min read",
-      "externalLinkLabel": "View Spatial Routing Engine",
+      "id": "essay-coolpath-thermal-routing",
       "coverImage": "https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=1200&q=80",
+      "slug": "microclimates-and-spatial-indexing",
       "externalLink": "https://github.com/junaidmirr",
-      "category": "Geospatial Systems"
+      "excerpt": "Standard routing engines assume uniform travel friction across physical coordinates. CoolPath integrates dynamic satellite land-surface temperature grids into OpenStreetMap graphs to route pedestrians through shade and cooler corridors.",
+      "externalLinkLabel": "View Spatial Routing Engine",
+      "readingTime": "4 min read",
+      "date": "Oct 2026",
+      "category": "Geospatial Systems",
+      "title": "Microclimates & Spatial Indexing: How CoolPath Computes Thermal Friction"
     },
     {
-      "id": "essay-vector-pdf-engine",
-      "title": "Under The Vector Hood: Parsing PostScript Operators in Pure Python",
       "externalLinkLabel": "Explore doc-engine on GitHub",
-      "category": "Compiler & Parser Design",
-      "slug": "parsing-postscript-operators-doc-engine",
-      "excerpt": "Building a zero-dependency PDF rendering pipeline requires implementing the PDF 1.7 graphics state stack, coordinate matrix transformations, and cubic bezier curves without native C libraries.",
-      "content": "### The Heavy Native Dependency Problem\n\nMost Python document pipelines rely on wrappers around heavy C libraries like `poppler`, `mupdf`, or `weasyprint`. While fast, these libraries introduce substantial deployment friction in serverless environments:\n\n- Binary shared library incompatibilities across Linux distributions.\n- Memory leaks during sustained document processing batches.\n- Difficult cross-compilation for ARM64 and serverless AWS Lambda containers.\n\nWith **doc-engine**, my goal was to create a vector document rendering engine that adheres strictly to the ISO 32000-1 (PDF 1.7) specification using pure Python.\n\n### Implementing the Graphics State Stack\n\nThe core of the PDF rendering pipeline is the graphics state machine. In PDF content streams, operators manipulate a stack of graphical properties:\n\n- `q`: Push the current graphics state onto the stack.\n- `Q`: Pop and restore the previous graphics state.\n- `cm`: Concatenate a transformation matrix ($6$-element affine transformation $[a, b, c, d, e, f]$).\n- `re`: Append a rectangle path.\n- `c`: Append a cubic Bézier curve segment.\n\n```python\nclass GraphicsState:\n    def __init__(self):\n        self.ctm = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]  # Current Transformation Matrix\n        self.stroke_color = (0.0, 0.0, 0.0)\n        self.fill_color = (0.0, 0.0, 0.0)\n        self.line_width = 1.0\n\n    def multiply_matrix(self, a, b, c, d, e, f):\n        # Affine matrix concatenation [x', y', 1] = [x, y, 1] * CTM\n        m0 = self.ctm[0] * a + self.ctm[1] * c\n        m1 = self.ctm[0] * b + self.ctm[1] * d\n        self.ctm = [m0, m1, ...]\n```\n\n### Vector Geometry Precision\n\nText in PDF streams is fundamentally coordinate geometry. Characters are placed along user space coordinates that undergo transformation through font matrices, text matrices (`Tm`), and line matrices (`TLm`).\n\nBy building a custom stream tokenizer that parses PostScript operators in single-pass linear time ($O(N)$), doc-engine renders and rasterizes vector pages with zero external C binaries, providing deterministic, reproducible document layout across any platform.",
-      "externalLink": "https://github.com/junaidmirr/doc-engine",
       "coverImage": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80",
       "date": "Sep 2026",
-      "readingTime": "4 min read"
+      "title": "Under The Vector Hood: Parsing PostScript Operators in Pure Python",
+      "excerpt": "Building a zero-dependency PDF rendering pipeline requires implementing the PDF 1.7 graphics state stack, coordinate matrix transformations, and cubic bezier curves without native C libraries.",
+      "id": "essay-vector-pdf-engine",
+      "readingTime": "4 min read",
+      "content": "### The Heavy Native Dependency Problem\n\nMost Python document pipelines rely on wrappers around heavy C libraries like `poppler`, `mupdf`, or `weasyprint`. While fast, these libraries introduce substantial deployment friction in serverless environments:\n\n- Binary shared library incompatibilities across Linux distributions.\n- Memory leaks during sustained document processing batches.\n- Difficult cross-compilation for ARM64 and serverless AWS Lambda containers.\n\nWith **doc-engine**, my goal was to create a vector document rendering engine that adheres strictly to the ISO 32000-1 (PDF 1.7) specification using pure Python.\n\n### Implementing the Graphics State Stack\n\nThe core of the PDF rendering pipeline is the graphics state machine. In PDF content streams, operators manipulate a stack of graphical properties:\n\n- `q`: Push the current graphics state onto the stack.\n- `Q`: Pop and restore the previous graphics state.\n- `cm`: Concatenate a transformation matrix ($6$-element affine transformation $[a, b, c, d, e, f]$).\n- `re`: Append a rectangle path.\n- `c`: Append a cubic Bézier curve segment.\n\n```python\nclass GraphicsState:\n    def __init__(self):\n        self.ctm = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]  # Current Transformation Matrix\n        self.stroke_color = (0.0, 0.0, 0.0)\n        self.fill_color = (0.0, 0.0, 0.0)\n        self.line_width = 1.0\n\n    def multiply_matrix(self, a, b, c, d, e, f):\n        # Affine matrix concatenation [x', y', 1] = [x, y, 1] * CTM\n        m0 = self.ctm[0] * a + self.ctm[1] * c\n        m1 = self.ctm[0] * b + self.ctm[1] * d\n        self.ctm = [m0, m1, ...]\n```\n\n### Vector Geometry Precision\n\nText in PDF streams is fundamentally coordinate geometry. Characters are placed along user space coordinates that undergo transformation through font matrices, text matrices (`Tm`), and line matrices (`TLm`).\n\nBy building a custom stream tokenizer that parses PostScript operators in single-pass linear time ($O(N)$), doc-engine renders and rasterizes vector pages with zero external C binaries, providing deterministic, reproducible document layout across any platform.",
+      "externalLink": "https://github.com/junaidmirr/doc-engine",
+      "category": "Compiler & Parser Design",
+      "slug": "parsing-postscript-operators-doc-engine"
     }
   ]
 }
