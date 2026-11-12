@@ -8,12 +8,16 @@ type Message = {
   content: string
 }
 
+type AiAssistantProps = {
+  showFloatingButton?: boolean
+}
+
 const SUGGESTED_PROMPTS = [
   'Tell me about doc-engine',
-  'CoolPath heat navigation',
-  'Tauri CLI contribution',
+  'How does Layer AST parsing work?',
+  'What did Junaid contribute to Tauri?',
   'What is your Android stack?',
-  'How can I contact Junaid?',
+  'How can I get in touch?',
 ]
 
 const SESSION_STORAGE_KEY = 'junaid_chat_session_id'
@@ -56,7 +60,6 @@ function getOrCreateSessionId(): { id: string; createdAt: string } {
     }
     return { id, createdAt }
   } catch {
-    // In-app browsers (Instagram, etc.) or Private Browsing mode can block sessionStorage
     if (!memorySessionId) {
       memorySessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
       memoryCreatedAt = new Date().toISOString()
@@ -65,14 +68,14 @@ function getOrCreateSessionId(): { id: string; createdAt: string } {
   }
 }
 
-export function AiAssistant() {
+export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
       role: 'assistant',
       content:
-        "Hi! I'm Junaid's AI assistant. Ask me anything about his projects (like doc-engine, CoolPath, or his Tauri contribution), technical skills, or engineering background.",
+        "Hello. I am Junaid's AI assistant. Ask me anything about his projects (Layer, doc-engine, Tauri CLI contribution, CoolPath), technical stack, or background.",
     },
   ])
   const [input, setInput] = useState('')
@@ -93,7 +96,7 @@ export function AiAssistant() {
     }
   }, [isOpen, messages])
 
-  // Custom event trigger to open from error pages or navigation
+  // Custom event trigger to open from footer link or elsewhere
   useEffect(() => {
     const handleOpenAI = () => {
       setIsOpen(true)
@@ -118,127 +121,98 @@ export function AiAssistant() {
     if (chatTurns.length === 0) return
 
     const { id: sessionId, createdAt } = getOrCreateSessionId()
-    const firstUserMsg = chatTurns.find((m) => m.role === 'user')
-    const summary = firstUserMsg
-      ? firstUserMsg.content.slice(0, 100)
-      : 'Visitor conversation'
-
     const sessionData: ChatSession = {
       id: sessionId,
       createdAt,
       updatedAt: new Date().toISOString(),
-      summary,
+      summary: chatTurns[0]?.content.slice(0, 80) || 'Visitor chat session',
       messageCount: chatTurns.length,
       browser: detectInAppBrowser(),
-      messages: chatTurns.map((m) => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
+      messages: chatTurns.map((msg) => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
         timestamp: new Date().toISOString(),
       })),
-      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
     }
 
     try {
       await saveChatSession(sessionData)
-    } catch (err) {
-      console.warn('Could not persist chat session:', err)
-    }
+    } catch {}
   }
 
-  const handleSend = async (userPrompt?: string) => {
-    const text = (userPrompt || input).trim()
-    if (!text || isStreaming) return
+  const handleSend = async (messageText?: string) => {
+    const textToSend = (messageText ?? input).trim()
+    if (!textToSend || isStreaming) return
 
-    setHasInteracted(true)
     setInput('')
+    setHasInteracted(true)
 
     const userMessage: Message = {
-      id: 'u_' + Date.now(),
+      id: `user-${Date.now()}`,
       role: 'user',
-      content: text,
+      content: textToSend,
     }
 
-    const assistantMsgId = 'a_' + Date.now()
-    const initialAssistantMessage: Message = {
+    const assistantMsgId = `assistant-${Date.now()}`
+    const placeholderMessage: Message = {
       id: assistantMsgId,
       role: 'assistant',
       content: '',
     }
 
-    const updatedWithUser = [...messages, userMessage, initialAssistantMessage]
-    setMessages(updatedWithUser)
+    setMessages((prev) => [...prev, userMessage, placeholderMessage])
     setIsStreaming(true)
-
-    // Immediately persist user prompt so session is saved even if user switches apps mid-reply
-    persistSession([...messages, userMessage])
 
     let finalReply = ''
 
     try {
-      // Build conversation history (excluding welcome message)
-      const history = messages
-        .filter((m) => m.id !== 'welcome')
-        .slice(-6)
-        .map((m) => ({ role: m.role, content: m.content }))
-
-      // Call hidden serverless proxy endpoint
-      const response = await fetch('/api/chat', {
+      const response = await fetch('/api/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: text,
-          history,
+          message: textToSend,
+          history: messages
+            .filter((m) => m.id !== 'welcome')
+            .map((m) => ({ role: m.role, content: m.content })),
         }),
       })
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `Server responded with status ${response.status}`)
+        throw new Error(`Server returned status ${response.status}`)
       }
 
-      if (!response.body) {
-        throw new Error('No response stream available')
-      }
+      if (response.body && typeof ReadableStream !== 'undefined') {
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let done = false
 
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed.startsWith('data:')) continue
-
-          const raw = trimmed.slice(5).trim()
-          if (raw === '[DONE]') break
-
-          try {
-            const parsed = JSON.parse(raw)
-            if (parsed.text) {
-              finalReply += parsed.text
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === assistantMsgId ? { ...msg, content: finalReply } : msg
-                )
+        while (!done) {
+          const { value, done: streamDone } = await reader.read()
+          done = streamDone
+          if (value) {
+            const chunk = decoder.decode(value, { stream: !done })
+            finalReply += chunk
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMsgId ? { ...msg, content: finalReply } : msg
               )
-            } else if (parsed.error) {
-              finalReply += `\n[Error: ${parsed.error}]`
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === assistantMsgId ? { ...msg, content: finalReply } : msg
-                )
-              )
-            }
-          } catch {}
+            )
+          }
         }
+      } else {
+        const text = await response.text()
+        try {
+          const data = JSON.parse(text)
+          finalReply = data.reply || data.response || text
+        } catch {
+          finalReply = text
+        }
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId ? { ...msg, content: finalReply } : msg
+          )
+        )
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to connect to AI Assistant'
@@ -250,7 +224,6 @@ export function AiAssistant() {
       )
     } finally {
       setIsStreaming(false)
-      // Save completed conversation to Firestore / local storage
       const finalTurnMessages = [
         ...messages,
         userMessage,
@@ -277,7 +250,7 @@ export function AiAssistant() {
         id: 'welcome',
         role: 'assistant',
         content:
-          "Conversation cleared. How can I help you explore Junaid's projects or skills?",
+          "Conversation reset. What would you like to know about Junaid's work or systems?",
       },
     ])
     setHasInteracted(false)
@@ -285,50 +258,45 @@ export function AiAssistant() {
 
   return (
     <>
-      {/* Floating Trigger Button */}
-      <div className="fixed bottom-5 right-5 z-40">
-        {!isOpen && (
+      {/* Optional Floating Trigger Button */}
+      {showFloatingButton && !isOpen && (
+        <div className="fixed bottom-5 right-5 z-40">
           <button
             type="button"
             onClick={() => setIsOpen(true)}
             aria-label="Open AI Assistant"
-            className="group flex items-center gap-2.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-xs font-medium text-[var(--color-text)] shadow-lg hover:border-[var(--color-border-hover)] transition-all tap-spring cursor-pointer"
+            className="border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2 text-xs font-mono text-[var(--color-text)] shadow-sm hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors cursor-pointer"
           >
-            <span className="flex h-2 w-2 items-center justify-center">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            </span>
-            <span>Ask Junaid AI</span>
+            [Ask AI]
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Chat Window */}
       {isOpen && (
         <div
           role="dialog"
           aria-label="Junaid AI Assistant Chat"
-          className="fixed bottom-5 right-5 z-50 flex h-[540px] max-h-[85vh] w-[390px] max-w-[calc(100vw-2.5rem)] flex-col rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl overflow-hidden font-sans animate-in zoom-in-95 duration-200"
+          className="fixed bottom-0 right-0 sm:bottom-6 sm:right-6 z-50 flex h-[540px] max-h-[90vh] w-full sm:w-[420px] max-w-full flex-col border border-[var(--color-border)] bg-[var(--color-bg)] shadow-2xl overflow-hidden font-sans"
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)]/80 px-4 py-3 backdrop-blur-md">
-            <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              <div>
-                <span className="text-xs font-semibold text-[var(--color-text)]">
-                  Junaid AI Assistant
-                </span>
-                <span className="ml-2 text-[10px] text-[var(--color-muted)]">
-                  Instant
-                </span>
-              </div>
+          <div className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3">
+            <div className="flex items-center gap-2 font-mono text-xs">
+              <span className="text-[var(--color-accent)] font-semibold">[AI]</span>
+              <span className="font-medium text-[var(--color-text)]">
+                Assistant
+              </span>
+              <span className="text-[11px] text-[var(--color-text-subtle)]">
+                · online
+              </span>
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-3 font-mono text-xs">
               <button
                 type="button"
                 onClick={clearChat}
                 title="Clear conversation"
-                className="px-2 py-1 text-xs text-[var(--color-muted)] hover:text-[var(--color-text)] cursor-pointer tap-spring font-medium"
+                className="text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer"
               >
                 Clear
               </button>
@@ -336,26 +304,26 @@ export function AiAssistant() {
                 type="button"
                 onClick={() => setIsOpen(false)}
                 title="Close [ESC]"
-                className="flex h-7 w-7 items-center justify-center rounded-full text-xs text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] cursor-pointer tap-spring"
+                className="text-[var(--color-text-subtle)] hover:text-[var(--color-accent)] cursor-pointer"
               >
-                ✕
+                [Close]
               </button>
             </div>
           </div>
 
-          {/* Quick Suggestions (if no conversation yet) */}
+          {/* Quick Suggestions (if no interaction yet) */}
           {!hasInteracted && (
-            <div className="border-b border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-2.5">
-              <div className="text-[10px] uppercase tracking-wider font-semibold text-[var(--color-muted)] mb-1.5">
-                Quick questions:
-              </div>
+            <div className="border-b border-[var(--color-border)] bg-[var(--color-code-bg)] px-4 py-2.5 space-y-1.5">
+              <span className="block font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-subtle)]">
+                Suggested questions
+              </span>
               <div className="flex flex-wrap gap-1.5">
                 {SUGGESTED_PROMPTS.map((prompt) => (
                   <button
                     key={prompt}
                     type="button"
                     onClick={() => handleSend(prompt)}
-                    className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-[11px] font-medium text-[var(--color-muted)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)] transition-colors cursor-pointer text-left tap-spring"
+                    className="border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-xs font-mono text-[var(--color-text-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors cursor-pointer text-left"
                   >
                     {prompt}
                   </button>
@@ -365,7 +333,7 @@ export function AiAssistant() {
           )}
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 text-sm leading-relaxed">
             {messages.map((msg) => (
               <div
                 key={msg.id}
@@ -373,19 +341,21 @@ export function AiAssistant() {
                   msg.role === 'user' ? 'items-end' : 'items-start'
                 }`}
               >
-                <span className="mb-1 text-[10px] text-[var(--color-muted)] font-medium">
-                  {msg.role === 'user' ? 'You' : 'Junaid AI'}
+                <span className="mb-1 text-[11px] font-mono text-[var(--color-text-subtle)]">
+                  {msg.role === 'user' ? 'You' : 'Assistant'}
                 </span>
                 <div
-                  className={`px-4 py-2.5 max-w-[88%] leading-relaxed whitespace-pre-wrap ${
+                  className={`p-3 max-w-[90%] whitespace-pre-wrap text-sm leading-relaxed ${
                     msg.role === 'user'
-                      ? 'rounded-2xl rounded-br-xs bg-[#111317] text-white dark:bg-white dark:text-neutral-900 font-medium'
-                      : 'rounded-2xl rounded-bl-xs border border-[var(--color-border)] bg-[var(--color-panel)] text-[var(--color-text)]'
+                      ? 'border border-[var(--color-accent)] bg-[var(--color-code-bg)] text-[var(--color-text)]'
+                      : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)]'
                   }`}
                 >
                   {msg.content}
                   {msg.role === 'assistant' && isStreaming && msg.content.length === 0 && (
-                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+                    <span className="font-mono text-xs text-[var(--color-accent)] animate-pulse">
+                      Generating answer...
+                    </span>
                   )}
                 </div>
               </div>
@@ -396,7 +366,7 @@ export function AiAssistant() {
           {/* Input Bar */}
           <form
             onSubmit={handleSubmit}
-            className="flex items-center gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface)] p-3"
+            className="flex items-center gap-2 border-t border-[var(--color-border)] bg-[var(--color-bg)] p-3"
           >
             <input
               ref={inputRef}
@@ -404,13 +374,13 @@ export function AiAssistant() {
               value={input}
               disabled={isStreaming}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={isStreaming ? 'Thinking...' : 'Ask about Junaid, doc-engine, CoolPath...'}
-              className="flex-1 rounded-full border border-[var(--color-border)] bg-[var(--color-panel)] px-4 py-2 text-xs text-[var(--color-text)] placeholder-[var(--color-muted)] focus:border-[var(--color-accent)] focus:outline-none transition-all"
+              placeholder={isStreaming ? 'Thinking...' : 'Ask a question about Junaid\'s work...'}
+              className="flex-1 border border-[var(--color-border)] bg-[var(--color-code-bg)] px-3 py-1.5 text-xs font-mono text-[var(--color-text)] placeholder-[var(--color-text-subtle)] focus:outline-none focus:border-[var(--color-accent)]"
             />
             <button
               type="submit"
               disabled={!input.trim() || isStreaming}
-              className="btn-primary px-4 py-2 text-xs disabled:opacity-40 cursor-pointer tap-spring"
+              className="border border-[var(--color-border)] px-3 py-1.5 font-mono text-xs text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors disabled:opacity-40 cursor-pointer"
             >
               Send
             </button>

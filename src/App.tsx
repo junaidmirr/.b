@@ -4,6 +4,7 @@ import { subscribeToPortfolio } from './services/portfolioService'
 import { ErrorPage } from './components/ErrorPage'
 import { EssaysSection } from './components/EssaysSection'
 import { TodoPlaceholder } from './components/TodoPlaceholder'
+import { AiAssistant } from './components/AiAssistant'
 import type { Theme, PortfolioData } from './types'
 
 const AdminPage = lazy(() =>
@@ -457,59 +458,69 @@ export default function App() {
           </div>
 
           <div className="space-y-16 sm:space-y-20">
-            {selectedWork.map((project, idx) => (
-              <article
-                key={project.id}
-                className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start border-b border-[var(--color-border)] pb-16 sm:pb-20"
-              >
-                {/* Left Column: Details */}
-                <div className="lg:col-span-6 space-y-4">
-                  <div className="flex items-baseline gap-3">
-                    <span className="font-mono text-xs text-[var(--color-text-subtle)]">
-                      0{idx + 1}
-                    </span>
-                    <h3 className="font-display text-2xl sm:text-3xl font-medium tracking-tight text-[var(--color-text)]">
-                      {project.title}
-                    </h3>
+            {selectedWork.map((project, idx) => {
+              const liveProject = portfolioData.projects.find(
+                (p) =>
+                  p.title.toLowerCase().includes(project.id) ||
+                  (project.id === 'tauri-cli' && p.title.toLowerCase().includes('tauri'))
+              )
+              const projectImage = liveProject?.imageUrl || liveProject?.bannerUrl
+
+              return (
+                <article
+                  key={project.id}
+                  className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start border-b border-[var(--color-border)] pb-16 sm:pb-20"
+                >
+                  {/* Left Column: Details */}
+                  <div className="lg:col-span-6 space-y-4">
+                    <div className="flex items-baseline gap-3">
+                      <span className="font-mono text-xs text-[var(--color-text-subtle)]">
+                        0{idx + 1}
+                      </span>
+                      <h3 className="font-display text-2xl sm:text-3xl font-medium tracking-tight text-[var(--color-text)]">
+                        {project.title}
+                      </h3>
+                    </div>
+
+                    <p className="text-base text-[var(--color-text)] leading-relaxed">
+                      {project.description}
+                    </p>
+
+                    <p className="text-sm text-[var(--color-text-muted)] leading-relaxed">
+                      {project.outcome}
+                    </p>
+
+                    <div className="pt-2 font-mono text-xs text-[var(--color-text-subtle)] leading-relaxed">
+                      {project.tech}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4 pt-3 font-mono text-xs">
+                      {project.links.map((link) => (
+                        <a
+                          key={link.label}
+                          href={link.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="editorial-link"
+                        >
+                          {link.label} [↗]
+                        </a>
+                      ))}
+                    </div>
                   </div>
 
-                  <p className="text-base text-[var(--color-text)] leading-relaxed">
-                    {project.description}
-                  </p>
-
-                  <p className="text-sm text-[var(--color-text-muted)] leading-relaxed">
-                    {project.outcome}
-                  </p>
-
-                  <div className="pt-2 font-mono text-xs text-[var(--color-text-subtle)] leading-relaxed">
-                    {project.tech}
+                  {/* Right Column: Visual Slot / Live Image or TODO Asset Placeholder */}
+                  <div className="lg:col-span-6">
+                    <TodoPlaceholder
+                      src={projectImage}
+                      label={project.todoPlaceholder.label}
+                      aspectRatio={project.todoPlaceholder.aspectRatio}
+                      alt={project.todoPlaceholder.alt}
+                    />
                   </div>
-
-                  <div className="flex flex-wrap items-center gap-4 pt-3 font-mono text-xs">
-                    {project.links.map((link) => (
-                      <a
-                        key={link.label}
-                        href={link.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="editorial-link"
-                      >
-                        {link.label} [↗]
-                      </a>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Right Column: Visual Slot / TODO Asset Placeholder */}
-                <div className="lg:col-span-6">
-                  <TodoPlaceholder
-                    label={project.todoPlaceholder.label}
-                    aspectRatio={project.todoPlaceholder.aspectRatio}
-                    alt={project.todoPlaceholder.alt}
-                  />
-                </div>
-              </article>
-            ))}
+                </article>
+              )
+            })}
           </div>
         </section>
 
@@ -643,9 +654,10 @@ export default function App() {
               </div>
             </div>
 
-            {/* Small Photo Slot (TODO) */}
+            {/* Small Photo Slot (Live Image or TODO) */}
             <div className="lg:col-span-4 flex justify-start lg:justify-end">
               <TodoPlaceholder
+                src={portfolioData.profile.avatarUrl}
                 label="Headshot portrait (1:1)"
                 aspectRatio="1/1"
                 alt="Portrait photo of Junaid Mir"
@@ -712,13 +724,14 @@ export default function App() {
             <a href="#" className="hover:text-[var(--color-text)] transition-colors">
               Top [↑]
             </a>
-            {/* Direct administrative entrance */}
-            <a
-              href="/iam_admin"
-              className="text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors opacity-60 hover:opacity-100"
+            {/* Ask AI Trigger */}
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-junaid-ai'))}
+              className="text-[var(--color-text-subtle)] hover:text-[var(--color-accent)] transition-colors cursor-pointer"
             >
-              [Admin]
-            </a>
+              [Ask AI]
+            </button>
           </div>
         </div>
       </footer>
@@ -733,6 +746,9 @@ export default function App() {
           />
         </Suspense>
       )}
+
+      {/* AI Assistant Chat Component (triggered on-demand via [Ask AI] without persistent floating bubble) */}
+      <AiAssistant showFloatingButton={false} />
     </div>
   )
 }

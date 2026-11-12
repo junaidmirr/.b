@@ -62,6 +62,7 @@ const DEFAULT_NEW_PROJECT: Project = {
   category: 'Full Stack Web',
   description: '',
   icon: 'code',
+  imageUrl: '',
   stack: ['TypeScript', 'React'],
   linkLabel: 'View case study',
   fullDescription: '',
@@ -1486,6 +1487,77 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                         </div>
                       </div>
 
+                      {/* Project Image / Screenshot / Banner */}
+                      <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-5 rounded-lg space-y-3">
+                        <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2">
+                          <h4 className="text-xs font-mono uppercase tracking-wider text-[var(--color-muted)] font-semibold">
+                            Project Screenshot / Banner
+                          </h4>
+                          {activeProjectDraft.imageUrl && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveProjectDraft({ ...activeProjectDraft, imageUrl: '' })}
+                              className="text-[11px] font-mono text-red-500 hover:underline cursor-pointer"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-mono text-[var(--color-muted)] mb-1">
+                            Image URL (Hosted URL or path)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="https://... or /assets/layer.png"
+                            value={activeProjectDraft.imageUrl || ''}
+                            onChange={(e) =>
+                              setActiveProjectDraft({ ...activeProjectDraft, imageUrl: e.target.value })
+                            }
+                            className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-mono text-[var(--color-muted)] mb-1">
+                            Or Upload from Device
+                          </label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) {
+                                const reader = new FileReader()
+                                reader.onload = (event) => {
+                                  const result = event.target?.result as string
+                                  if (result) {
+                                    setActiveProjectDraft({ ...activeProjectDraft, imageUrl: result })
+                                  }
+                                }
+                                reader.readAsDataURL(file)
+                              }
+                            }}
+                            className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-xs font-mono text-[var(--color-muted)] focus:outline-none rounded file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-mono file:bg-[var(--color-text)] file:text-[var(--color-bg)] file:cursor-pointer"
+                          />
+                        </div>
+
+                        {activeProjectDraft.imageUrl ? (
+                          <div className="mt-2 border border-[var(--color-border)] rounded overflow-hidden aspect-[16/9] bg-[var(--color-bg)]">
+                            <img
+                              src={activeProjectDraft.imageUrl}
+                              alt="Project banner preview"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="border border-dashed border-[var(--color-border)] p-4 text-center font-mono text-[11px] text-[var(--color-muted)] rounded aspect-[16/9] flex items-center justify-center">
+                            No image set (displays TODO placeholder on page)
+                          </div>
+                        )}
+                      </div>
+
                       {/* Tech Stack Tag Manager */}
                       <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-5 rounded-lg space-y-3">
                         <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2">
@@ -1991,19 +2063,58 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                           placeholder="https://images.unsplash.com/... or /path/to/diagram.png"
                           className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-panel)] text-xs font-mono text-[var(--color-text)] rounded focus:outline-none focus:border-[var(--color-border-hover)]"
                         />
+                        <div className="mt-2">
+                          <label className="block text-[11px] font-mono text-[var(--color-muted)] mb-1">
+                            Or Upload Cover from Device
+                          </label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) {
+                                const reader = new FileReader()
+                                reader.onload = (event) => {
+                                  const result = event.target?.result as string
+                                  if (result) {
+                                    setActiveEssayDraft((prev) =>
+                                      prev ? { ...prev, coverImage: result } : null
+                                    )
+                                  }
+                                }
+                                reader.readAsDataURL(file)
+                              }
+                            }}
+                            className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 text-xs font-mono text-[var(--color-muted)] focus:outline-none rounded file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-mono file:bg-[var(--color-text)] file:text-[var(--color-bg)] file:cursor-pointer"
+                          />
+                        </div>
+
                         {activeEssayDraft.coverImage && (
-                          <div className="mt-3 flex items-center gap-3 p-2 rounded border border-[var(--color-border)] bg-[var(--color-panel)]">
-                            <img
-                              src={activeEssayDraft.coverImage}
-                              alt="Preview"
-                              className="h-16 w-28 object-cover rounded border border-[var(--color-border)]"
-                              onError={(e) => {
-                                ;(e.target as HTMLElement).style.display = 'none'
-                              }}
-                            />
-                            <span className="text-[11px] font-mono text-[var(--color-muted)]">
-                              Attached image preview
-                            </span>
+                          <div className="mt-3 flex items-center justify-between p-2 rounded border border-[var(--color-border)] bg-[var(--color-panel)]">
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={activeEssayDraft.coverImage}
+                                alt="Preview"
+                                className="h-16 w-28 object-cover rounded border border-[var(--color-border)]"
+                                onError={(e) => {
+                                  ;(e.target as HTMLElement).style.display = 'none'
+                                }}
+                              />
+                              <span className="text-[11px] font-mono text-[var(--color-muted)]">
+                                Attached image preview
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setActiveEssayDraft((prev) =>
+                                  prev ? { ...prev, coverImage: '' } : null
+                                )
+                              }
+                              className="text-xs font-mono text-red-500 hover:underline px-2 cursor-pointer"
+                            >
+                              Remove
+                            </button>
                           </div>
                         )}
                       </div>
@@ -2484,6 +2595,148 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                     onChange={(e) => updateProfileField('linkedin', e.target.value)}
                     className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
                   />
+                </div>
+
+                {/* Headshot / Portrait Image */}
+                <div className="border border-[var(--color-border)] bg-[var(--color-bg)] p-4 rounded space-y-3">
+                  <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2">
+                    <label className="block text-xs font-mono font-semibold text-[var(--color-text)]">
+                      About Section Headshot Photo (1:1 Ratio)
+                    </label>
+                    {data.profile.avatarUrl && (
+                      <button
+                        type="button"
+                        onClick={() => updateProfileField('avatarUrl', '')}
+                        className="text-xs font-mono text-red-500 hover:underline cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="https://... or /assets/profile.jpg"
+                      value={data.profile.avatarUrl || ''}
+                      onChange={(e) => updateProfileField('avatarUrl', e.target.value)}
+                      className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-1.5 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-mono text-[var(--color-muted)] mb-1">
+                      Or Upload from Device
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          const reader = new FileReader()
+                          reader.onload = (event) => {
+                            const result = event.target?.result as string
+                            if (result) {
+                              updateProfileField('avatarUrl', result)
+                            }
+                          }
+                          reader.readAsDataURL(file)
+                        }
+                      }}
+                      className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2 py-1 text-xs font-mono text-[var(--color-muted)] focus:outline-none rounded file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-mono file:bg-[var(--color-text)] file:text-[var(--color-bg)] file:cursor-pointer"
+                    />
+                  </div>
+
+                  {data.profile.avatarUrl ? (
+                    <div className="mt-2 flex items-center gap-3">
+                      <div className="h-16 w-16 overflow-hidden rounded border border-[var(--color-border)] bg-[var(--color-panel)] shrink-0">
+                        <img
+                          src={data.profile.avatarUrl}
+                          alt="Headshot preview"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <span className="text-xs font-mono text-[var(--color-muted)]">
+                        Headshot active on portfolio About section
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] font-mono text-[var(--color-muted)]">
+                      No photo set (displays TODO placeholder on portfolio)
+                    </p>
+                  )}
+                </div>
+
+                {/* OpenGraph / Social Share Card Banner */}
+                <div className="border border-[var(--color-border)] bg-[var(--color-bg)] p-4 rounded space-y-3">
+                  <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2">
+                    <label className="block text-xs font-mono font-semibold text-[var(--color-text)]">
+                      Social Card / OpenGraph Banner (1200x630)
+                    </label>
+                    {data.profile.ogImageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => updateProfileField('ogImageUrl', '')}
+                        className="text-xs font-mono text-red-500 hover:underline cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="https://... or /og.png"
+                      value={data.profile.ogImageUrl || ''}
+                      onChange={(e) => updateProfileField('ogImageUrl', e.target.value)}
+                      className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-1.5 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-mono text-[var(--color-muted)] mb-1">
+                      Or Upload from Device
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          const reader = new FileReader()
+                          reader.onload = (event) => {
+                            const result = event.target?.result as string
+                            if (result) {
+                              updateProfileField('ogImageUrl', result)
+                            }
+                          }
+                          reader.readAsDataURL(file)
+                        }
+                      }}
+                      className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2 py-1 text-xs font-mono text-[var(--color-muted)] focus:outline-none rounded file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-mono file:bg-[var(--color-text)] file:text-[var(--color-bg)] file:cursor-pointer"
+                    />
+                  </div>
+
+                  {data.profile.ogImageUrl ? (
+                    <div className="mt-2 flex items-center gap-3">
+                      <div className="h-14 w-24 overflow-hidden rounded border border-[var(--color-border)] bg-[var(--color-panel)] shrink-0">
+                        <img
+                          src={data.profile.ogImageUrl}
+                          alt="OpenGraph preview"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <span className="text-xs font-mono text-[var(--color-muted)]">
+                        OpenGraph social preview banner active
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] font-mono text-[var(--color-muted)]">
+                      Default /og.png placeholder active
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

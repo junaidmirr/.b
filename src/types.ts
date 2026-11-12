@@ -5,6 +5,8 @@ export type Project = {
   category: string
   description: string
   icon?: string
+  imageUrl?: string
+  bannerUrl?: string
   stack: string[]
   linkLabel: string
   fullDescription: string
@@ -33,6 +35,8 @@ export type ProfileData = {
   github: string
   linkedin: string
   twitter?: string
+  avatarUrl?: string
+  ogImageUrl?: string
 }
 
 export type EssayComment = {
