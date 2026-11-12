@@ -1,5 +1,28 @@
 [
   {
+    "id": "sess_1794490245288_h1mid",
+    "createdAt": "2026-11-12T13:30:45.288Z",
+    "updatedAt": "2026-11-12T13:30:45.289Z",
+    "summary": "How can I get in touch?",
+    "messageCount": 2,
+    "browser": "Chrome Mobile",
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36",
+    "messages": [
+      {
+        "id": "user-1794490242876",
+        "role": "user",
+        "content": "How can I get in touch?",
+        "timestamp": "2026-11-12T13:30:45.290Z"
+      },
+      {
+        "id": "assistant-1794490242876",
+        "role": "assistant",
+        "content": "You can reach Junaid via email at junaidmeer055@gmail.com, or connect with him on LinkedIn at https://www.linkedin.com/in/junaid-mir-68b87b1b9/. You can also view his active code repositories on GitHub at https://github.com/junaidmirr.",
+        "timestamp": "2026-11-12T13:30:45.290Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1794489201305_qb46e",
     "createdAt": "2026-11-12T13:13:21.305Z",
     "updatedAt": "2026-11-12T13:13:21.308Z",
