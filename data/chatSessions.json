@@ -1,5 +1,28 @@
 [
   {
+    "id": "sess_1794489201305_qb46e",
+    "createdAt": "2026-11-12T13:13:21.305Z",
+    "updatedAt": "2026-11-12T13:13:21.308Z",
+    "summary": "who's junaid mir",
+    "messageCount": 2,
+    "browser": "Chrome Mobile",
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36",
+    "messages": [
+      {
+        "id": "user-1794489198500",
+        "role": "user",
+        "content": "who's junaid mir",
+        "timestamp": "2026-11-12T13:13:21.311Z"
+      },
+      {
+        "id": "assistant-1794489198500",
+        "role": "assistant",
+        "content": "Junaid Mir is a software developer based in Bangalore, India, specializing in building high-performance engineering tools and AI-integrated systems. He focuses on developer experience, document rendering engines, and urban navigation technology. You can reach him at junaidmeer055@gmail.com, explore his code on GitHub at https://github.com/junaidmirr, or view his professional history on LinkedIn at https://www.linkedin.com/in/junaid-mir-68b87b1b9/.",
+        "timestamp": "2026-11-12T13:13:21.311Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1794487274681_zevqv",
     "createdAt": "2026-11-12T12:41:14.681Z",
     "updatedAt": "2026-11-12T13:02:04.759Z",
