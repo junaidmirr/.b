@@ -379,32 +379,25 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
                   <span className="text-[11px] font-mono text-[var(--color-text-subtle)]">
                     {msg.role === 'user' ? 'You' : 'Assistant'}
                   </span>
-                  {msg.role === 'assistant' && msg.toolsCalled && msg.toolsCalled.length > 0 && (
-                    <span className="inline-flex items-center gap-1 font-mono text-[10px] text-[var(--color-accent)]">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
-                      tools: {msg.toolsCalled.map((t) => t.name).join(', ')}
-                    </span>
-                  )}
                 </div>
 
-                {/* Tool Invocations Badge List */}
+                {/* Animated Tool Calling Status (No emoji, clean animated text) */}
                 {msg.role === 'assistant' && msg.toolsCalled && msg.toolsCalled.length > 0 && (
-                  <div className="mb-1.5 flex flex-wrap gap-1 max-w-[95%]">
-                    {msg.toolsCalled.map((t, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center gap-1 rounded-[3px] border border-[var(--color-border)] bg-[var(--color-code-bg)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-text-muted)]"
-                        title={`Tool: ${t.name}${t.query ? `("${t.query}")` : '()'}`}
-                      >
-                        <span className="text-[var(--color-accent)]">⚡</span>
-                        <span>{t.name}</span>
-                        {t.query && (
-                          <span className="text-[var(--color-text-subtle)] truncate max-w-[120px]">
-                            ({t.query})
-                          </span>
-                        )}
-                      </span>
-                    ))}
+                  <div className="mb-2 flex flex-wrap items-center gap-2 font-mono text-[11px] text-[var(--color-accent)]">
+                    {msg.toolsCalled.map((t, idx) => {
+                      const actionText = t.name.startsWith('get_')
+                        ? t.name.replace(/^get_/, 'getting_') + '...'
+                        : t.name + '...'
+                      return (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1.5 opacity-90 animate-pulse"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+                          <span>{actionText}</span>
+                        </span>
+                      )
+                    })}
                   </div>
                 )}
 

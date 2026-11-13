@@ -2,7 +2,52 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-function getPortfolioContext() {
+function unwrapFirestoreValue(val) {
+  if (!val || typeof val !== 'object') return val
+  if ('stringValue' in val) return val.stringValue
+  if ('booleanValue' in val) return val.booleanValue
+  if ('integerValue' in val) return parseInt(val.integerValue, 10)
+  if ('doubleValue' in val) return parseFloat(val.doubleValue)
+  if ('arrayValue' in val) {
+    return (val.arrayValue.values || []).map(unwrapFirestoreValue)
+  }
+  if ('mapValue' in val) {
+    const res = {}
+    const fields = val.mapValue.fields || {}
+    for (const [k, v] of Object.entries(fields)) {
+      res[k] = unwrapFirestoreValue(v)
+    }
+    return res
+  }
+  return val
+}
+
+async function getPortfolioContext() {
+  // 1. Check live Firestore database (real-time updates from Admin Panel)
+  const apiKey = process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY || ''
+  const projectId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || ''
+
+  if (apiKey && projectId) {
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 1600)
+      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/portfolio/content?key=${apiKey}`
+      const response = await fetch(url, { signal: controller.signal })
+      clearTimeout(timeoutId)
+
+      if (response.ok) {
+        const firestoreDoc = await response.json()
+        if (firestoreDoc?.fields) {
+          const docData = unwrapFirestoreValue({ mapValue: { fields: firestoreDoc.fields } })
+          if (docData && typeof docData === 'object' && docData.profile) {
+            return docData
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // 2. Fallback to latest local data files
   const possiblePaths = [
     path.join(path.dirname(fileURLToPath(import.meta.url)), 'portfolioData.json'),
     path.join(process.cwd(), 'api', 'portfolioData.json'),
@@ -292,7 +337,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Message is required.' })
     }
 
-    const portfolio = getPortfolioContext()
+    const portfolio = await getPortfolioContext()
     const executedTools = resolveTools(message, history, portfolio)
 
     // Build tool context for the LLM
