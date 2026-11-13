@@ -1,5 +1,28 @@
 [
   {
+    "id": "sess_1794575840248_af52f",
+    "createdAt": "2026-11-13T13:17:20.248Z",
+    "updatedAt": "2026-11-13T13:17:20.249Z",
+    "summary": "hi",
+    "messageCount": 2,
+    "browser": "Instagram In-App",
+    "userAgent": "Mozilla/5.0 (Linux; Android 12; Pixel 3 Build/SP1A.210812.016.C2; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/157.0.8103.36 Mobile Safari/537.36 Instagram 455.0.0.0.56 Android (31/12",
+    "messages": [
+      {
+        "id": "user-1794575835724",
+        "role": "user",
+        "content": "hi",
+        "timestamp": "2026-11-13T13:17:20.249Z"
+      },
+      {
+        "id": "assistant-1794575835724",
+        "role": "assistant",
+        "content": "Hello! I am Junaid Mir's assistant. I see you are interested in my work. My current flagship project is Layer, an MCP server designed to optimize AI coding agents.\n\nLayer uses Tree-sitter AST navigation to provide agents with surgical context, slashing token overhead by 87 percent in benchmarks. It functions by replacing naive file dumps with precise symbol retrieval, call-graph analysis, and incremental indexing (sub-15ms). It is built with Rust, Tokio, and the Model Context Protocol to ensure high performance and compatibility with tools like Cursor and Claude.\n\nYou can find the project here: https://github.com/junaidmirr/layer\n\nWould you like to know more about the architecture or explore other projects?",
+        "timestamp": "2026-11-13T13:17:20.249Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1794571811830_ztxfb",
     "createdAt": "2026-11-13T12:10:11.830Z",
     "updatedAt": "2026-11-13T12:11:00.518Z",
