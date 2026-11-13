@@ -1,10 +1,13 @@
 {
   "profile": {
-    "name": "Junaid",
-    "role": "Software Engineer",
-    "headline": "Hola!",
-    "bio": "I’m a Computer Engineering student interested in software development and AI, always looking to learn new things and build things that solve real world problems.",
+    "name": "Junaid Mir",
+    "role": "Software Developer",
+    "headline": "I build developer tools and mobile apps: a Rust MCP server for coding agents, a PDF engine in TypeScript, Android in Kotlin.",
+    "heroSubtext": "Computer engineering student in Bangalore. Merged contributor to Tauri.",
+    "bio": "I am a computer engineering student in Bangalore building developer tools and mobile software. My work focuses on systems where efficiency and precision matter: parsing abstract syntax trees to give AI coding agents surgical context without token bloat, designing headless vector engines for PDF 1.7 layout, and engineering native Android applications with Kotlin and Jetpack Compose.\n\nI contribute upstream to developer platforms including Tauri and maintain open source software. I value software that is fast, resilient, and honest about what it does.",
     "location": "Bangalore, India",
+    "focus": "Developer Tools & Native Mobile",
+    "exploring": "AST Parsing & Local Agents",
     "email": "contact@junaidmir.me",
     "github": "https://github.com/junaidmirr",
     "linkedin": "https://www.linkedin.com/in/junaid-mir-68b87b1b9/",
@@ -21,6 +24,28 @@
     "FinTech AI App",
     "Android AI Assistant",
     "Web Media Tool"
+  ],
+  "skills": [
+    {
+      "category": "Languages",
+      "items": "Kotlin, TypeScript, Python, Rust"
+    },
+    {
+      "category": "Mobile",
+      "items": "Jetpack Compose, Android SDK, Coroutines, Flow, Room DB, Foreground Services"
+    },
+    {
+      "category": "Web",
+      "items": "React 19, TypeScript, Tailwind CSS, Vite, HTML5 Canvas, PDF 1.7 Spec"
+    },
+    {
+      "category": "Backend & AI",
+      "items": "Python, FastAPI, Gemini 2.0 SDK, Tree-sitter, Shapely STRtree, REST APIs"
+    },
+    {
+      "category": "Tooling",
+      "items": "Git, Cargo, Android Studio, Model Context Protocol (MCP), Vercel"
+    }
   ],
   "projects": [
     {

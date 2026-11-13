@@ -403,6 +403,31 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     }))
   }
 
+  // Skills helpers
+  const updateSkillCategory = (index: number, field: 'category' | 'items', value: string) => {
+    setData((prev) => {
+      const skills = [...(prev.skills || [])]
+      if (skills[index]) {
+        skills[index] = { ...skills[index], [field]: value }
+      }
+      return { ...prev, skills }
+    })
+  }
+
+  const addSkillCategory = () => {
+    setData((prev) => ({
+      ...prev,
+      skills: [...(prev.skills || []), { category: 'Category', items: 'Skill 1, Skill 2' }],
+    }))
+  }
+
+  const removeSkillCategory = (index: number) => {
+    setData((prev) => ({
+      ...prev,
+      skills: (prev.skills || []).filter((_, i) => i !== index),
+    }))
+  }
+
   // Project Editor Helpers
   const startAddNewProject = () => {
     setActiveProjectDraft({ ...DEFAULT_NEW_PROJECT })
@@ -2508,13 +2533,14 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                    Display Name
+                    Display Name (Navbar, Footer & Page Title)
                   </label>
                   <input
                     type="text"
                     value={data.profile.name}
                     onChange={(e) => updateProfileField('name', e.target.value)}
-                    className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none rounded"
+                    placeholder="e.g. Junaid Mir"
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none rounded font-medium"
                   />
                 </div>
 
@@ -2526,54 +2552,98 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                     type="text"
                     value={data.profile.role}
                     onChange={(e) => updateProfileField('role', e.target.value)}
+                    placeholder="e.g. Software Developer"
                     className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none rounded"
                   />
                 </div>
 
                 <div className="md:col-span-2">
                   <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                    Headline Greeting
+                    Hero Main Statement (Large Display Headline)
                   </label>
                   <input
                     type="text"
                     value={data.profile.headline}
                     onChange={(e) => updateProfileField('headline', e.target.value)}
+                    placeholder="e.g. I build developer tools and mobile apps: a Rust MCP server for coding agents, a PDF engine in TypeScript, Android in Kotlin."
                     className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none rounded"
                   />
                 </div>
 
                 <div className="md:col-span-2">
                   <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                    Bio Summary
+                    Hero Subtext (under Display Headline)
+                  </label>
+                  <input
+                    type="text"
+                    value={data.profile.heroSubtext || ''}
+                    onChange={(e) => updateProfileField('heroSubtext', e.target.value)}
+                    placeholder="e.g. Computer engineering student in Bangalore. Merged contributor to Tauri."
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none rounded"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                    About Section Bio (supports multiple paragraphs separated by an empty line)
                   </label>
                   <textarea
-                    rows={4}
+                    rows={5}
                     value={data.profile.bio}
                     onChange={(e) => updateProfileField('bio', e.target.value)}
+                    placeholder="Describe your engineering focus, philosophy, and background..."
                     className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm text-[var(--color-text)] focus:outline-none rounded leading-relaxed"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                    Location & Timezone
+                    Location (About Fact #1)
                   </label>
                   <input
                     type="text"
                     value={data.profile.location}
                     onChange={(e) => updateProfileField('location', e.target.value)}
+                    placeholder="e.g. Bangalore, India"
                     className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
-                    Contact Email Address
+                    Focus Area (About Fact #2)
+                  </label>
+                  <input
+                    type="text"
+                    value={data.profile.focus || ''}
+                    onChange={(e) => updateProfileField('focus', e.target.value)}
+                    placeholder="e.g. Developer Tools & Native Mobile"
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                    Currently Exploring (About Fact #3)
+                  </label>
+                  <input
+                    type="text"
+                    value={data.profile.exploring || ''}
+                    onChange={(e) => updateProfileField('exploring', e.target.value)}
+                    placeholder="e.g. AST Parsing & Local Agents"
+                    className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                    Contact Email Address (Professional email for visitors & AI assistant)
                   </label>
                   <input
                     type="email"
                     value={data.profile.email}
                     onChange={(e) => updateProfileField('email', e.target.value)}
+                    placeholder="contact@junaidmir.me"
                     className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
                   />
                 </div>
@@ -2586,6 +2656,7 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                     type="text"
                     value={data.profile.github}
                     onChange={(e) => updateProfileField('github', e.target.value)}
+                    placeholder="https://github.com/..."
                     className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
                   />
                 </div>
@@ -2598,6 +2669,7 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                     type="text"
                     value={data.profile.linkedin}
                     onChange={(e) => updateProfileField('linkedin', e.target.value)}
+                    placeholder="https://www.linkedin.com/in/..."
                     className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
                   />
                 </div>
@@ -2742,6 +2814,81 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                       Default /og.png placeholder active
                     </p>
                   )}
+                </div>
+              </div>
+
+              {/* Skills & Technical Competencies Section */}
+              <div className="border border-[var(--color-border)] bg-[var(--color-panel)] p-6 rounded-lg space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--color-border)] pb-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-[var(--color-text)]">
+                      Skills & Technical Competencies
+                    </h3>
+                    <p className="text-xs font-mono text-[var(--color-muted)] mt-1">
+                      Configure the category labels and comma-separated skill items shown in the homepage Skills section.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addSkillCategory}
+                    className="border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs font-mono text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors rounded cursor-pointer"
+                  >
+                    + Add Category
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {(data.skills && data.skills.length > 0
+                    ? data.skills
+                    : [
+                        { category: 'Languages', items: 'Kotlin, TypeScript, Python, Rust' },
+                        { category: 'Mobile', items: 'Jetpack Compose, Android SDK, Coroutines, Flow, Room DB, Foreground Services' },
+                        { category: 'Web', items: 'React 19, TypeScript, Tailwind CSS, Vite, HTML5 Canvas, PDF 1.7 Spec' },
+                        { category: 'Backend & AI', items: 'Python, FastAPI, Gemini 2.0 SDK, Tree-sitter, Shapely STRtree, REST APIs' },
+                        { category: 'Tooling', items: 'Git, Cargo, Android Studio, Model Context Protocol (MCP), Vercel' },
+                      ]
+                  ).map((skill, index) => (
+                    <div
+                      key={index}
+                      className="p-4 border border-[var(--color-border)] bg-[var(--color-bg)] rounded space-y-3"
+                    >
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="w-full sm:w-1/3">
+                          <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                            Category Label
+                          </label>
+                          <input
+                            type="text"
+                            value={skill.category}
+                            onChange={(e) => updateSkillCategory(index, 'category', e.target.value)}
+                            placeholder="e.g. Languages"
+                            className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-1.5 text-xs font-mono text-[var(--color-text)] rounded focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="w-full sm:flex-1">
+                          <label className="block text-xs font-mono text-[var(--color-muted)] mb-1">
+                            Skills List (comma-separated)
+                          </label>
+                          <input
+                            type="text"
+                            value={skill.items}
+                            onChange={(e) => updateSkillCategory(index, 'items', e.target.value)}
+                            placeholder="e.g. Kotlin, TypeScript, Python, Rust"
+                            className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-1.5 text-xs font-mono text-[var(--color-text)] rounded focus:outline-none"
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => removeSkillCategory(index)}
+                          className="text-xs font-mono text-red-500 hover:underline sm:pt-5 cursor-pointer shrink-0"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

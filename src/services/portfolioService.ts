@@ -28,6 +28,7 @@ function sanitizePortfolioData(data: unknown, fallback: PortfolioData): Portfoli
     },
     categories: Array.isArray(d.categories) && d.categories.length > 0 ? d.categories : fallback.categories,
     projects: Array.isArray(d.projects) ? d.projects : fallback.projects,
+    skills: Array.isArray(d.skills) ? d.skills : (fallback.skills || []),
     essays: Array.isArray(d.essays) ? d.essays : (fallback.essays || []),
   }
 }

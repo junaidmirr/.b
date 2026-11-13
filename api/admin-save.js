@@ -49,6 +49,7 @@ export default async function handler(req, res) {
       profile,
       categories: Array.isArray(categories) ? categories : [],
       projects,
+      skills: Array.isArray(body.skills) ? body.skills : [],
       essays: Array.isArray(body.essays) ? body.essays : [],
     }
 

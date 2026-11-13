@@ -236,135 +236,29 @@ export default function App() {
     )
   }
 
-  // Selected work items (strictly 4 centerpiece projects, each appears once on the site)
-  const selectedWork = [
-    {
-      id: 'layer',
-      title: 'Layer',
-      description:
-        'An MCP server that uses Tree-sitter AST navigation to slash token overhead and improve agent accuracy in large codebases.',
-      outcome:
-        'Reduced token consumption by 87% in Ghidra codebase benchmarks; sub-15ms incremental syntax indexing.',
-      tech: 'Rust / Tree-sitter / Model Context Protocol / Tokio / LLVM-IR',
-      links: [
-        { label: 'GitHub', url: 'https://github.com/junaidmirr/layer' },
-      ],
-      todoPlaceholder: {
-        label: 'Screenshot or terminal recording of Layer AST traversal',
-        aspectRatio: '16/9' as const,
-        alt: 'Layer Tree-sitter AST symbol resolution demonstration',
-      },
-    },
-    {
-      id: 'doc-engine',
-      title: 'doc-engine',
-      description:
-        'A high-performance headless document layout and vector rendering engine for React and TypeScript.',
-      outcome:
-        'Emits native vector PDF 1.7 paths and 60 FPS HTML5 Canvas previews with zero headless Chrome or Python daemons; published on npm as @worklabs05/doc-engine.',
-      tech: 'TypeScript / React / PDF 1.7 Spec / HTML5 Canvas / npm package',
-      links: [
-        { label: 'Docs', url: 'https://docengine.worklabs.studio' },
-        { label: 'GitHub', url: 'https://github.com/junaidmirr/doc-engine.git' },
-      ],
-      todoPlaceholder: {
-        label: 'Vector PDF and canvas split-view screenshot',
-        aspectRatio: '16/9' as const,
-        alt: 'doc-engine vector rendering canvas and output comparison',
-      },
-    },
-    {
-      id: 'tauri-cli',
-      title: 'Tauri Core CLI',
-      description:
-        'Official upstream CLI contribution to the Tauri desktop application framework.',
-      outcome:
-        'Merged in Tauri 2.12 (#15634) to enable automatic prompt skipping in non-interactive CI test runners.',
-      tech: 'Rust / Cargo / Tauri CLI / CI Automation',
-      links: [
-        { label: 'Pull Request', url: 'https://github.com/tauri-apps/tauri/pull/15634' },
-        { label: 'Repository', url: 'https://github.com/tauri-apps/tauri' },
-      ],
-      todoPlaceholder: {
-        label: 'Terminal recording or merged pull request badge',
-        aspectRatio: '16/9' as const,
-        alt: 'Tauri Pull Request 15634 merged in official Tauri repository',
-      },
-    },
-    {
-      id: 'coolpath',
-      title: 'CoolPath',
-      description:
-        'Intelligent urban heat-aware route planner combining thermal rasters, thermodynamic physiological modeling, and Gemini 2.0.',
-      outcome:
-        'Sub-millisecond spatial indexing using Shapely STRtree hierarchies; reduced pedestrian solar exposure by 32% in urban heat tests.',
-      tech: 'Python / FastAPI / Shapely STRtree / React Native / Gemini 2.0 / FortyGuard API',
-      links: [
-        { label: 'GitHub', url: 'https://github.com/junaidmirr/coolpath_main' },
-      ],
-      todoPlaceholder: {
-        label: 'Microclimate thermal route map overlay screenshot',
-        aspectRatio: '16/9' as const,
-        alt: 'CoolPath thermal route optimization map interface',
-      },
-    },
-  ]
+  // Dynamically update document title based on portfolio profile name & role
+  useEffect(() => {
+    const name = portfolioData.profile?.name || 'Junaid Mir'
+    const role = portfolioData.profile?.role || 'Software Developer'
+    document.title = `${name} — ${role}`
+  }, [portfolioData.profile?.name, portfolioData.profile?.role])
 
-  // Other work items (compact table list)
-  const otherWork = [
-    {
-      year: '2026',
-      type: 'Web & AI',
-      title: 'ResuMagic',
-      description: 'AI resume builder with PDF generation and photo processing.',
-      url: 'https://resumagic-ai-resume-builder.vercel.app',
-    },
-    {
-      year: '2026',
-      type: 'Android',
-      title: 'Edugate',
-      description: 'Virtual classroom app with Agora RTC video and foreground screen sharing.',
-      url: 'https://github.com/junaidmirr/Edugate-a-smart-classroom-app.git',
-    },
-    {
-      year: '2026',
-      type: 'Android & AI',
-      title: 'AI Credit & Inventory Manager',
-      description: 'Small business inventory tracker with Gemini 2.0 product vision.',
-      url: 'https://github.com/junaidmirr/Ai-integrated-credit-and-inventory-manager-app.git',
-    },
-    {
-      year: '2026',
-      type: 'Android & AI',
-      title: 'On-Screen AI Assistant',
-      description: 'Floating overlay assistant with screen capture and voice interaction.',
-      url: 'https://github.com/junaidmirr/on-screen-Ai-assistant.git',
-    },
-  ]
+  // Centerpiece showcase projects (first 4 projects from live portfolio data)
+  const selectedWork = (portfolioData.projects || []).slice(0, 4)
+  // Remaining projects for Other Work table
+  const otherWork = (portfolioData.projects || []).slice(4)
 
-  // Skills definition list
-  const skillsList = [
-    {
-      category: 'Languages',
-      items: 'Kotlin, TypeScript, Python, Rust',
-    },
-    {
-      category: 'Mobile',
-      items: 'Jetpack Compose, Coroutines & Flow, Android Jetpack & MVVM, Room Database, Foreground Services, CameraX, Agora RTC',
-    },
-    {
-      category: 'Web',
-      items: 'React 19, TypeScript, Tailwind CSS, Vite, HTML5 Canvas',
-    },
-    {
-      category: 'Backend & AI',
-      items: 'FastAPI, Node.js, Model Context Protocol (MCP), Tree-sitter AST, Google Gemini AI SDK, REST APIs',
-    },
-    {
-      category: 'Tooling',
-      items: 'Git & GitHub, Android Studio, Shapely & Spatial Indexing, PDF 1.7 Spec, Vercel',
-    },
+  // Dynamic skills definition list
+  const defaultSkills = [
+    { category: 'Languages', items: 'Kotlin, TypeScript, Python, Rust' },
+    { category: 'Mobile', items: 'Jetpack Compose, Coroutines & Flow, Android Jetpack & MVVM, Room Database, Foreground Services, CameraX, Agora RTC' },
+    { category: 'Web', items: 'React 19, TypeScript, Tailwind CSS, Vite, HTML5 Canvas' },
+    { category: 'Backend & AI', items: 'FastAPI, Node.js, Model Context Protocol (MCP), Tree-sitter AST, Google Gemini AI SDK, REST APIs' },
+    { category: 'Tooling', items: 'Git & GitHub, Android Studio, Shapely & Spatial Indexing, PDF 1.7 Spec, Vercel' },
   ]
+  const skillsList = Array.isArray(portfolioData.skills) && portfolioData.skills.length > 0
+    ? portfolioData.skills
+    : defaultSkills
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] transition-colors duration-180">
@@ -385,7 +279,7 @@ export default function App() {
             href="#"
             className="font-display text-xl font-medium tracking-tight text-[var(--color-text)] hover-accent-link"
           >
-            Junaid Mir
+            {portfolioData.profile.name || 'Junaid Mir'}
           </a>
 
           {/* Links Right + Theme Toggle */}
@@ -482,11 +376,11 @@ export default function App() {
             id="hero-heading"
             className="font-display text-[clamp(2.5rem,5.5vw,4.25rem)] font-medium leading-[1.08] tracking-tight text-[var(--color-text)]"
           >
-            I build developer tools and mobile apps: a Rust MCP server for coding agents, a PDF engine in TypeScript, Android in Kotlin.
+            {portfolioData.profile.headline || 'I build developer tools and mobile apps: a Rust MCP server for coding agents, a PDF engine in TypeScript, Android in Kotlin.'}
           </h1>
 
           <p className="text-base sm:text-lg text-[var(--color-text-muted)] leading-relaxed">
-            Computer engineering student in Bangalore. Merged contributor to Tauri.
+            {portfolioData.profile.heroSubtext || (portfolioData.profile.role ? `${portfolioData.profile.role} in ${portfolioData.profile.location || 'Bangalore'}` : 'Computer engineering student in Bangalore. Merged contributor to Tauri.')}
           </p>
 
           <div className="flex flex-wrap items-center gap-5 pt-2 text-sm font-mono">
@@ -526,22 +420,35 @@ export default function App() {
               Selected Work
             </h2>
             <span className="font-mono text-xs text-[var(--color-text-subtle)]">
-              01 / 04
+              01 / {String(selectedWork.length).padStart(2, '0')}
             </span>
           </div>
 
           <div className="space-y-16 sm:space-y-20">
             {selectedWork.map((project, idx) => {
-              const liveProject = portfolioData.projects.find(
-                (p) =>
-                  p.title.toLowerCase().includes(project.id) ||
-                  (project.id === 'tauri-cli' && p.title.toLowerCase().includes('tauri'))
-              )
-              const projectImage = liveProject?.imageUrl || liveProject?.bannerUrl
+              const projectImage = project.imageUrl || project.bannerUrl
+              const techString = Array.isArray(project.stack) && project.stack.length > 0
+                ? project.stack.join(' / ')
+                : project.category
+              const outcomeText = project.outcome || project.features?.[0] || project.technologies?.[0]?.details || ''
+
+              const projectLinks: Array<{ label: string; url: string }> = []
+              if (project.githubUrl) {
+                projectLinks.push({
+                  label: project.title.toLowerCase().includes('tauri') ? 'Pull Request' : 'GitHub',
+                  url: project.githubUrl,
+                })
+              }
+              if (project.liveUrl && project.liveUrl !== '#') {
+                projectLinks.push({
+                  label: project.title.toLowerCase().includes('doc') ? 'Docs' : 'Live Deployment',
+                  url: project.liveUrl,
+                })
+              }
 
               return (
                 <article
-                  key={project.id}
+                  key={project.title || idx}
                   className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start border-b border-[var(--color-border)] pb-16 sm:pb-20"
                 >
                   {/* Left Column: Details */}
@@ -559,36 +466,40 @@ export default function App() {
                       {project.description}
                     </p>
 
-                    <p className="text-sm text-[var(--color-text-muted)] leading-relaxed">
-                      {project.outcome}
-                    </p>
+                    {outcomeText && (
+                      <p className="text-sm text-[var(--color-text-muted)] leading-relaxed">
+                        {outcomeText}
+                      </p>
+                    )}
 
                     <div className="pt-2 font-mono text-xs text-[var(--color-text-subtle)] leading-relaxed">
-                      {project.tech}
+                      {techString}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-4 pt-3 font-mono text-xs">
-                      {project.links.map((link) => (
-                        <a
-                          key={link.label}
-                          href={link.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="editorial-link"
-                        >
-                          {link.label} [↗]
-                        </a>
-                      ))}
-                    </div>
+                    {projectLinks.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-4 pt-3 font-mono text-xs">
+                        {projectLinks.map((link) => (
+                          <a
+                            key={link.label}
+                            href={link.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="editorial-link"
+                          >
+                            {link.label} [↗]
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Right Column: Visual Slot / Live Image or TODO Asset Placeholder */}
                   <div className="lg:col-span-6">
                     <TodoPlaceholder
                       src={projectImage}
-                      label={project.todoPlaceholder.label}
-                      aspectRatio={project.todoPlaceholder.aspectRatio}
-                      alt={project.todoPlaceholder.alt}
+                      label={`${project.title} screenshot or diagram`}
+                      aspectRatio="16/9"
+                      alt={`${project.title} project showcase`}
                     />
                   </div>
                 </article>
@@ -609,46 +520,63 @@ export default function App() {
           </div>
 
           <div className="divide-y divide-[var(--color-border)] border-b border-[var(--color-border)]">
-            {otherWork.map((item) => (
-              <div
-                key={item.title}
-                className="journal-row group py-4 flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 sm:gap-6"
-              >
-                {/* Year / Type */}
-                <div className="font-mono text-xs text-[var(--color-text-subtle)] w-32 shrink-0">
-                  {item.year} · {item.type}
-                </div>
+            {otherWork.map((item, idx) => {
+              const itemUrl = (item.liveUrl && item.liveUrl !== '#') ? item.liveUrl : item.githubUrl
 
-                {/* Name & One-line Description */}
-                <div className="flex-1 min-w-0">
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="group-hover:text-[var(--color-accent)] transition-colors"
-                  >
-                    <span className="font-medium text-[var(--color-text)] group-hover:text-[var(--color-accent)] mr-2">
-                      {item.title}
-                    </span>
-                    <span className="text-sm text-[var(--color-text-muted)]">
-                      {item.description}
-                    </span>
-                  </a>
-                </div>
+              return (
+                <div
+                  key={item.title || idx}
+                  className="journal-row group py-4 flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 sm:gap-6"
+                >
+                  {/* Year / Type */}
+                  <div className="font-mono text-xs text-[var(--color-text-subtle)] w-36 shrink-0">
+                    2026 · {item.category}
+                  </div>
 
-                {/* Plain Text Link */}
-                <div className="font-mono text-xs shrink-0 sm:text-right">
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="editorial-link"
-                  >
-                    Link [↗]
-                  </a>
+                  {/* Name & One-line Description */}
+                  <div className="flex-1 min-w-0">
+                    {itemUrl ? (
+                      <a
+                        href={itemUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="group-hover:text-[var(--color-accent)] transition-colors"
+                      >
+                        <span className="font-medium text-[var(--color-text)] group-hover:text-[var(--color-accent)] mr-2">
+                          {item.title}
+                        </span>
+                        <span className="text-sm text-[var(--color-text-muted)]">
+                          {item.description}
+                        </span>
+                      </a>
+                    ) : (
+                      <div>
+                        <span className="font-medium text-[var(--color-text)] mr-2">
+                          {item.title}
+                        </span>
+                        <span className="text-sm text-[var(--color-text-muted)]">
+                          {item.description}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Plain Text Link */}
+                  {itemUrl && (
+                    <div className="font-mono text-xs shrink-0 sm:text-right">
+                      <a
+                        href={itemUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="editorial-link"
+                      >
+                        Link [↗]
+                      </a>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </section>
 
@@ -697,12 +625,14 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Bio Prose (Max Width ~720px) */}
             <div className="lg:col-span-8 space-y-5 text-base sm:text-[17px] leading-[1.65] text-[var(--color-text)]">
-              <p>
-                I am a computer engineering student in Bangalore building developer tools and mobile software. My work focuses on systems where efficiency and precision matter: parsing abstract syntax trees to give AI coding agents surgical context without token bloat, designing headless vector engines for PDF 1.7 layout, and engineering native Android applications with Kotlin and Jetpack Compose.
-              </p>
-              <p>
-                I contribute upstream to developer platforms including Tauri and maintain open source software. I value software that is fast, resilient, and honest about what it does.
-              </p>
+              {(portfolioData.profile.bio || 'I am a computer engineering student in Bangalore building developer tools and mobile software.')
+                .split('\n\n')
+                .filter((p) => p.trim().length > 0)
+                .map((paragraph, pIdx) => (
+                  <p key={pIdx}>
+                    {paragraph.trim()}
+                  </p>
+                ))}
 
               {/* 3-Item Facts List */}
               <div className="pt-4 border-t border-[var(--color-border)] grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono text-xs">
@@ -710,19 +640,25 @@ export default function App() {
                   <span className="block text-[var(--color-text-subtle)] mb-1 uppercase tracking-wider">
                     Location
                   </span>
-                  <span className="text-[var(--color-text)]">Bangalore, India</span>
+                  <span className="text-[var(--color-text)]">
+                    {portfolioData.profile.location || 'Bangalore, India'}
+                  </span>
                 </div>
                 <div>
                   <span className="block text-[var(--color-text-subtle)] mb-1 uppercase tracking-wider">
                     Focus
                   </span>
-                  <span className="text-[var(--color-text)]">Developer Tools & Native Mobile</span>
+                  <span className="text-[var(--color-text)]">
+                    {portfolioData.profile.focus || portfolioData.profile.role || 'Developer Tools & Native Mobile'}
+                  </span>
                 </div>
                 <div>
                   <span className="block text-[var(--color-text-subtle)] mb-1 uppercase tracking-wider">
                     Exploring
                   </span>
-                  <span className="text-[var(--color-text)]">AST Parsing & Local Agents</span>
+                  <span className="text-[var(--color-text)]">
+                    {portfolioData.profile.exploring || 'AST Parsing & Local Agents'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -882,7 +818,7 @@ export default function App() {
       {/* 9. Footer: One Muted Line */}
       <footer className="border-t border-[var(--color-border)] py-8 px-6 text-center font-mono text-xs text-[var(--color-text-subtle)]">
         <div className="mx-auto max-w-[1040px] flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span>Junaid Mir · {new Date().getFullYear()}</span>
+          <span>{portfolioData.profile.name || 'Junaid Mir'} · {new Date().getFullYear()}</span>
           <div className="flex items-center gap-4">
             <a href="#" className="hover:text-[var(--color-text)] transition-colors">
               Top [↑]

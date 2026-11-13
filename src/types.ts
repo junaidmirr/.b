@@ -4,6 +4,7 @@ export type Project = {
   title: string
   category: string
   description: string
+  outcome?: string
   icon?: string
   imageUrl?: string
   bannerUrl?: string
@@ -29,8 +30,11 @@ export type ProfileData = {
   name: string
   role: string
   headline: string
+  heroSubtext?: string
   bio: string
   location: string
+  focus?: string
+  exploring?: string
   email: string
   github: string
   linkedin: string
@@ -72,6 +76,7 @@ export type PortfolioData = {
   profile: ProfileData
   categories: string[]
   projects: Project[]
+  skills?: Array<{ category: string; items: string }>
   essays?: Essay[]
 }
 
