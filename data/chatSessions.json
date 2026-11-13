@@ -1,5 +1,28 @@
 [
   {
+    "id": "sess_1794556426459_knbvw",
+    "createdAt": "2026-11-13T07:53:46.459Z",
+    "updatedAt": "2026-11-13T07:53:46.468Z",
+    "summary": "what is openclipper",
+    "messageCount": 2,
+    "browser": "Instagram In-App",
+    "userAgent": "Mozilla/5.0 (Linux; Android 12; Pixel 3 Build/SP1A.210812.016.C2; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/157.0.8103.36 Mobile Safari/537.36 Instagram 455.0.0.0.56 Android (31/12",
+    "messages": [
+      {
+        "id": "user-1794556424072",
+        "role": "user",
+        "content": "what is openclipper",
+        "timestamp": "2026-11-13T07:53:46.470Z"
+      },
+      {
+        "id": "assistant-1794556424072",
+        "role": "assistant",
+        "content": "I am Junaid's portfolio assistant and can only answer questions about Junaid, his engineering projects (such as doc-engine or CoolPath), technical skills, and background. Feel free to ask about any of his projects!",
+        "timestamp": "2026-11-13T07:53:46.470Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1794551109653_czmif",
     "createdAt": "2026-11-13T06:25:09.653Z",
     "updatedAt": "2026-11-13T06:25:09.655Z",
