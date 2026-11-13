@@ -1,5 +1,28 @@
 [
   {
+    "id": "sess_1794581095674_cvw5g",
+    "createdAt": "2026-11-13T14:44:55.674Z",
+    "updatedAt": "2026-11-13T14:44:55.682Z",
+    "summary": "hi",
+    "messageCount": 2,
+    "browser": "Chrome Mobile",
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36",
+    "messages": [
+      {
+        "id": "user-1794581095316",
+        "role": "user",
+        "content": "hi",
+        "timestamp": "2026-11-13T14:44:55.687Z"
+      },
+      {
+        "id": "assistant-1794581095316",
+        "role": "assistant",
+        "content": "Hello! I am Junaid Mir's portfolio AI assistant. How can I help you explore his software projects, technical essays, or engineering background?",
+        "timestamp": "2026-11-13T14:44:55.687Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1794577363711_4g9bx",
     "createdAt": "2026-11-13T13:42:43.711Z",
     "updatedAt": "2026-11-13T13:43:45.120Z",
