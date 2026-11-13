@@ -1,5 +1,28 @@
 [
   {
+    "id": "sess_1794600708444_fc7p2",
+    "createdAt": "2026-11-13T20:11:48.444Z",
+    "updatedAt": "2026-11-13T20:11:48.449Z",
+    "summary": "how to setup doc engine",
+    "messageCount": 2,
+    "browser": "Chrome Mobile",
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36",
+    "messages": [
+      {
+        "id": "user-1794600704080",
+        "role": "user",
+        "content": "how to setup doc engine",
+        "timestamp": "2026-11-13T20:11:48.451Z"
+      },
+      {
+        "id": "assistant-1794600704080",
+        "role": "assistant",
+        "content": "To set up Junaid's doc-engine, install the package via npm using @worklabs05/doc-engine. Because the engine is built for React and TypeScript, Junaid designed it to be used directly within your component tree. \n\nYou can initialize it by importing the Document and Page components or by utilizing his custom hooks like usePDF for state management. It renders everything client-side by emitting native PDF 1.7 operators and utilizing a 60 FPS HTML5 Canvas for real-time previews, bypassing the need for headless browsers or external server daemons. You can find the full repository and implementation examples on his GitHub at junaidmirr/doc-engine.",
+        "timestamp": "2026-11-13T20:11:48.451Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1794586986426_u142h",
     "createdAt": "2026-11-13T16:23:06.426Z",
     "updatedAt": "2026-11-13T16:24:07.927Z",
