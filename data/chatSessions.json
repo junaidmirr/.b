@@ -2,9 +2,9 @@
   {
     "id": "sess_1794600708444_fc7p2",
     "createdAt": "2026-11-13T20:11:48.444Z",
-    "updatedAt": "2026-11-13T20:11:48.449Z",
+    "updatedAt": "2026-11-13T20:12:29.982Z",
     "summary": "how to setup doc engine",
-    "messageCount": 2,
+    "messageCount": 4,
     "browser": "Chrome Mobile",
     "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36",
     "messages": [
@@ -12,13 +12,25 @@
         "id": "user-1794600704080",
         "role": "user",
         "content": "how to setup doc engine",
-        "timestamp": "2026-11-13T20:11:48.451Z"
+        "timestamp": "2026-11-13T20:12:29.984Z"
       },
       {
         "id": "assistant-1794600704080",
         "role": "assistant",
         "content": "To set up Junaid's doc-engine, install the package via npm using @worklabs05/doc-engine. Because the engine is built for React and TypeScript, Junaid designed it to be used directly within your component tree. \n\nYou can initialize it by importing the Document and Page components or by utilizing his custom hooks like usePDF for state management. It renders everything client-side by emitting native PDF 1.7 operators and utilizing a 60 FPS HTML5 Canvas for real-time previews, bypassing the need for headless browsers or external server daemons. You can find the full repository and implementation examples on his GitHub at junaidmirr/doc-engine.",
-        "timestamp": "2026-11-13T20:11:48.451Z"
+        "timestamp": "2026-11-13T20:12:29.984Z"
+      },
+      {
+        "id": "user-1794600745350",
+        "role": "user",
+        "content": "what about openclipper how to use it",
+        "timestamp": "2026-11-13T20:12:29.984Z"
+      },
+      {
+        "id": "assistant-1794600745350",
+        "role": "assistant",
+        "content": "OpenClipper is Junaid’s vision for a universal, cross-platform clipboard manager that moves beyond the limitations of single-item system clipboards. It functions by capturing multiple entries automatically and assigning each a unique identifier, allowing for instantaneous retrieval via global keyboard shortcuts like Cmd+Shift+1.\n\nBy decoupling the act of copying from the immediate need to paste, the tool minimizes window switching and streamlines data collection across Windows, macOS, Linux, and Android. Junaid designed this to solve the fragmented state of current clipboard history managers by prioritizing a unified, high-speed experience that treats clipboard data as a persistent, indexed library rather than a transient buffer.",
+        "timestamp": "2026-11-13T20:12:29.984Z"
       }
     ]
   },
