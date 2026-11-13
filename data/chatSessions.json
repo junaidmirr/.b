@@ -1,5 +1,28 @@
 [
   {
+    "id": "sess_1794586986426_u142h",
+    "createdAt": "2026-11-13T16:23:06.426Z",
+    "updatedAt": "2026-11-13T16:23:06.430Z",
+    "summary": "what's openclipper",
+    "messageCount": 2,
+    "browser": "Chrome Mobile",
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36",
+    "messages": [
+      {
+        "id": "user-1794586981623",
+        "role": "user",
+        "content": "what's openclipper",
+        "timestamp": "2026-11-13T16:23:06.432Z"
+      },
+      {
+        "id": "assistant-1794586981623",
+        "role": "assistant",
+        "content": "OpenClipper is Junaid's cross-platform clipboard manager designed to overcome the single-item limitation of traditional clipboards. By automatically capturing multiple entries and assigning each a unique identifier, it allows users to retrieve specific clippings instantly via keyboard shortcuts rather than relying on manual switching. His vision centers on a unified, high-speed experience that functions consistently across Windows, macOS, Linux, and Android. The project aims to eliminate the friction of repetitive copy-paste workflows by enabling users to collect, retain, and access data across environments without returning to original sources.",
+        "timestamp": "2026-11-13T16:23:06.432Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1794581866129_jv6ni",
     "createdAt": "2026-11-13T14:57:46.130Z",
     "updatedAt": "2026-11-13T14:59:50.507Z",
