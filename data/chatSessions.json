@@ -2,35 +2,23 @@
   {
     "id": "sess_1794566126818_9sol8",
     "createdAt": "2026-11-13T10:35:26.818Z",
-    "updatedAt": "2026-11-13T10:35:34.394Z",
+    "updatedAt": "2026-11-13T10:42:42.181Z",
     "summary": "what's openclipper?",
-    "messageCount": 4,
+    "messageCount": 2,
     "browser": "Chrome Mobile",
     "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36",
     "messages": [
       {
-        "id": "user-1794566126008",
+        "id": "user-1794566558607",
         "role": "user",
         "content": "what's openclipper?",
-        "timestamp": "2026-11-13T10:35:34.394Z"
+        "timestamp": "2026-11-13T10:42:42.182Z"
       },
       {
-        "id": "assistant-1794566126008",
+        "id": "assistant-1794566558607",
         "role": "assistant",
-        "content": "I'm currently unable to reply: Server returned status 500",
-        "timestamp": "2026-11-13T10:35:34.394Z"
-      },
-      {
-        "id": "user-1794566133876",
-        "role": "user",
-        "content": "what's openclipper?",
-        "timestamp": "2026-11-13T10:35:34.394Z"
-      },
-      {
-        "id": "assistant-1794566133876",
-        "role": "assistant",
-        "content": "I'm currently unable to reply: Server returned status 500",
-        "timestamp": "2026-11-13T10:35:34.394Z"
+        "content": "OpenClipper is a universal, cross-platform clipboard manager designed to eliminate the one-item limitation of traditional clipboards. Instead of replacing your previous copy, it captures multiple entries and assigns each a unique number. This allows you to collect multiple items (text, code, links) and instantly retrieve any of them using simple keyboard shortcuts like Ctrl+Shift+1 or Cmd+Shift+1 across Windows, macOS, Linux, and Android. The goal is to make information transfer seamless and effortless by removing the need to constantly switch windows or revisit original sources. Junaid intends to combine the best features of existing tools with a focus on speed, simplicity, and cross-platform consistency.",
+        "timestamp": "2026-11-13T10:42:42.182Z"
       }
     ]
   },
