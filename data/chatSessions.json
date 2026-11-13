@@ -1,5 +1,28 @@
 [
   {
+    "id": "sess_1794571811830_ztxfb",
+    "createdAt": "2026-11-13T12:10:11.830Z",
+    "updatedAt": "2026-11-13T12:10:11.830Z",
+    "summary": "what tooling do junaid specialize in?",
+    "messageCount": 2,
+    "browser": "Firefox",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:159.0) Gecko/20100101 Firefox/159.0",
+    "messages": [
+      {
+        "id": "user-1794571807252",
+        "role": "user",
+        "content": "what tooling do junaid specialize in?",
+        "timestamp": "2026-11-13T12:10:11.831Z"
+      },
+      {
+        "id": "assistant-1794571807252",
+        "role": "assistant",
+        "content": "Junaid specializes in systems programming, developer tools, and native mobile development. His core toolset includes:\n\nRust and Tree-sitter: Used for building high-performance developer tools like Layer, an MCP server that optimizes AI coding agents by performing surgical AST-based symbol retrieval instead of bulk file dumps. This reduces token consumption by up to 87 percent.\n\nTypeScript and PDF Engineering: Developed doc-engine, a headless vector rendering library that emits native PDF 1.7 streams and 60 FPS HTML5 previews without relying on heavy browser dependencies.\n\nKotlin and Android: Specializes in building native applications using Jetpack Compose, Coroutines, and modern Android SDK patterns.\n\nHe also maintains open-source contributions to the Tauri ecosystem.",
+        "timestamp": "2026-11-13T12:10:11.831Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1794566126818_9sol8",
     "createdAt": "2026-11-13T10:35:26.818Z",
     "updatedAt": "2026-11-13T10:42:42.181Z",
