@@ -2,10 +2,16 @@ import { useState, useRef, useEffect, type FormEvent } from 'react'
 import { saveChatSession } from '../services/chatLogService'
 import type { ChatSession } from '../types'
 
+type ToolCallInfo = {
+  name: string
+  query?: string
+}
+
 type Message = {
   id: string
   role: 'user' | 'assistant'
   content: string
+  toolsCalled?: ToolCallInfo[]
 }
 
 type AiAssistantProps = {
@@ -16,7 +22,7 @@ const SUGGESTED_PROMPTS = [
   'Tell me about doc-engine',
   'How does Layer AST parsing work?',
   'What did Junaid contribute to Tauri?',
-  'What is your Android stack?',
+  'What is the OpenClipper essay about?',
   'How can I get in touch?',
 ]
 
@@ -165,6 +171,7 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
     setIsStreaming(true)
 
     let finalReply = ''
+    const toolsExecuted: ToolCallInfo[] = []
 
     try {
       const response = await fetch('/api/chat', {
@@ -209,7 +216,16 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
 
           try {
             const parsed = JSON.parse(raw)
-            if (parsed.text) {
+            if (parsed.tool_call) {
+              toolsExecuted.push(parsed.tool_call)
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === assistantMsgId
+                    ? { ...msg, toolsCalled: [...toolsExecuted] }
+                    : msg
+                )
+              )
+            } else if (parsed.text) {
               finalReply += parsed.text
               setMessages((prev) =>
                 prev.map((msg) =>
@@ -240,7 +256,12 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
       const finalTurnMessages = [
         ...messages,
         userMessage,
-        { id: assistantMsgId, role: 'assistant' as const, content: finalReply },
+        {
+          id: assistantMsgId,
+          role: 'assistant' as const,
+          content: finalReply,
+          toolsCalled: toolsExecuted.length > 0 ? toolsExecuted : undefined,
+        },
       ]
       persistSession(finalTurnMessages)
     }
@@ -354,9 +375,39 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
                   msg.role === 'user' ? 'items-end' : 'items-start'
                 }`}
               >
-                <span className="mb-1 text-[11px] font-mono text-[var(--color-text-subtle)]">
-                  {msg.role === 'user' ? 'You' : 'Assistant'}
-                </span>
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="text-[11px] font-mono text-[var(--color-text-subtle)]">
+                    {msg.role === 'user' ? 'You' : 'Assistant'}
+                  </span>
+                  {msg.role === 'assistant' && msg.toolsCalled && msg.toolsCalled.length > 0 && (
+                    <span className="inline-flex items-center gap-1 font-mono text-[10px] text-[var(--color-accent)]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+                      tools: {msg.toolsCalled.map((t) => t.name).join(', ')}
+                    </span>
+                  )}
+                </div>
+
+                {/* Tool Invocations Badge List */}
+                {msg.role === 'assistant' && msg.toolsCalled && msg.toolsCalled.length > 0 && (
+                  <div className="mb-1.5 flex flex-wrap gap-1 max-w-[95%]">
+                    {msg.toolsCalled.map((t, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 rounded-[3px] border border-[var(--color-border)] bg-[var(--color-code-bg)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-text-muted)]"
+                        title={`Tool: ${t.name}${t.query ? `("${t.query}")` : '()'}`}
+                      >
+                        <span className="text-[var(--color-accent)]">⚡</span>
+                        <span>{t.name}</span>
+                        {t.query && (
+                          <span className="text-[var(--color-text-subtle)] truncate max-w-[120px]">
+                            ({t.query})
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 <div
                   className={`p-3 max-w-[90%] whitespace-pre-wrap text-sm leading-relaxed ${
                     msg.role === 'user'
@@ -367,7 +418,7 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
                   {msg.content}
                   {msg.role === 'assistant' && isStreaming && msg.content.length === 0 && (
                     <span className="font-mono text-xs text-[var(--color-accent)] animate-pulse">
-                      Generating answer...
+                      Invoking tools & generating answer...
                     </span>
                   )}
                 </div>

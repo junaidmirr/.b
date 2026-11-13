@@ -6,7 +6,7 @@ import { EssaysSection } from './components/EssaysSection'
 import { TodoPlaceholder } from './components/TodoPlaceholder'
 import { TurnstileCaptcha } from './components/TurnstileCaptcha'
 import { AiAssistant } from './components/AiAssistant'
-import { ThemeSpinner } from './components/ThemeSpinner'
+import { SettingsModal } from './components/SettingsModal'
 import type { Theme, PortfolioData } from './types'
 
 const AdminPage = lazy(() =>
@@ -84,6 +84,7 @@ export default function App() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [copiedEmail, setCopiedEmail] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   // Contact form state
   const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY
@@ -305,8 +306,44 @@ export default function App() {
               </a>
             </nav>
 
-            {/* Interactive Theme Spinner (Static position, smooth rotary/tumbler animation) */}
-            <ThemeSpinner theme={theme} onChangeTheme={setTheme} />
+            {/* Settings Icon & Card Popover */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen((prev) => !prev)}
+                aria-label="Open settings and preferences"
+                aria-expanded={isSettingsOpen}
+                title="Settings (Theme, Cookies, App Info)"
+                className="relative flex h-8 w-8 items-center justify-center rounded-[5px] border border-[var(--color-border)] bg-[var(--color-surface)]/80 text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] cursor-pointer transition-colors"
+              >
+                <svg
+                  className="h-4 w-4 transition-transform duration-300 hover:rotate-45"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+              </button>
+
+              <SettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                theme={theme}
+                onChangeTheme={setTheme}
+              />
+            </div>
 
             {/* Mobile Hamburger Text Toggle */}
             <button
@@ -360,8 +397,17 @@ export default function App() {
                 Contact
               </a>
               <div className="pt-2 border-t border-[var(--color-border)] flex items-center justify-between">
-                <span className="font-mono text-xs text-[var(--color-text-subtle)]">Theme</span>
-                <ThemeSpinner theme={theme} onChangeTheme={setTheme} />
+                <span className="font-mono text-xs text-[var(--color-text-subtle)]">Preferences</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSettingsOpen(true)
+                    setMobileMenuOpen(false)
+                  }}
+                  className="font-mono text-xs text-[var(--color-accent)] hover:underline cursor-pointer"
+                >
+                  Settings (v2.0) ↗
+                </button>
               </div>
             </nav>
           </div>
