@@ -1,5 +1,28 @@
 [
   {
+    "id": "sess_1794563044315_x6zdi",
+    "createdAt": "2026-11-13T09:44:04.315Z",
+    "updatedAt": "2026-11-13T09:44:04.319Z",
+    "summary": "what's openclipper",
+    "messageCount": 2,
+    "browser": "Chrome Mobile",
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36",
+    "messages": [
+      {
+        "id": "user-1794563042159",
+        "role": "user",
+        "content": "what's openclipper",
+        "timestamp": "2026-11-13T09:44:04.323Z"
+      },
+      {
+        "id": "assistant-1794563042159",
+        "role": "assistant",
+        "content": "OpenClipper is a universal, cross-platform clipboard manager designed to fix the one-item limitation of traditional clipboards. Instead of overwriting your previous copy, it captures multiple entries and assigns each a unique number. You can instantly retrieve any copied item using keyboard shortcuts (like Ctrl/Cmd + Shift + N) without navigating back to the source. It aims to unify the clipboard experience across Windows, macOS, Linux, and Android, making data collection and pasting seamless and efficient.",
+        "timestamp": "2026-11-13T09:44:04.323Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1794556426459_knbvw",
     "createdAt": "2026-11-13T07:53:46.459Z",
     "updatedAt": "2026-11-13T07:53:46.468Z",
