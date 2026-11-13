@@ -390,7 +390,6 @@ Assistant:`
       )
       await new Promise((resolve) => setTimeout(resolve, 140))
     }
-    }
 
     // Call upstream AI service securely
     const upstreamUrl = process.env.SWIRL_API_URL || 'https://swirls.chat/api/ask'
