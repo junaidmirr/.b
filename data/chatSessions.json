@@ -1,5 +1,28 @@
 [
   {
+    "id": "sess_1794566126818_9sol8",
+    "createdAt": "2026-11-13T10:35:26.818Z",
+    "updatedAt": "2026-11-13T10:35:26.818Z",
+    "summary": "what's openclipper?",
+    "messageCount": 2,
+    "browser": "Chrome Mobile",
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36",
+    "messages": [
+      {
+        "id": "user-1794566126008",
+        "role": "user",
+        "content": "what's openclipper?",
+        "timestamp": "2026-11-13T10:35:26.819Z"
+      },
+      {
+        "id": "assistant-1794566126008",
+        "role": "assistant",
+        "content": "I'm currently unable to reply: Server returned status 500",
+        "timestamp": "2026-11-13T10:35:26.819Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1794565236535_5sbsg",
     "createdAt": "2026-11-13T10:20:36.535Z",
     "updatedAt": "2026-11-13T10:20:36.546Z",
