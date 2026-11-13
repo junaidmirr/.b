@@ -4,10 +4,10 @@
     "role": "Software Engineer",
     "headline": "Software developer building apps, systems and open source.",
     "heroSubtext": "Computer engineering student in Bangalore. I’ve shipped Android apps, AI products and open source, including a merged contribution to Tauri and a PDF engine on npm.",
-    "bio": "I’m a Computer Engineering student interested in software development and AI, always looking to learn new things and build things that solve real world problems.",
+    "bio": "I’m a computer engineering student in Bangalore who learns by building things and shipping them.\n\nOn Android I work in Kotlin and Jetpack Compose. I’ve built a video-conferencing classroom app with screen sharing and offline storage, and AI assistants powered by Gemini. On the web I use TypeScript, React and Python, with small, simple backends.\n\nI also write open source. doc-engine, which I published on npm, turns React components into searchable vector PDFs without a headless browser. I fixed tauri init so it no longer hangs in CI, and that change was merged into Tauri 2.12. Layer, a Rust MCP server, helps AI coding agents work through large codebases without wasting context. Recently I built CoolPath, a route planner that steers walkers away from the hottest streets.\n\nI care more about clarity and speed than clever architecture. I like problems where I have to read unfamiliar code, find out what’s actually wrong and fix it. I’m exploring AI agent tooling and looking for an internship or software role where I can build things people actually use.",
     "location": "Bangalore, India",
-    "focus": "Developer Tools & Native Mobile",
-    "exploring": "AST Parsing & Local Agents",
+    "focus": "AI-powered apps and Open Source",
+    "exploring": "AI agents and developer tooling",
     "email": "contact@junaidmir.me",
     "github": "https://github.com/junaidmirr",
     "linkedin": "https://www.linkedin.com/in/junaid-mir-68b87b1b9/",
@@ -374,23 +374,23 @@
   "skills": [
     {
       "category": "Languages",
-      "items": "Kotlin, TypeScript, Python, Rust"
+      "items": "Java/Kotlin, C++, TypeScript, Python, Rust"
     },
     {
       "category": "Mobile",
-      "items": "Jetpack Compose, Android SDK, Coroutines, Flow, Room DB, Foreground Services"
+      "items": "Jetpack Compose, Android SDK, Coroutines, Flow, Room DB, React Native"
     },
     {
       "category": "Web",
-      "items": "React 19, TypeScript, Tailwind CSS, Vite, HTML5 Canvas, PDF 1.7 Spec"
+      "items": "Next Js, React 19, TypeScript, Tailwind CSS, Vite, HTML5 Canvas, Express Js"
     },
     {
       "category": "Backend & AI",
-      "items": "Python, FastAPI, Gemini 2.0 SDK, Tree-sitter, Shapely STRtree, REST APIs"
+      "items": "Python, FastAPI, Gemini 2.0 SDK, Tree-sitter, Shapely STRtree, REST APIs, DB Systems, Cloud run, Serverless, Firebase, Langchain, RAG, MCP"
     },
     {
       "category": "Tooling",
-      "items": "Git, Cargo, Android Studio, Model Context Protocol (MCP), Vercel"
+      "items": "Git, Cargo, Android Studio, Model Context Protocol (MCP), Vercel, Supabase"
     }
   ],
   "essays": [
