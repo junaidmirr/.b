@@ -6,6 +6,7 @@ import { EssaysSection } from './components/EssaysSection'
 import { TodoPlaceholder } from './components/TodoPlaceholder'
 import { TurnstileCaptcha } from './components/TurnstileCaptcha'
 import { AiAssistant } from './components/AiAssistant'
+import { ThemeSpinner } from './components/ThemeSpinner'
 import type { Theme, PortfolioData } from './types'
 
 const AdminPage = lazy(() =>
@@ -59,10 +60,12 @@ function resolveCurrentRoute(): RouteState {
   return { type: 'error', code: 404, path: rawPath }
 }
 
+const VALID_THEMES: Theme[] = ['light', 'vanilla', 'rose', 'butterscotch', 'dark']
+
 function getInitialTheme(): Theme {
   if (typeof window === 'undefined') return 'light'
-  const stored = window.localStorage.getItem('theme')
-  if (stored === 'light' || stored === 'dark') return stored
+  const stored = window.localStorage.getItem('theme') as Theme | null
+  if (stored && VALID_THEMES.includes(stored)) return stored
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
@@ -221,8 +224,8 @@ export default function App() {
         <ErrorPage
           code={route.code}
           requestedPath={route.path}
-          theme={theme}
-          onToggleTheme={() => setTheme((curr) => (curr === 'light' ? 'dark' : 'light'))}
+          theme={theme === 'dark' ? 'dark' : 'light'}
+          onToggleTheme={() => setTheme((curr) => (curr === 'dark' ? 'light' : 'dark'))}
           onNavigateHome={() => {
             window.history.pushState(null, '', '/')
             setRoute({ type: 'home' })
@@ -282,8 +285,8 @@ export default function App() {
             {portfolioData.profile.name || 'Junaid Mir'}
           </a>
 
-          {/* Links Right + Theme Toggle */}
-          <div className="flex items-center gap-6">
+          {/* Links Right + Theme Spinner */}
+          <div className="flex items-center gap-3 sm:gap-6">
             <nav aria-label="Main Navigation" className="hidden sm:flex items-center gap-6 text-sm">
               <a href="#work" className="text-[var(--color-text-muted)] hover-accent-link">
                 Work
@@ -302,15 +305,8 @@ export default function App() {
               </a>
             </nav>
 
-            {/* Theme Toggle (minimal pill toggle) */}
-            <button
-              type="button"
-              onClick={() => setTheme((curr) => (curr === 'light' ? 'dark' : 'light'))}
-              aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-              className="font-mono text-xs rounded-full border border-[var(--color-border)] px-2.5 py-1 text-[var(--color-text-subtle)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] cursor-pointer transition-colors"
-            >
-              {theme === 'light' ? 'Dark' : 'Light'}
-            </button>
+            {/* Interactive Theme Spinner (Static position, smooth rotary/tumbler animation) */}
+            <ThemeSpinner theme={theme} onChangeTheme={setTheme} />
 
             {/* Mobile Hamburger Text Toggle */}
             <button
@@ -363,6 +359,10 @@ export default function App() {
               >
                 Contact
               </a>
+              <div className="pt-2 border-t border-[var(--color-border)] flex items-center justify-between">
+                <span className="font-mono text-xs text-[var(--color-text-subtle)]">Theme</span>
+                <ThemeSpinner theme={theme} onChangeTheme={setTheme} />
+              </div>
             </nav>
           </div>
         )}
@@ -779,7 +779,7 @@ export default function App() {
                   <TurnstileCaptcha
                     open={true}
                     siteKey={turnstileSiteKey}
-                    theme={theme}
+                    theme={theme === 'dark' ? 'dark' : 'light'}
                     onVerify={(token) => {
                       setCaptchaToken(token)
                       setCaptchaError('')

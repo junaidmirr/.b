@@ -2,12 +2,13 @@
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
 
-:root {
+:root,
+:root[data-theme='light'] {
   --font-display: "Newsreader", Georgia, Cambria, "Times New Roman", serif;
   --font-body: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
 
-  /* Editorial Warm Off-White Palette */
+  /* Editorial Warm Off-White / Paper */
   --color-bg: #FAF9F6;
   --color-surface: #FFFFFF;
   --color-text: #161616;
@@ -25,6 +26,64 @@
   color-scheme: light;
 }
 
+/* Vanilla Theme (Warm Parchment & Cream) */
+:root[data-theme='vanilla'] {
+  --color-bg: #F7F3EA;
+  --color-surface: #FFFDF9;
+  --color-text: #201C16;
+  --color-text-muted: #5E5549;
+  --color-text-subtle: #7C7162;
+  --color-border: #E6DFD1;
+  --color-border-hover: #CFC5B2;
+  --color-accent: #B3591A;
+  --color-accent-hover: #944610;
+  --color-code-bg: #EEE8DB;
+  --color-row-hover: rgba(179, 89, 26, 0.05);
+  --color-selection: #B3591A;
+  --color-selection-text: #FFFDF9;
+
+  color-scheme: light;
+}
+
+/* Rose Theme (Muted Editorial Rose & Crimson) */
+:root[data-theme='rose'] {
+  --color-bg: #F9F4F4;
+  --color-surface: #FFFBFB;
+  --color-text: #221719;
+  --color-text-muted: #644F54;
+  --color-text-subtle: #826B70;
+  --color-border: #E9DEE0;
+  --color-border-hover: #D3C3C6;
+  --color-accent: #B4374E;
+  --color-accent-hover: #94273C;
+  --color-code-bg: #F1E6E8;
+  --color-row-hover: rgba(180, 55, 78, 0.05);
+  --color-selection: #B4374E;
+  --color-selection-text: #FFFFFF;
+
+  color-scheme: light;
+}
+
+/* Butterscotch Theme (Warm Honey Oat & Amber) */
+:root[data-theme='butterscotch'] {
+  --color-bg: #F6F1E5;
+  --color-surface: #FCFAF4;
+  --color-text: #241C12;
+  --color-text-muted: #66533B;
+  --color-text-subtle: #826D53;
+  --color-border: #E5DBC7;
+  --color-border-hover: #CEBF9F;
+  --color-accent: #AA6512;
+  --color-accent-hover: #894F0A;
+  --color-code-bg: #ECE3D0;
+  --color-row-hover: rgba(170, 101, 18, 0.05);
+  --color-selection: #AA6512;
+  --color-selection-text: #FFFFFF;
+
+  color-scheme: light;
+}
+
+/* Dark Theme (Obsidian Ink & Amber) */
 :root[data-theme='dark'] {
   --color-bg: #0E0E0F;
   --color-surface: #141416;
@@ -190,4 +249,35 @@ button {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Theme Spinner Tumbler Animations */
+@keyframes tumblerRollDown {
+  0% {
+    opacity: 0;
+    transform: translateY(70%) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tumblerRollUp {
+  0% {
+    opacity: 0;
+    transform: translateY(-70%) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-tumbler-down {
+  animation: tumblerRollDown 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-tumbler-up {
+  animation: tumblerRollUp 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
