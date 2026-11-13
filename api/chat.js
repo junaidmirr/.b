@@ -149,7 +149,20 @@ function classifyGuardrailIntent(message) {
     }
   }
 
-  // 5. Generic Coding & Off-Topic Task Blockers (Block if NO portfolio context is mentioned)
+  // 5. Contact & Reach Out Inquiries
+  const isDirectContactInquiry =
+    /^(how\s*(can|do)\s*i\s*(contact|reach|email|hire)|what\s*is\s*(his|junaid's|the)?\s*email|how\s*to\s*(contact|reach|email|hire)|contact\s*(info|details)?|get\s*in\s*touch)/.test(
+      stripped
+    ) && !/project|layer|doc|essay|article|code/.test(stripped)
+  if (isDirectContactInquiry) {
+    return {
+      type: 'direct',
+      response:
+        "You can reach Junaid directly via his professional email at **contact@junaidmir.me**. You can also connect with him on [GitHub](https://github.com/junaidmirr) or [LinkedIn](https://www.linkedin.com/in/junaid-mir-68b87b1b9/).",
+    }
+  }
+
+  // 6. Generic Coding & Off-Topic Task Blockers (Block if NO portfolio context is mentioned)
   const portfolioKeywords = [
     'junaid',
     'mir',
@@ -374,12 +387,20 @@ function resolveTools(message, history, portfolio) {
   const combined = `${historyText} ${q}`
 
   const toolInvocations = []
+  const essays = portfolio?.essays || []
+  const projects = portfolio?.projects || []
 
-  // Check for essay queries
+  // Check for essay queries (including OpenClipper, AST slicing, Thermal routing, PDF parsing)
   const isEssayQuery =
-    /essay|article|post|write|writing|read|openclipper|grep|thermal|coolpath|pdf|postscript|ast slicing|landsat|shapely/.test(
+    /essay|article|post|write|writing|read|open\s*clipper|clipper|clipboard|grep|thermal|cool\s*path|coolpath|pdf|postscript|ast slicing|landsat|shapely/.test(
       combined
-    )
+    ) ||
+    essays.some((e) => {
+      const title = (e.title || '').toLowerCase()
+      const slug = (e.slug || '').toLowerCase()
+      return combined.includes(title) || combined.includes(slug)
+    })
+
   if (isEssayQuery) {
     toolInvocations.push({
       tool: TOOLS.get_essay_content,
@@ -393,9 +414,14 @@ function resolveTools(message, history, portfolio) {
 
   // Check for specific project queries
   const isProjectQuery =
-    /layer|doc-engine|doc engine|tauri|coolpath|resumagic|edugate|credit|inventory|mcp|parser|android app|what projects|your projects|list projects/.test(
+    /layer|doc-engine|doc\s*engine|tauri|cool\s*path|coolpath|resumagic|edugate|credit|inventory|mcp|parser|android|app|project|portfolio|built|software/.test(
       combined
-    )
+    ) ||
+    projects.some((p) => {
+      const title = (p.title || '').toLowerCase()
+      return combined.includes(title)
+    })
+
   if (isProjectQuery) {
     toolInvocations.push({
       tool: TOOLS.get_project_details,
@@ -415,24 +441,29 @@ function resolveTools(message, history, portfolio) {
     })
   }
 
-  // Check for profile / contact queries
+  // Check for profile / biography / general overview queries
   const isProfileQuery =
     /who|about|junaid|contact|email|reach|hire|location|bangalore|experience|background|education|college|student|social|linkedin|github/.test(
       combined
     )
-  if (isProfileQuery) {
+  if (isProfileQuery || toolInvocations.length === 0) {
     toolInvocations.unshift({
       tool: TOOLS.get_profile,
       query: '',
     })
-  }
-
-  // Default fallback if no specific tool matched yet
-  if (toolInvocations.length === 0) {
-    toolInvocations.push({
-      tool: TOOLS.get_profile,
-      query: '',
-    })
+    // For broad biographical queries, also include project and essay lists for full context
+    if (!toolInvocations.some((t) => t.tool.name === 'list_projects')) {
+      toolInvocations.push({
+        tool: TOOLS.list_projects,
+        query: '',
+      })
+    }
+    if (!toolInvocations.some((t) => t.tool.name === 'list_essays')) {
+      toolInvocations.push({
+        tool: TOOLS.list_essays,
+        query: '',
+      })
+    }
   }
 
   // Execute each tool and collect results
@@ -505,15 +536,34 @@ export default async function handler(req, res) {
         '\n'
     }
 
-    const prompt = `You are Junaid Mir's personal portfolio AI assistant on junaidmir.me.
+    const prompt = `You are the personal AI Assistant for Junaid Mir's engineering portfolio (junaidmir.me).
 
-[STRICT IDENTITY & SCOPE DIRECTIVES]
-1. YOU ARE ONLY JUNAID MIR'S PORTFOLIO ASSISTANT. NEVER mention, identify as, or claim to be "Swirl", "OpenAI", "ChatGPT", "Claude", "Gemini", or any other product or company. If asked about your identity, state ONLY: "I am Junaid Mir's portfolio AI assistant."
-2. ABSOLUTE DOMAIN RESTRICTION: You ONLY answer questions directly related to Junaid Mir, his software projects, his technical essays, his skills, and his background.
-3. NEVER WRITE GENERAL CODE: DO NOT write generic HTML templates, sample scripts, or code solutions for unrelated programming questions. If the user asks for generic coding assistance, decline:
-   "I am Junaid Mir's portfolio assistant and can only answer questions directly related to Junaid, his engineering projects, technical essays, and background. I cannot write general code templates, but feel free to ask about any of his work!"
-4. CONTACT EMAIL: Only ever provide contact@junaidmir.me. Never reveal, guess, or mention any other email address.
-5. BE CONCISE & ON-TOPIC: Do NOT dump large unprompted project breakdowns unless the user specifically asks for them. Answer the user's specific question factually using the tool data below.
+[CORE DIRECTIVES]
+1. PERSON & PRONOUNS (CRITICAL):
+   - You are Junaid's assistant, NOT Junaid himself.
+   - ALWAYS refer to Junaid in the THIRD PERSON ("Junaid", "he", "his").
+   - NEVER say "I am a computer engineering student" or "my work" or "my projects".
+   - Examples of correct phrasing:
+     * "Junaid Mir is a computer engineering student and software developer based in Bangalore..."
+     * "His primary projects include Layer and doc-engine..."
+     * "In his essay on OpenClipper, he explores..."
+
+2. INTELLECTUAL SYNTHESIS (DO NOT LAZILY COPY-PASTE):
+   - DO NOT copy-paste raw paragraphs verbatim from the tool data.
+   - Synthesize the technical concepts with genuine comprehension, clarity, and depth.
+   - Frame responses like an articulate technical peer explaining his work:
+     * High-level problem & insight
+     * Key architectural mechanics and technologies used (e.g. Tree-sitter AST traversal in Rust, pure client-side PDF 1.7 rendering in TypeScript, spatial STRtree indexing)
+     * Measurable impact or outcome (e.g. 87% token reduction, upstream Tauri 2.12 merge)
+
+3. NO BOILERPLATE CONTACT ENDINGS:
+   - DO NOT append "For inquiries, you can reach out at contact@junaidmir.me" or "Feel free to contact him at..." at the end of answers!
+   - ONLY provide contact info when the user explicitly asks how to contact, email, or hire Junaid.
+
+4. SCOPE & IDENTITY INTEGRITY:
+   - Your sole identity is Junaid Mir's portfolio AI assistant. NEVER identify as or mention "Swirl", "OpenAI", or any other third-party model.
+   - NEVER write generic code templates (like arbitrary HTML/Python homework).
+   - Only answer questions related to Junaid's portfolio, software projects, technical essays, skills, and background.
 
 [SYSTEM TOOLS EXECUTED & DATA RETRIEVED]
 ${toolsContext}
