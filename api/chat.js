@@ -378,7 +378,7 @@ Assistant:`
     res.setHeader('Cache-Control', 'no-cache, no-transform')
     res.setHeader('Connection', 'keep-alive')
 
-    // Immediately send tool invocation events so the client can display tool badges
+    // Immediately stream tool invocation events one by one with a brief cadence
     for (const t of executedTools) {
       res.write(
         `data: ${JSON.stringify({
@@ -388,6 +388,8 @@ Assistant:`
           },
         })}\n\n`
       )
+      await new Promise((resolve) => setTimeout(resolve, 140))
+    }
     }
 
     // Call upstream AI service securely

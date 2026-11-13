@@ -396,19 +396,6 @@ export default function App() {
               >
                 Contact
               </a>
-              <div className="pt-2 border-t border-[var(--color-border)] flex items-center justify-between">
-                <span className="font-mono text-xs text-[var(--color-text-subtle)]">Preferences</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSettingsOpen(true)
-                    setMobileMenuOpen(false)
-                  }}
-                  className="font-mono text-xs text-[var(--color-accent)] hover:underline cursor-pointer"
-                >
-                  Settings (v2.0) ↗
-                </button>
-              </div>
             </nav>
           </div>
         )}

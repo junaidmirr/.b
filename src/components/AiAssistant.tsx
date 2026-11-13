@@ -2,16 +2,10 @@ import { useState, useRef, useEffect, type FormEvent } from 'react'
 import { saveChatSession } from '../services/chatLogService'
 import type { ChatSession } from '../types'
 
-type ToolCallInfo = {
-  name: string
-  query?: string
-}
-
 type Message = {
   id: string
   role: 'user' | 'assistant'
   content: string
-  toolsCalled?: ToolCallInfo[]
 }
 
 type AiAssistantProps = {
@@ -86,6 +80,7 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
   ])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
+  const [activeToolStatus, setActiveToolStatus] = useState<string | null>(null)
   const [hasInteracted, setHasInteracted] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
@@ -169,9 +164,9 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
 
     setMessages((prev) => [...prev, userMessage, placeholderMessage])
     setIsStreaming(true)
+    setActiveToolStatus('connecting...')
 
     let finalReply = ''
-    const toolsExecuted: ToolCallInfo[] = []
 
     try {
       const response = await fetch('/api/chat', {
@@ -217,15 +212,16 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
           try {
             const parsed = JSON.parse(raw)
             if (parsed.tool_call) {
-              toolsExecuted.push(parsed.tool_call)
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === assistantMsgId
-                    ? { ...msg, toolsCalled: [...toolsExecuted] }
-                    : msg
-                )
-              )
+              const name = parsed.tool_call.name || ''
+              const actionText = name.startsWith('get_')
+                ? name.replace(/^get_/, 'getting_') + '...'
+                : name.startsWith('list_')
+                ? name.replace(/^list_/, 'listing_') + '...'
+                : name + '...'
+              setActiveToolStatus(actionText)
             } else if (parsed.text) {
+              // Answer text started generating, clear tool call status immediately
+              setActiveToolStatus(null)
               finalReply += parsed.text
               setMessages((prev) =>
                 prev.map((msg) =>
@@ -233,6 +229,7 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
                 )
               )
             } else if (parsed.error) {
+              setActiveToolStatus(null)
               finalReply += `\n[Error: ${parsed.error}]`
               setMessages((prev) =>
                 prev.map((msg) =>
@@ -244,6 +241,7 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
         }
       }
     } catch (err) {
+      setActiveToolStatus(null)
       const errorMsg = err instanceof Error ? err.message : 'Failed to connect to AI Assistant'
       finalReply = `I'm currently unable to reply: ${errorMsg}`
       setMessages((prev) =>
@@ -253,6 +251,7 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
       )
     } finally {
       setIsStreaming(false)
+      setActiveToolStatus(null)
       const finalTurnMessages = [
         ...messages,
         userMessage,
@@ -260,7 +259,6 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
           id: assistantMsgId,
           role: 'assistant' as const,
           content: finalReply,
-          toolsCalled: toolsExecuted.length > 0 ? toolsExecuted : undefined,
         },
       ]
       persistSession(finalTurnMessages)
@@ -381,26 +379,6 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
                   </span>
                 </div>
 
-                {/* Animated Tool Calling Status (No emoji, clean animated text) */}
-                {msg.role === 'assistant' && msg.toolsCalled && msg.toolsCalled.length > 0 && (
-                  <div className="mb-2 flex flex-wrap items-center gap-2 font-mono text-[11px] text-[var(--color-accent)]">
-                    {msg.toolsCalled.map((t, idx) => {
-                      const actionText = t.name.startsWith('get_')
-                        ? t.name.replace(/^get_/, 'getting_') + '...'
-                        : t.name + '...'
-                      return (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center gap-1.5 opacity-90 animate-pulse"
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
-                          <span>{actionText}</span>
-                        </span>
-                      )
-                    })}
-                  </div>
-                )}
-
                 <div
                   className={`p-3 max-w-[90%] whitespace-pre-wrap text-sm leading-relaxed ${
                     msg.role === 'user'
@@ -410,9 +388,12 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
                 >
                   {msg.content}
                   {msg.role === 'assistant' && isStreaming && msg.content.length === 0 && (
-                    <span className="font-mono text-xs text-[var(--color-accent)] animate-pulse">
-                      Invoking tools & generating answer...
-                    </span>
+                    <div className="flex items-center gap-2 font-mono text-xs text-[var(--color-accent)]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)] animate-ping" />
+                      <span className="animate-pulse">
+                        {activeToolStatus || 'thinking...'}
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>
