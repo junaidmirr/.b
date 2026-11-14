@@ -88,7 +88,7 @@ async function getPortfolioContext() {
 }
 
 // ==========================================
-// LIVE GITHUB README INGESTION
+// LIVE GITHUB README INGESTION & PARSING
 // ==========================================
 const readmeCache = new Map()
 
@@ -99,6 +99,48 @@ function parseGithubRepo(url) {
   const owner = match[1]
   const repo = match[2].replace(/\.git$/i, '')
   return { owner, repo }
+}
+
+function extractUsageSections(markdown) {
+  if (!markdown) return ''
+  const lines = markdown.split('\n')
+  const extracted = []
+  let capturing = false
+  let sectionTitle = ''
+  let linesCount = 0
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const isHeading = /^#{1,3}\s+(.+)$/.exec(line)
+
+    if (isHeading) {
+      const headingText = isHeading[1].toLowerCase()
+      if (
+        /install|quick\s*start|usage|getting\s*started|react|example|basic\s*example|setup|shortcut|operating\s*mode|connect\s*to/i.test(
+          headingText
+        ) &&
+        !/contribut|licen|author|benchmark/i.test(headingText)
+      ) {
+        capturing = true
+        sectionTitle = isHeading[1]
+        extracted.push(`\n### ${sectionTitle}`)
+        linesCount = 0
+        continue
+      } else if (capturing && isHeading[0].startsWith('## ')) {
+        capturing = false
+      }
+    }
+
+    if (capturing) {
+      extracted.push(line)
+      linesCount++
+      if (linesCount > 65) {
+        capturing = false
+      }
+    }
+  }
+
+  return extracted.join('\n').trim()
 }
 
 async function fetchProjectReadme(githubUrl) {
@@ -121,8 +163,8 @@ async function fetchProjectReadme(githubUrl) {
       clearTimeout(timeoutId)
       if (res.ok) {
         let text = await res.text()
-        if (text.length > 5000) {
-          text = text.slice(0, 5000) + '\n\n[...README truncated for brevity...]'
+        if (text.length > 5500) {
+          text = text.slice(0, 5500) + '\n\n[...README truncated for brevity...]'
         }
         readmeCache.set(cacheKey, { timestamp: Date.now(), content: text })
         return text
@@ -132,8 +174,125 @@ async function fetchProjectReadme(githubUrl) {
   return null
 }
 
+function findProjectInText(text, projectList) {
+  if (!text || !Array.isArray(projectList)) return null
+  const cleanText = (text || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+
+  // Explicit alias patterns first to ensure pinpoint accuracy
+  if (/doc[\s_-]*engine/.test(text.toLowerCase())) {
+    const match = projectList.find((p) => /doc[\s_-]*engine/i.test(p.title))
+    if (match) return match
+  }
+  if (/open[\s_-]*clipper|clipboard/i.test(text.toLowerCase())) {
+    const match = projectList.find((p) => /open[\s_-]*clipper/i.test(p.title))
+    if (match) return match
+  }
+  if (/cool[\s_-]*path/i.test(text.toLowerCase())) {
+    const match = projectList.find((p) => /cool[\s_-]*path/i.test(p.title))
+    if (match) return match
+  }
+  if (/\blayer\b/i.test(text.toLowerCase())) {
+    const match = projectList.find((p) => /^layer$/i.test(p.title.trim()))
+    if (match) return match
+  }
+  if (/\btauri\b/i.test(text.toLowerCase())) {
+    const match = projectList.find((p) => /tauri/i.test(p.title))
+    if (match) return match
+  }
+  if (/resumagic/i.test(text.toLowerCase())) {
+    const match = projectList.find((p) => /resumagic/i.test(p.title))
+    if (match) return match
+  }
+  if (/edugate/i.test(text.toLowerCase())) {
+    const match = projectList.find((p) => /edugate/i.test(p.title))
+    if (match) return match
+  }
+  if (/fipper|on[\s_-]*screen[\s_-]*ai/i.test(text.toLowerCase())) {
+    const match = projectList.find((p) => /ai\s*assistant|on-screen/i.test(p.title))
+    if (match) return match
+  }
+
+  // Scan all projects by title
+  for (const p of projectList) {
+    const cleanTitle = (p.title || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+    if (cleanTitle.length > 2 && cleanText.includes(cleanTitle)) {
+      return p
+    }
+  }
+  return null
+}
+
+function findEssayInText(text, essayList) {
+  if (!text || !Array.isArray(essayList)) return null
+  const cleanText = (text || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+  for (const e of essayList) {
+    const cleanTitle = (e.title || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+    const cleanSlug = (e.slug || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+    if (cleanTitle.length > 5 && cleanText.includes(cleanTitle)) return e
+    if (cleanSlug.length > 5 && cleanText.includes(cleanSlug)) return e
+  }
+  return null
+}
+
+function resolveActiveEntity(message, history, portfolio) {
+  const projects = portfolio?.projects || []
+  const essays = portfolio?.essays || []
+
+  // 1. Direct mention in current user prompt
+  const directProject = findProjectInText(message, projects)
+  if (directProject) return { type: 'project', entity: directProject }
+
+  const directEssay = findEssayInText(message, essays)
+  if (directEssay) return { type: 'essay', entity: directEssay }
+
+  // 2. Check for follow-up pronouns or continuous context in message
+  const isFollowUp =
+    /^(how\s+to\s+use\s+it|how\s+to\s+install|how\s+do\s+i|how\s+to|what\s+about\s+it|where\s+is\s+it|can\s+i|show\s+me|is\s+it|does\s+it|explain\s+it|use\s+it|setup|run\s+it|install\s+it|give\s+an\s+example|code\s+example)/i.test(
+      message.trim()
+    ) ||
+    /\b(it|this|that|project|library|tool|repo|code|cli)\b/i.test(message)
+
+  if (isFollowUp && Array.isArray(history) && history.length > 0) {
+    for (let i = history.length - 1; i >= 0; i--) {
+      const pastContent = history[i].content || ''
+      const pastProj = findProjectInText(pastContent, projects)
+      if (pastProj) return { type: 'project', entity: pastProj }
+
+      const pastEssay = findEssayInText(pastContent, essays)
+      if (pastEssay) return { type: 'essay', entity: pastEssay }
+    }
+  }
+
+  return null
+}
+
+function classifyUserIntent(message) {
+  const clean = (message || '').toLowerCase()
+  if (
+    /how\s+to\s+(use|setup|set\s*up|install|run|import|integrate|get\s*started|add)|usage|install|setup|set\s*up|quickstart|quick\s*start|example|tutorial|code\s*sample|npm\s*install|cargo\s*install|yarn\s*add|pnpm\s*add|docker\s*run/.test(
+      clean
+    )
+  ) {
+    return 'USAGE_SETUP'
+  }
+  if (
+    /architecture|how\s+(does\s*it\s*work|it\s*works)|under\s*the\s*hood|internals|mechanics|design|ast|rendering\s*pipeline|benchmark|why\s*not/.test(
+      clean
+    )
+  ) {
+    return 'ARCHITECTURE'
+  }
+  if (/repo|github|source\s*code|where\s*(is|to\s*find)\s*(it|the\s*code)|link|url/.test(clean)) {
+    return 'REPO_LINK'
+  }
+  return 'GENERAL'
+}
+
 function findMatchingProject(projects, query) {
   if (!Array.isArray(projects) || projects.length === 0) return null
+  const direct = findProjectInText(query, projects)
+  if (direct) return direct
+
   const q = (query || '').toLowerCase().trim()
   const cleanQ = q.replace(/[^a-z0-9]/g, '')
   const tokens = q.split(/[^a-zA-Z0-9]+/).filter((t) => t.length > 2)
@@ -414,7 +573,7 @@ const TOOLS = {
     description: 'Fetch and parse the live GitHub README.md repository file for a specific project via its githubUrl to inspect detailed architecture, codebase mechanics, setup, and features.',
     execute: async (portfolio, query) => {
       const projects = portfolio?.projects || []
-      const matched = findMatchingProject(projects, query)
+      const matched = findProjectInText(query, projects) || findMatchingProject(projects, query)
 
       let targetUrl = ''
       let projectTitle = query
@@ -437,10 +596,13 @@ const TOOLS = {
       }
 
       const readme = await fetchProjectReadme(targetUrl)
+      const usage = extractUsageSections(readme)
+
       return {
         projectTitle,
         githubUrl: targetUrl,
         status: readme ? 'success' : 'not_found',
+        quickstartAndUsage: usage || null,
         readmeContent: readme || 'README file could not be retrieved from the repository or repository is empty.',
       }
     },
@@ -523,100 +685,102 @@ const TOOLS = {
 
 // Router to decide which tools to execute based on user message and history
 async function resolveTools(message, history, portfolio) {
-  const q = (message || '').toLowerCase()
-  const historyText = Array.isArray(history)
-    ? history.map((h) => (h.content || '').toLowerCase()).join(' ')
-    : ''
-  const combined = `${historyText} ${q}`
-
   const toolInvocations = []
   const essays = portfolio?.essays || []
   const projects = portfolio?.projects || []
 
-  // Check for essay queries (including OpenClipper, AST slicing, Thermal routing, PDF parsing)
-  const isEssayQuery =
-    /essay|article|post|write|writing|read|open\s*clipper|clipper|clipboard|grep|thermal|cool\s*path|coolpath|pdf|postscript|ast slicing|landsat|shapely/.test(
-      combined
-    ) ||
-    essays.some((e) => {
-      const title = (e.title || '').toLowerCase()
-      const slug = (e.slug || '').toLowerCase()
-      return combined.includes(title) || combined.includes(slug)
+  const active = resolveActiveEntity(message, history, portfolio)
+  const intent = classifyUserIntent(message)
+
+  // SCENARIO 1: A specific project is actively targeted (directly or through pronoun context)
+  if (active && active.type === 'project') {
+    const project = active.entity
+    toolInvocations.push({
+      tool: TOOLS.get_project_details,
+      query: project.title,
     })
 
-  if (isEssayQuery) {
+    if (project.githubUrl) {
+      toolInvocations.push({
+        tool: TOOLS.read_github_readme,
+        query: project.title,
+      })
+    }
+    // STRICT MUTUAL EXCLUSION:
+    // Do NOT run get_essay_content or list_essays or list_projects here!
+    // This stops cross-contamination completely.
+  }
+  // SCENARIO 2: A specific essay is actively targeted
+  else if (active && active.type === 'essay') {
+    const essay = active.entity
     toolInvocations.push({
       tool: TOOLS.get_essay_content,
-      query: message,
+      query: essay.title,
     })
     toolInvocations.push({
       tool: TOOLS.list_essays,
       query: '',
     })
   }
+  // SCENARIO 3: Broad or multi-entity queries
+  else {
+    const q = (message || '').toLowerCase()
+    const historyText = Array.isArray(history)
+      ? history.map((h) => (h.content || '').toLowerCase()).join(' ')
+      : ''
+    const combined = `${historyText} ${q}`
 
-  // Check for specific project queries (including dynamic checking of all current & future projects)
-  const matchedProject = findMatchingProject(projects, message) || findMatchingProject(projects, combined)
-  const isProjectQuery =
-    Boolean(matchedProject) ||
-    /layer|doc-engine|doc\s*engine|open\s*clipper|clipper|tauri|cool\s*path|coolpath|resumagic|edugate|credit|inventory|mcp|parser|android|app|project|portfolio|built|software|readme|github|repo/.test(
-      combined
-    ) ||
-    projects.some((p) => {
-      const title = (p.title || '').toLowerCase()
-      return combined.includes(title)
-    })
-
-  if (isProjectQuery) {
-    const projectQueryName = matchedProject ? matchedProject.title : message
-    toolInvocations.push({
-      tool: TOOLS.get_project_details,
-      query: projectQueryName,
-    })
-
-    // If a project is matched and has a githubUrl, or if user asks for github/readme/repo, trigger read_github_readme
-    if (matchedProject?.githubUrl || /readme|github|repo|code|implementation|how it works/.test(combined)) {
+    const isEssayQuery = /essay|article|writing|read\s*about/.test(combined)
+    if (isEssayQuery) {
       toolInvocations.push({
-        tool: TOOLS.read_github_readme,
-        query: projectQueryName,
+        tool: TOOLS.get_essay_content,
+        query: message,
+      })
+      toolInvocations.push({
+        tool: TOOLS.list_essays,
+        query: '',
       })
     }
-  }
 
-  // Check for skill / stack queries
-  const isSkillQuery =
-    /skill|stack|technology|technologies|language|framework|rust|kotlin|typescript|python|android|compose|backend|tooling|database/.test(
-      combined
-    )
-  if (isSkillQuery) {
-    toolInvocations.push({
-      tool: TOOLS.list_skills,
-      query: '',
-    })
-  }
-
-  // Check for profile / biography / general overview queries
-  const isProfileQuery =
-    /who|about|junaid|contact|email|reach|hire|location|bangalore|experience|background|education|college|student|social|linkedin|github/.test(
-      combined
-    )
-  if (isProfileQuery || toolInvocations.length === 0) {
-    toolInvocations.unshift({
-      tool: TOOLS.get_profile,
-      query: '',
-    })
-    // For broad biographical queries, also include project and essay lists for full context
-    if (!toolInvocations.some((t) => t.tool.name === 'list_projects')) {
+    const isProjectQuery = /project|portfolio|built|software|app|tool|work/.test(combined)
+    if (isProjectQuery) {
       toolInvocations.push({
         tool: TOOLS.list_projects,
         query: '',
       })
     }
-    if (!toolInvocations.some((t) => t.tool.name === 'list_essays')) {
+
+    const isSkillQuery = /skill|stack|technology|language|framework|rust|kotlin|typescript|python|android|compose/.test(
+      combined
+    )
+    if (isSkillQuery) {
       toolInvocations.push({
-        tool: TOOLS.list_essays,
+        tool: TOOLS.list_skills,
         query: '',
       })
+    }
+
+    const isProfileQuery =
+      /who|about|junaid|contact|email|reach|hire|bangalore|experience|education|student|github|linkedin/.test(
+        combined
+      )
+    if (isProfileQuery || toolInvocations.length === 0) {
+      toolInvocations.unshift({
+        tool: TOOLS.get_profile,
+        query: '',
+      })
+      if (!toolInvocations.some((t) => t.tool.name === 'list_projects')) {
+        toolInvocations.push({
+          tool: TOOLS.list_projects,
+          query: '',
+        })
+      }
+      if (!toolInvocations.some((t) => t.tool.name === 'list_essays')) {
+        toolInvocations.push({
+          tool: TOOLS.list_essays,
+          query: '',
+        })
+      }
     }
   }
 
@@ -631,7 +795,7 @@ async function resolveTools(message, history, portfolio) {
       result,
     })
   }
-  return executedTools
+  return { executedTools, intent, active }
 }
 
 export default async function handler(req, res) {
@@ -670,10 +834,10 @@ export default async function handler(req, res) {
 
     // 2. LOAD PORTFOLIO & RUN RELEVANT TOOLS (LIVE FIRESTORE + GITHUB README)
     const portfolio = await getPortfolioContext()
-    const executedTools = await resolveTools(message, history, portfolio)
+    const { executedTools, intent, active } = await resolveTools(message, history, portfolio)
 
     // Build tool context for the LLM
-    const toolsContext = executedTools
+    let toolsContext = executedTools
       .map(
         (t) =>
           `[TOOL_CALL: ${t.name}${t.query ? `("${t.query}")` : '()'}]\nDATA:\n${JSON.stringify(
@@ -684,12 +848,27 @@ export default async function handler(req, res) {
       )
       .join('\n\n')
 
+    // If active project has extracted Quickstart / Usage sections, highlight them prominently at top
+    const readmeTool = executedTools.find((t) => t.name === 'read_github_readme')
+    if (readmeTool?.result?.quickstartAndUsage) {
+      toolsContext =
+        `[PRIMARY_INSTALLATION_AND_USAGE_DOCUMENTATION for ${readmeTool.result.projectTitle}]\n${readmeTool.result.quickstartAndUsage}\n\n` +
+        toolsContext
+    }
+
     let conversationFormatted = ''
     if (Array.isArray(history) && history.length > 0) {
-      const recent = history.slice(-5)
+      const recent = history.slice(-6)
       conversationFormatted =
         recent.map((h) => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}`).join('\n') +
         '\n'
+    }
+
+    let intentDirective = ''
+    if (intent === 'USAGE_SETUP') {
+      intentDirective = `\n[CRITICAL INSTRUCTION FOR THIS QUERY: USAGE / INSTALLATION REQUEST]\nThe visitor is asking how to install, set up, or use this project.\nStart DIRECTLY with the concrete installation command, script, or setup instructions from the documentation (e.g. \`npm install...\`, \`curl ... | sh\`, or cargo).\nProvide working code snippets or configuration steps from the README.\nDo NOT give a high-level conceptual overview instead of answering the install/setup question!\n`
+    } else if (intent === 'REPO_LINK') {
+      intentDirective = `\n[CRITICAL INSTRUCTION FOR THIS QUERY: REPOSITORY / LINK REQUEST]\nThe visitor is asking for the repository, GitHub URL, or source code.\nProvide the verified repository link and live URL directly from the project metadata.\n`
     }
 
     const prompt = `You are the personal AI Assistant for Junaid Mir's engineering portfolio (junaidmir.me).
@@ -702,30 +881,41 @@ export default async function handler(req, res) {
    - Examples of correct phrasing:
      * "Junaid Mir is a computer engineering student and software developer based in Bangalore..."
      * "His primary projects include Layer and doc-engine..."
-     * "In his essay on OpenClipper, he explores..."
+     * "In doc-engine, Junaid designed..."
 
-2. INTELLECTUAL SYNTHESIS (DO NOT LAZILY COPY-PASTE):
-   - DO NOT copy-paste raw paragraphs verbatim from the tool data.
-   - Synthesize the technical concepts with genuine comprehension, clarity, and depth.
-   - Frame responses like an articulate technical peer explaining his work:
-     * High-level problem & insight
-     * Key architectural mechanics and technologies used (e.g. Tree-sitter AST traversal in Rust, pure client-side PDF 1.7 rendering in TypeScript, spatial STRtree indexing)
-     * Measurable impact or outcome (e.g. 87% token reduction, upstream Tauri 2.12 merge)
+2. ANSWER THE EXACT QUESTION ASKED (INTENT-AWARE ACCURACY):
+   - When the visitor asks HOW TO USE, HOW TO SETUP, HOW TO INSTALL, or for a CODE EXAMPLE (e.g. "how to setup and use doc-engine", "how to use it?", "how to use doc engine in my project react"):
+     * Deliver direct, practical, step-by-step instructions.
+     * Always provide the exact package install command from the documentation (e.g. \`npm install @worklabs05/doc-engine pdf-lib react react-dom\` or the platform install script).
+     * Always provide a clean, minimal code snippet (e.g. React \`<Document>\`, \`<Page>\`, \`<View>\`, \`<Text>\`, and \`usePDF\` hook) directly from the retrieved documentation.
+     * DO NOT substitute an abstract architectural lecture when the visitor asked for setup instructions!
+   - When the visitor asks about ARCHITECTURE, HOW IT WORKS, or UNDER THE HOOD:
+     * Explain the architectural mechanics (e.g. Tree-sitter AST traversal in Rust, pure TypeScript PDF 1.7 vector operator serialization, STRtree spatial indexing).
+   - When the visitor asks a GENERAL OVERVIEW ("what is X?"):
+     * Summarize the problem, key insight, and capabilities.
 
-3. PROJECT AND GITHUB REPOSITORY INTELLIGENCE:
-   - When project data includes live README content retrieved from GitHub, utilize it to provide authoritative, granular, and precise explanations (e.g. features, installation steps, modal shortcuts, architecture, benchmarks).
-   - Never hallucinate features not present in the project's description or GitHub README.
-   - For any project added to the portfolio (existing or newly added via Admin Panel), ground all answers strictly in the retrieved data and GitHub README documentation.
+3. CONVERSATION CONTEXT & PRONOUN RESOLUTION:
+   - When the visitor asks follow-up questions like "how to use it?", "where is it hosted?", or "can I use it in react?", "it" refers to the project currently being discussed. Stay strictly focused on that entity!
+   - NEVER jump to another project (like CoolPath or Layer) when the user is asking about the current project.
 
-4. NO BOILERPLATE CONTACT ENDINGS:
-   - DO NOT append "For inquiries, you can reach out at contact@junaidmir.me" or "Feel free to contact him at..." at the end of answers!
+4. TECHNOLOGY FIDELITY & ZERO CROSS-CONTAMINATION (CRITICAL):
+   - Strictly honor the true technologies of each project:
+     * doc-engine: Pure TypeScript and React vector PDF engine. Zero Python, zero headless browsers (Puppeteer). Published as @worklabs05/doc-engine.
+     * Layer: Model Context Protocol (MCP) server written in Rust with Tree-sitter AST parsing.
+     * OpenClipper: Multi-entry clipboard manager in Rust and Tauri with system-wide keyboard shortcuts.
+     * CoolPath: Climate-aware routing engine written with Python and spatial STRtree indexing.
+   - NEVER attribute Python to doc-engine, and NEVER attribute Rust to CoolPath.
+
+5. NO BOILERPLATE CONTACT ENDINGS:
+   - DO NOT append unsolicited "For inquiries, you can reach out at contact@junaidmir.me" or "Feel free to contact him at..." at the end of answers!
    - ONLY provide contact info when the user explicitly asks how to contact, email, or hire Junaid.
 
-5. SCOPE & IDENTITY INTEGRITY:
+6. SCOPE & IDENTITY INTEGRITY:
    - Your sole identity is Junaid Mir's portfolio AI assistant. NEVER identify as or mention "Swirl", "OpenAI", or any other third-party model.
    - NEVER write generic code templates (like arbitrary HTML/Python homework).
    - Only answer questions related to Junaid's portfolio, software projects, technical essays, skills, and background.
 
+${intentDirective}
 [SYSTEM TOOLS EXECUTED & DATA RETRIEVED]
 ${toolsContext}
 
