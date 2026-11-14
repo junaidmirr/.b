@@ -2,9 +2,9 @@
   {
     "id": "sess_1794635937899_1c7i5",
     "createdAt": "2026-11-14T05:58:57.899Z",
-    "updatedAt": "2026-11-14T06:25:44.028Z",
+    "updatedAt": "2026-11-14T06:26:19.021Z",
     "summary": "hi",
-    "messageCount": 10,
+    "messageCount": 12,
     "browser": "Firefox",
     "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:159.0) Gecko/20100101 Firefox/159.0",
     "messages": [
@@ -12,61 +12,73 @@
         "id": "user-1794637445029",
         "role": "user",
         "content": "hi",
-        "timestamp": "2026-11-14T06:25:44.028Z"
+        "timestamp": "2026-11-14T06:26:19.021Z"
       },
       {
         "id": "assistant-1794637445029",
         "role": "assistant",
         "content": "Hello! I am Junaid Mir's portfolio AI assistant. How can I help you explore his software projects, technical essays, or engineering background?",
-        "timestamp": "2026-11-14T06:25:44.028Z"
+        "timestamp": "2026-11-14T06:26:19.021Z"
       },
       {
         "id": "user-1794637449638",
         "role": "user",
         "content": "who are you?",
-        "timestamp": "2026-11-14T06:25:44.028Z"
+        "timestamp": "2026-11-14T06:26:19.021Z"
       },
       {
         "id": "assistant-1794637449638",
         "role": "assistant",
         "content": "I am Junaid Mir's personal portfolio AI assistant. I am built exclusively to help visitors explore Junaid's software engineering projects, technical essays, skills, and background.",
-        "timestamp": "2026-11-14T06:25:44.028Z"
+        "timestamp": "2026-11-14T06:26:19.021Z"
       },
       {
         "id": "user-1794637465481",
         "role": "user",
         "content": "how to setup doc engine in my react app",
-        "timestamp": "2026-11-14T06:25:44.028Z"
+        "timestamp": "2026-11-14T06:26:19.021Z"
       },
       {
         "id": "assistant-1794637465482",
         "role": "assistant",
         "content": "To install doc-engine for React, run:\n\nnpm install @worklabs05/doc-engine pdf-lib react react-dom\n\nTo use it in a React project, Junaid designed the library with declarative components:\n\nimport { Document, Page, View, Text, usePDF } from '@worklabs05/doc-engine/react';\n\nexport function InvoiceViewer() {\n  const doc = (\n    <Document defaultPageSize=\"letter\">\n      <Page>\n        <View x={40} y={40} width={532} height={80}>\n          <Text fontSize={20}>Acme Corporation</Text>\n        </View>\n      </Page>\n    </Document>\n  );\n\n  const { dataUrl, download } = usePDF(doc);\n\n  return (\n    <button onClick={() => download('doc.pdf')}>Download</button>\n  );\n}",
-        "timestamp": "2026-11-14T06:25:44.028Z"
+        "timestamp": "2026-11-14T06:26:19.021Z"
       },
       {
         "id": "user-1794637517547",
         "role": "user",
         "content": "what is openclipper?",
-        "timestamp": "2026-11-14T06:25:44.028Z"
+        "timestamp": "2026-11-14T06:26:19.021Z"
       },
       {
         "id": "assistant-1794637517547",
         "role": "assistant",
         "content": "OpenClipper is a high-performance, cross-platform clipboard manager designed to eliminate UI context switching. Junaid built it using Rust and Tauri v2 to solve the latency and friction issues found in traditional clipboard managers. It features modal key swallowing and a FIFO conveyor belt for sequential pasting. Under the hood, it uses low-level system hooks to intercept input globally, maintaining sub-5ms latency and a memory footprint under 30MB. Its core engine is headless, bypassing heavy webview overhead to ensure smooth operation across Windows, macOS, and Linux. You can find the repository at https://github.com/junaidmirr/openclipper.",
-        "timestamp": "2026-11-14T06:25:44.028Z"
+        "timestamp": "2026-11-14T06:26:19.021Z"
       },
       {
         "id": "user-1794637541853",
         "role": "user",
         "content": "what is said about this in the essay?",
-        "timestamp": "2026-11-14T06:25:44.028Z"
+        "timestamp": "2026-11-14T06:26:19.021Z"
       },
       {
         "id": "assistant-1794637541853",
         "role": "assistant",
         "content": "OpenClipper is a high-performance, cross-platform clipboard manager designed to eliminate UI context switching. Junaid built it using Rust and Tauri v2 to solve the latency and friction issues found in traditional clipboard managers. \n\nBy using modal keystroke interception and a headless engine, it maintains sub-5ms latency and a memory footprint under 30MB. It features a FIFO conveyor belt system for managing clipboard history and native OS hooks to handle global key events without requiring the user to switch windows. It is designed for developers who need to move large amounts of data between applications quickly and reliably.",
-        "timestamp": "2026-11-14T06:25:44.028Z"
+        "timestamp": "2026-11-14T06:26:19.021Z"
+      },
+      {
+        "id": "user-1794637574757",
+        "role": "user",
+        "content": "why is its work different from whats written in the essay about it",
+        "timestamp": "2026-11-14T06:26:19.021Z"
+      },
+      {
+        "id": "assistant-1794637574757",
+        "role": "assistant",
+        "content": "OpenClipper is a high-performance, cross-platform clipboard manager designed to eliminate UI context switching for developers. Junaid built it using Rust and Tauri v2 to solve the latency issues typical of Electron-based clipboard tools. By using low-level OS hooks, it intercepts keyboard events to manage a FIFO conveyor belt of clipboard items.\n\nThe project features a headless core engine that maintains a memory footprint under 30MB, ensuring sub-5ms latency. It provides atomic slot shifting and handles write-protected targets through an automatic cut-to-copy fallback. Junaid designed it to keep developers in their flow by replacing traditional GUI search windows with modal key swallowing and efficient, index-based clipboard management.",
+        "timestamp": "2026-11-14T06:26:19.021Z"
       }
     ]
   },
