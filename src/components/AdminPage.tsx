@@ -2683,6 +2683,99 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
                   />
                 </div>
 
+                {/* Resume / Curriculum Vitae Configuration */}
+                <div className="border border-[var(--color-border)] bg-[var(--color-bg)] p-4 rounded space-y-3">
+                  <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2">
+                    <div className="flex items-center gap-2">
+                      <label className="block text-xs font-mono font-semibold text-[var(--color-text)]">
+                        Curriculum Vitae / Resume (PDF or Link)
+                      </label>
+                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+                    </div>
+                    {data.profile.resumeUrl && (
+                      <div className="flex items-center gap-3">
+                        <a
+                          href={data.profile.resumeUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          download={data.profile.resumeUrl.startsWith('data:') ? 'Junaid_Mir_Resume.pdf' : undefined}
+                          className="text-xs font-mono text-[var(--color-accent)] hover:underline cursor-pointer"
+                        >
+                          View / Test [↗]
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => updateProfileField('resumeUrl', '')}
+                          className="text-xs font-mono text-red-500 hover:underline cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-mono text-[var(--color-muted)] mb-1">
+                      Resume URL (Google Drive, Dropbox, Hosted PDF, or /resume.pdf)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="https://drive.google.com/... or https://.../resume.pdf"
+                      value={data.profile.resumeUrl || ''}
+                      onChange={(e) => updateProfileField('resumeUrl', e.target.value)}
+                      className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-3 py-1.5 text-xs font-mono text-[var(--color-text)] focus:outline-none rounded"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-mono text-[var(--color-muted)] mb-1">
+                      Or Upload PDF from Device
+                    </label>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          if (file.size > 900 * 1024) {
+                            alert('Note: For Firestore storage, uploaded files should ideally be under 900 KB. For larger PDFs, please host on Google Drive or Dropbox and paste the link above.')
+                          }
+                          const reader = new FileReader()
+                          reader.onload = (event) => {
+                            const result = event.target?.result as string
+                            if (result) {
+                              updateProfileField('resumeUrl', result)
+                            }
+                          }
+                          reader.readAsDataURL(file)
+                        }
+                      }}
+                      className="w-full border border-[var(--color-border)] bg-[var(--color-panel)] px-2 py-1 text-xs font-mono text-[var(--color-muted)] focus:outline-none rounded file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-mono file:bg-[var(--color-text)] file:text-[var(--color-bg)] file:cursor-pointer"
+                    />
+                  </div>
+
+                  {data.profile.resumeUrl ? (
+                    <div className="mt-2 flex items-center justify-between text-xs font-mono text-[var(--color-muted)]">
+                      <span className="truncate max-w-[320px]">
+                        Active: {data.profile.resumeUrl.startsWith('data:') ? 'Uploaded PDF Document' : data.profile.resumeUrl}
+                      </span>
+                      <a
+                        href={data.profile.resumeUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[var(--color-accent)] hover:underline"
+                        download={data.profile.resumeUrl.startsWith('data:') ? 'Junaid_Mir_Resume.pdf' : undefined}
+                      >
+                        Download / Preview [↗]
+                      </a>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] font-mono text-[var(--color-muted)]">
+                      No resume set. Paste a URL or upload a PDF above to enable the [Resume ↗] button on the portfolio.
+                    </p>
+                  )}
+                </div>
+
                 {/* Headshot / Portrait Image */}
                 <div className="border border-[var(--color-border)] bg-[var(--color-bg)] p-4 rounded space-y-3">
                   <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2">

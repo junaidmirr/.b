@@ -373,6 +373,49 @@ export default function App() {
                 LinkedIn [↗]
               </a>
             )}
+            {portfolioData.profile.resumeUrl ? (
+              <a
+                href={portfolioData.profile.resumeUrl}
+                target="_blank"
+                rel="noreferrer"
+                download={portfolioData.profile.resumeUrl.startsWith('data:') ? 'Junaid_Mir_Resume.pdf' : undefined}
+                onClick={(e) => {
+                  if (portfolioData.profile.resumeUrl?.startsWith('data:')) {
+                    e.preventDefault()
+                    try {
+                      const arr = portfolioData.profile.resumeUrl.split(',')
+                      const mime = arr[0].match(/:(.*?);/)?.[1] || 'application/pdf'
+                      const bstr = atob(arr[1])
+                      let n = bstr.length
+                      const u8arr = new Uint8Array(n)
+                      while (n--) {
+                        u8arr[n] = bstr.charCodeAt(n)
+                      }
+                      const blob = new Blob([u8arr], { type: mime })
+                      const blobUrl = URL.createObjectURL(blob)
+                      window.open(blobUrl, '_blank')
+                    } catch {
+                      const a = document.createElement('a')
+                      a.href = portfolioData.profile.resumeUrl
+                      a.download = 'Junaid_Mir_Resume.pdf'
+                      a.click()
+                    }
+                  }
+                }}
+                className="editorial-link text-[var(--color-accent)] font-medium"
+                title="View or download Junaid Mir's Resume"
+              >
+                Resume [↗]
+              </a>
+            ) : (
+              <a
+                href={`mailto:${portfolioData.profile.email || 'contact@junaidmir.me'}?subject=Resume%20Request%20%E2%80%94%20Junaid%20Mir`}
+                className="editorial-link"
+                title="Request Resume via Email"
+              >
+                Resume [↗]
+              </a>
+            )}
             <a
               href={`mailto:${portfolioData.profile.email || 'contact@junaidmir.me'}`}
               className="editorial-link"

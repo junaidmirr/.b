@@ -39,6 +39,7 @@ export type ProfileData = {
   github: string
   linkedin: string
   twitter?: string
+  resumeUrl?: string
   avatarUrl?: string
   ogImageUrl?: string
 }

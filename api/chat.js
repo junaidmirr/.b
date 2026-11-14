@@ -500,6 +500,9 @@ const TOOLS = {
         contactEmail: 'contact@junaidmir.me',
         github: p.github || 'https://github.com/junaidmirr',
         linkedin: p.linkedin || 'https://www.linkedin.com/in/junaid-mir-68b87b1b9/',
+        resume: p.resumeUrl
+          ? (p.resumeUrl.startsWith('data:') ? 'Available for view/download directly via the [Resume ↗] button in the hero section.' : p.resumeUrl)
+          : 'Available for request directly via the [Resume ↗] button on the portfolio or via email at contact@junaidmir.me.',
       }
     },
   },
