@@ -2,9 +2,9 @@
   {
     "id": "sess_1794635937899_1c7i5",
     "createdAt": "2026-11-14T05:58:57.899Z",
-    "updatedAt": "2026-11-14T05:59:20.401Z",
+    "updatedAt": "2026-11-14T05:59:48.891Z",
     "summary": "how to setup and use doc-engine?",
-    "messageCount": 4,
+    "messageCount": 6,
     "browser": "Firefox",
     "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:159.0) Gecko/20100101 Firefox/159.0",
     "messages": [
@@ -12,25 +12,37 @@
         "id": "user-1794635933790",
         "role": "user",
         "content": "how to setup and use doc-engine?",
-        "timestamp": "2026-11-14T05:59:20.401Z"
+        "timestamp": "2026-11-14T05:59:48.891Z"
       },
       {
         "id": "assistant-1794635933790",
         "role": "assistant",
         "content": "doc-engine is Junaid's high-performance library for generating vector-based PDFs directly in React and TypeScript. He architected it to eliminate the heavy dependencies typical of document generation, such as headless Chromium (Puppeteer) or server-side Python daemons.\n\nInstead of rasterizing content, the engine calculates layout coordinates in pure TypeScript and serializes them into native PDF 1.7 operators. It provides a real-time 60 FPS preview via HTML5 Canvas. By handling coordinate transformations internally—mapping web-standard top-left origins to the bottom-left PDF specification—it ensures accurate vector output. Published as @worklabs05/doc-engine, it supports multi-page flows and automatic pagination, providing a lightweight, browser-native alternative for complex document rendering.",
-        "timestamp": "2026-11-14T05:59:20.401Z"
+        "timestamp": "2026-11-14T05:59:48.891Z"
       },
       {
         "id": "user-1794635957597",
         "role": "user",
         "content": "how to use it?",
-        "timestamp": "2026-11-14T05:59:20.401Z"
+        "timestamp": "2026-11-14T05:59:48.891Z"
       },
       {
         "id": "assistant-1794635957597",
         "role": "assistant",
         "content": "Junaid created CoolPath to solve the limitation of naive routing engines that only optimize for distance. By integrating Landsat 8/9 thermal data and municipal tree canopy polygons, he redefined edge weights to account for thermal friction. To keep performance high, he utilized STRtree spatial indexing to optimize intersection queries between thermal rasters and street graphs. This architectural choice reduced spatial lookup complexity from O(N*M) to O(log N), allowing the system to compute climate-aware paths in under 80 milliseconds. His real-world tests showed a 32% decrease in direct solar exposure for pedestrians, proving that integrating environmental physics into vector graphs significantly improves the quality of urban navigation.",
-        "timestamp": "2026-11-14T05:59:20.401Z"
+        "timestamp": "2026-11-14T05:59:48.891Z"
+      },
+      {
+        "id": "user-1794635983491",
+        "role": "user",
+        "content": "how to use doc engine in my project react",
+        "timestamp": "2026-11-14T05:59:48.891Z"
+      },
+      {
+        "id": "assistant-1794635983491",
+        "role": "assistant",
+        "content": "Junaid built doc-engine to solve the deployment friction caused by heavy C-based PDF dependencies like Poppler in serverless environments. By implementing a pure Python parser that follows the ISO 32000-1 specification, he enables vector document rendering without binary bloat.\n\nThe engine functions by managing a graphics state stack—handling operations like transformation matrix concatenation, Bézier curve construction, and coordinate geometry. Its stream tokenizer operates in O(N) linear time, effectively processing PDF operators to ensure deterministic output. This architectural choice allows for lightweight, consistent document generation across diverse platforms, including ARM64 and AWS Lambda, while avoiding the memory leaks and cross-compilation headaches typical of native library wrappers.",
+        "timestamp": "2026-11-14T05:59:48.891Z"
       }
     ]
   },
