@@ -22,15 +22,30 @@ function unwrapFirestoreValue(val) {
   return val
 }
 
+let cachedPortfolio = null
+let cacheTimestamp = 0
+const CACHE_TTL_MS = 45 * 1000 // 45-second cache to ensure ultra-fast responses while picking up Admin Panel updates rapidly
+
 async function getPortfolioContext() {
+  const now = Date.now()
+  if (cachedPortfolio && now - cacheTimestamp < CACHE_TTL_MS) {
+    return cachedPortfolio
+  }
+
   // 1. Check live Firestore database (real-time updates from Admin Panel)
-  const apiKey = process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY || ''
-  const projectId = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || ''
+  const apiKey =
+    process.env.FIREBASE_API_KEY ||
+    process.env.VITE_FIREBASE_API_KEY ||
+    'AIzaSyAG6aINdRC8bNhNwpF6lz6FQMjbOO0d-_Y'
+  const projectId =
+    process.env.FIREBASE_PROJECT_ID ||
+    process.env.VITE_FIREBASE_PROJECT_ID ||
+    'myportfolio-3e477'
 
   if (apiKey && projectId) {
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 1600)
+      const timeoutId = setTimeout(() => controller.abort(), 3500)
       const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/portfolio/content?key=${apiKey}`
       const response = await fetch(url, { signal: controller.signal })
       clearTimeout(timeoutId)
@@ -39,12 +54,16 @@ async function getPortfolioContext() {
         const firestoreDoc = await response.json()
         if (firestoreDoc?.fields) {
           const docData = unwrapFirestoreValue({ mapValue: { fields: firestoreDoc.fields } })
-          if (docData && typeof docData === 'object' && docData.profile) {
+          if (docData && typeof docData === 'object' && (docData.profile || docData.projects)) {
+            cachedPortfolio = docData
+            cacheTimestamp = now
             return docData
           }
         }
       }
-    } catch {}
+    } catch (err) {
+      console.warn('Firestore fetch warning:', err)
+    }
   }
 
   // 2. Fallback to latest local data files
@@ -58,11 +77,96 @@ async function getPortfolioContext() {
     try {
       if (fs.existsSync(p)) {
         const content = fs.readFileSync(p, 'utf8')
-        return JSON.parse(content)
+        const data = JSON.parse(content)
+        cachedPortfolio = data
+        cacheTimestamp = now
+        return data
+      }
+    } catch {}
+  }
+  return cachedPortfolio || null
+}
+
+// ==========================================
+// LIVE GITHUB README INGESTION
+// ==========================================
+const readmeCache = new Map()
+
+function parseGithubRepo(url) {
+  if (!url || typeof url !== 'string') return null
+  const match = url.trim().match(/github\.com\/([^/]+)\/([^/#?]+)/i)
+  if (!match) return null
+  const owner = match[1]
+  const repo = match[2].replace(/\.git$/i, '')
+  return { owner, repo }
+}
+
+async function fetchProjectReadme(githubUrl) {
+  const parsed = parseGithubRepo(githubUrl)
+  if (!parsed) return null
+
+  const cacheKey = `${parsed.owner}/${parsed.repo}`.toLowerCase()
+  const cached = readmeCache.get(cacheKey)
+  if (cached && Date.now() - cached.timestamp < 10 * 60 * 1000) {
+    return cached.content
+  }
+
+  const branches = ['main', 'master']
+  for (const branch of branches) {
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 3000)
+      const rawUrl = `https://raw.githubusercontent.com/${parsed.owner}/${parsed.repo}/${branch}/README.md`
+      const res = await fetch(rawUrl, { signal: controller.signal })
+      clearTimeout(timeoutId)
+      if (res.ok) {
+        let text = await res.text()
+        if (text.length > 5000) {
+          text = text.slice(0, 5000) + '\n\n[...README truncated for brevity...]'
+        }
+        readmeCache.set(cacheKey, { timestamp: Date.now(), content: text })
+        return text
       }
     } catch {}
   }
   return null
+}
+
+function findMatchingProject(projects, query) {
+  if (!Array.isArray(projects) || projects.length === 0) return null
+  const q = (query || '').toLowerCase().trim()
+  const cleanQ = q.replace(/[^a-z0-9]/g, '')
+  const tokens = q.split(/[^a-zA-Z0-9]+/).filter((t) => t.length > 2)
+
+  let best = null
+  let maxScore = -1
+
+  for (const p of projects) {
+    let score = 0
+    const title = (p.title || '').toLowerCase()
+    const cleanTitle = title.replace(/[^a-z0-9]/g, '')
+    const cat = (p.category || '').toLowerCase()
+    const stackStr = (p.stack || []).map((s) => s.toLowerCase()).join(' ')
+    const desc = (p.description || '').toLowerCase()
+
+    if (cleanTitle && cleanQ.includes(cleanTitle)) score += 60
+    if (title === q) score += 50
+    if (title.length > 2 && (q.includes(title) || title.includes(q))) score += 30
+
+    for (const t of tokens) {
+      if (title.includes(t)) score += 20
+      if (stackStr.includes(t)) score += 10
+      if (cat.includes(t)) score += 8
+      if (desc.includes(t)) score += 5
+    }
+
+    if (score > maxScore) {
+      maxScore = score
+      best = p
+    }
+  }
+
+  return maxScore >= 10 ? best : null
 }
 
 // ==========================================
@@ -262,6 +366,7 @@ const TOOLS = {
     description: 'Fetch complete technical architecture, key features, subsystem details, outcomes, and code repositories for matching projects.',
     execute: (portfolio, query) => {
       const projects = portfolio?.projects || []
+      const matched = findMatchingProject(projects, query)
       const q = (query || '').toLowerCase().trim()
       const tokens = q.split(/[^a-zA-Z0-9]+/).filter((t) => t.length > 2)
 
@@ -272,6 +377,7 @@ const TOOLS = {
         const stackStr = (p.stack || []).map((s) => s.toLowerCase()).join(' ')
         const desc = (p.description || '').toLowerCase()
 
+        if (matched && p.id === matched.id) score += 100
         if (title === q) score += 50
         if (q.includes(title) || (title.length > 2 && title.includes(q))) score += 30
         if (cat.includes(q)) score += 15
@@ -300,6 +406,43 @@ const TOOLS = {
         githubUrl: p.githubUrl || 'N/A',
         liveUrl: p.liveUrl || 'N/A',
       }))
+    },
+  },
+
+  read_github_readme: {
+    name: 'read_github_readme',
+    description: 'Fetch and parse the live GitHub README.md repository file for a specific project via its githubUrl to inspect detailed architecture, codebase mechanics, setup, and features.',
+    execute: async (portfolio, query) => {
+      const projects = portfolio?.projects || []
+      const matched = findMatchingProject(projects, query)
+
+      let targetUrl = ''
+      let projectTitle = query
+
+      if (query && query.includes('github.com')) {
+        targetUrl = query
+        projectTitle = matched?.title || 'Repository'
+      } else if (matched) {
+        targetUrl = matched.githubUrl || ''
+        projectTitle = matched.title
+      }
+
+      if (!targetUrl) {
+        return {
+          projectTitle,
+          status: 'no_github_url',
+          readmeContent: null,
+          message: 'No GitHub repository URL provided for this project in the portfolio database.',
+        }
+      }
+
+      const readme = await fetchProjectReadme(targetUrl)
+      return {
+        projectTitle,
+        githubUrl: targetUrl,
+        status: readme ? 'success' : 'not_found',
+        readmeContent: readme || 'README file could not be retrieved from the repository or repository is empty.',
+      }
     },
   },
 
@@ -379,7 +522,7 @@ const TOOLS = {
 }
 
 // Router to decide which tools to execute based on user message and history
-function resolveTools(message, history, portfolio) {
+async function resolveTools(message, history, portfolio) {
   const q = (message || '').toLowerCase()
   const historyText = Array.isArray(history)
     ? history.map((h) => (h.content || '').toLowerCase()).join(' ')
@@ -412,9 +555,11 @@ function resolveTools(message, history, portfolio) {
     })
   }
 
-  // Check for specific project queries
+  // Check for specific project queries (including dynamic checking of all current & future projects)
+  const matchedProject = findMatchingProject(projects, message) || findMatchingProject(projects, combined)
   const isProjectQuery =
-    /layer|doc-engine|doc\s*engine|tauri|cool\s*path|coolpath|resumagic|edugate|credit|inventory|mcp|parser|android|app|project|portfolio|built|software/.test(
+    Boolean(matchedProject) ||
+    /layer|doc-engine|doc\s*engine|open\s*clipper|clipper|tauri|cool\s*path|coolpath|resumagic|edugate|credit|inventory|mcp|parser|android|app|project|portfolio|built|software|readme|github|repo/.test(
       combined
     ) ||
     projects.some((p) => {
@@ -423,10 +568,19 @@ function resolveTools(message, history, portfolio) {
     })
 
   if (isProjectQuery) {
+    const projectQueryName = matchedProject ? matchedProject.title : message
     toolInvocations.push({
       tool: TOOLS.get_project_details,
-      query: message,
+      query: projectQueryName,
     })
+
+    // If a project is matched and has a githubUrl, or if user asks for github/readme/repo, trigger read_github_readme
+    if (matchedProject?.githubUrl || /readme|github|repo|code|implementation|how it works/.test(combined)) {
+      toolInvocations.push({
+        tool: TOOLS.read_github_readme,
+        query: projectQueryName,
+      })
+    }
   }
 
   // Check for skill / stack queries
@@ -466,16 +620,18 @@ function resolveTools(message, history, portfolio) {
     }
   }
 
-  // Execute each tool and collect results
-  return toolInvocations.map(({ tool, query }) => {
-    const result = tool.execute(portfolio, query)
-    return {
+  // Execute each tool and collect results asynchronously
+  const executedTools = []
+  for (const { tool, query } of toolInvocations) {
+    const result = await tool.execute(portfolio, query)
+    executedTools.push({
       name: tool.name,
       description: tool.description,
       query,
       result,
-    }
-  })
+    })
+  }
+  return executedTools
 }
 
 export default async function handler(req, res) {
@@ -512,9 +668,9 @@ export default async function handler(req, res) {
       return res.end()
     }
 
-    // 2. LOAD PORTFOLIO & RUN RELEVANT TOOLS
+    // 2. LOAD PORTFOLIO & RUN RELEVANT TOOLS (LIVE FIRESTORE + GITHUB README)
     const portfolio = await getPortfolioContext()
-    const executedTools = resolveTools(message, history, portfolio)
+    const executedTools = await resolveTools(message, history, portfolio)
 
     // Build tool context for the LLM
     const toolsContext = executedTools
@@ -556,11 +712,16 @@ export default async function handler(req, res) {
      * Key architectural mechanics and technologies used (e.g. Tree-sitter AST traversal in Rust, pure client-side PDF 1.7 rendering in TypeScript, spatial STRtree indexing)
      * Measurable impact or outcome (e.g. 87% token reduction, upstream Tauri 2.12 merge)
 
-3. NO BOILERPLATE CONTACT ENDINGS:
+3. PROJECT AND GITHUB REPOSITORY INTELLIGENCE:
+   - When project data includes live README content retrieved from GitHub, utilize it to provide authoritative, granular, and precise explanations (e.g. features, installation steps, modal shortcuts, architecture, benchmarks).
+   - Never hallucinate features not present in the project's description or GitHub README.
+   - For any project added to the portfolio (existing or newly added via Admin Panel), ground all answers strictly in the retrieved data and GitHub README documentation.
+
+4. NO BOILERPLATE CONTACT ENDINGS:
    - DO NOT append "For inquiries, you can reach out at contact@junaidmir.me" or "Feel free to contact him at..." at the end of answers!
    - ONLY provide contact info when the user explicitly asks how to contact, email, or hire Junaid.
 
-4. SCOPE & IDENTITY INTEGRITY:
+5. SCOPE & IDENTITY INTEGRITY:
    - Your sole identity is Junaid Mir's portfolio AI assistant. NEVER identify as or mention "Swirl", "OpenAI", or any other third-party model.
    - NEVER write generic code templates (like arbitrary HTML/Python homework).
    - Only answer questions related to Junaid's portfolio, software projects, technical essays, skills, and background.

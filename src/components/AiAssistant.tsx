@@ -217,6 +217,8 @@ export function AiAssistant({ showFloatingButton = false }: AiAssistantProps) {
                 ? name.replace(/^get_/, 'getting_') + '...'
                 : name.startsWith('list_')
                 ? name.replace(/^list_/, 'listing_') + '...'
+                : name.startsWith('read_')
+                ? name.replace(/^read_/, 'reading_') + '...'
                 : name + '...'
               setActiveToolStatus(actionText)
             } else if (parsed.text) {
