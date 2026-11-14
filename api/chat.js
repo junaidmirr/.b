@@ -269,18 +269,18 @@ function resolveActiveEntity(message, history, portfolio) {
 function classifyUserIntent(message) {
   const clean = (message || '').toLowerCase()
   if (
-    /how\s+to\s+(use|setup|set\s*up|install|run|import|integrate|get\s*started|add)|usage|install|setup|set\s*up|quickstart|quick\s*start|example|tutorial|code\s*sample|npm\s*install|cargo\s*install|yarn\s*add|pnpm\s*add|docker\s*run/.test(
-      clean
-    )
-  ) {
-    return 'USAGE_SETUP'
-  }
-  if (
-    /architecture|how\s+(does\s*it\s*work|it\s*works)|under\s*the\s*hood|internals|mechanics|design|ast|rendering\s*pipeline|benchmark|why\s*not/.test(
+    /architecture|how\s+does|how\s+it\s+works|how\s+does\s+it\s+work|under\s+the\s+hood|internals|mechanics|design|ast|rendering\s*pipeline|benchmark|why\s*(not|without|no)|without\s+(puppeteer|chrome|python)|algorithm|pipeline/.test(
       clean
     )
   ) {
     return 'ARCHITECTURE'
+  }
+  if (
+    /how\s+to\s+(use|setup|set\s*up|install|run|import|integrate|get\s*started|add)|how\s+do\s+i\s+(use|setup|install|run|import)|usage|install|setup|set\s*up|quickstart|quick\s*start|example|tutorial|code\s*sample|npm\s*install|cargo\s*install|yarn\s*add|pnpm\s*add|docker\s*run/.test(
+      clean
+    )
+  ) {
+    return 'USAGE_SETUP'
   }
   if (/repo|github|source\s*code|where\s*(is|to\s*find)\s*(it|the\s*code)|link|url/.test(clean)) {
     return 'REPO_LINK'
@@ -848,9 +848,9 @@ export default async function handler(req, res) {
       )
       .join('\n\n')
 
-    // If active project has extracted Quickstart / Usage sections, highlight them prominently at top
+    // If user asked for USAGE/SETUP, highlight the extracted Quickstart / Usage documentation at the top
     const readmeTool = executedTools.find((t) => t.name === 'read_github_readme')
-    if (readmeTool?.result?.quickstartAndUsage) {
+    if (intent === 'USAGE_SETUP' && readmeTool?.result?.quickstartAndUsage) {
       toolsContext =
         `[PRIMARY_INSTALLATION_AND_USAGE_DOCUMENTATION for ${readmeTool.result.projectTitle}]\n${readmeTool.result.quickstartAndUsage}\n\n` +
         toolsContext
@@ -867,6 +867,8 @@ export default async function handler(req, res) {
     let intentDirective = ''
     if (intent === 'USAGE_SETUP') {
       intentDirective = `\n[CRITICAL INSTRUCTION FOR THIS QUERY: USAGE / INSTALLATION REQUEST]\nThe visitor is asking how to install, set up, or use this project.\nStart DIRECTLY with the concrete installation command, script, or setup instructions from the documentation (e.g. \`npm install...\`, \`curl ... | sh\`, or cargo).\nProvide working code snippets or configuration steps from the README.\nDo NOT give a high-level conceptual overview instead of answering the install/setup question!\n`
+    } else if (intent === 'ARCHITECTURE') {
+      intentDirective = `\n[CRITICAL INSTRUCTION FOR THIS QUERY: ARCHITECTURAL MECHANICS & HOW IT WORKS]\nThe visitor is asking how the project operates internally, its rendering engine, or why it avoids external dependencies like Puppeteer or Python.\nExplain the architectural mechanics clearly (e.g. vector coordinate transformation, HTML5 canvas preview, direct PDF 1.7 operator emission, AST parsing in Rust) and the performance advantages.\nDo NOT output installation scripts when the visitor is asking about architecture!\n`
     } else if (intent === 'REPO_LINK') {
       intentDirective = `\n[CRITICAL INSTRUCTION FOR THIS QUERY: REPOSITORY / LINK REQUEST]\nThe visitor is asking for the repository, GitHub URL, or source code.\nProvide the verified repository link and live URL directly from the project metadata.\n`
     }
