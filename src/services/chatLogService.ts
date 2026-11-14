@@ -153,7 +153,10 @@ export function subscribeToChatSessions(
   // 1. Fetch from Serverless API immediately
   const fetchFromServerless = async () => {
     try {
-      const res = await fetch('/api/save-chat-session')
+      const token = typeof window !== 'undefined' ? window.localStorage?.getItem('junaid_admin_token') : ''
+      const res = await fetch('/api/save-chat-session', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
       if (res.ok) {
         const data = await res.json()
         if (Array.isArray(data.sessions) && data.sessions.length > 0) {
@@ -239,8 +242,10 @@ export async function deleteChatSession(sessionId: string): Promise<void> {
 
   // Delete via serverless API
   try {
+    const token = typeof window !== 'undefined' ? window.localStorage?.getItem('junaid_admin_token') : ''
     await fetch(`/api/save-chat-session?id=${encodeURIComponent(sessionId)}`, {
       method: 'DELETE',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
   } catch {}
 

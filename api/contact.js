@@ -1,3 +1,5 @@
+import { getClientIp, checkRateLimit, sanitizeString } from './_security.js'
+
 const REQUIRED_ENV_KEYS = [
   'TURNSTILE_SECRET_KEY',
   'MAILJET_API_KEY',
@@ -18,9 +20,10 @@ function escapeHtml(value) {
 }
 
 function validateContactPayload(payload) {
-  const name = typeof payload?.name === 'string' ? payload.name.trim() : ''
-  const email = typeof payload?.email === 'string' ? payload.email.trim() : ''
-  const message = typeof payload?.message === 'string' ? payload.message.trim() : ''
+  // Strip carriage returns and newlines from name and email to prevent SMTP header injection
+  const name = sanitizeString(payload?.name, 100).replace(/[\r\n]/g, '')
+  const email = sanitizeString(payload?.email, 100).replace(/[\r\n]/g, '')
+  const message = sanitizeString(payload?.message, 3000)
   const captchaToken = typeof payload?.captchaToken === 'string' ? payload.captchaToken.trim() : ''
 
   if (!name || !email || !message || !captchaToken) {
@@ -143,6 +146,14 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed.' })
+  }
+
+  const clientIp = getClientIp(req)
+  const rate = checkRateLimit(clientIp, 'contact-form', 5, 10 * 60 * 1000)
+  if (!rate.allowed) {
+    return res.status(429).json({
+      error: 'Too many messages sent. Please wait a few minutes before trying again.',
+    })
   }
 
   const missingEnvKeys = REQUIRED_ENV_KEYS.filter((key) => !process.env[key])

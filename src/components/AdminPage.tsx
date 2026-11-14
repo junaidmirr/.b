@@ -632,7 +632,12 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
     setAiStatusMessage('Connecting to GitHub repository and fetching README...')
 
     try {
-      const result = await generateProjectFromGithub(url, aiCustomInstructions)
+      const result = await generateProjectFromGithub(
+        url,
+        aiCustomInstructions,
+        undefined,
+        authToken || undefined
+      )
       setAiStatusMessage('Swirl AI analyzed architecture! Populating project fields...')
 
       const gen = result.project
@@ -764,7 +769,11 @@ export function AdminPage({ initialData, onClose, onDataUpdated }: AdminPageProp
 
   const handleRefreshChats = async () => {
     try {
-      const res = await fetch('/api/save-chat-session')
+      const token =
+        authToken || (typeof window !== 'undefined' ? window.localStorage?.getItem('junaid_admin_token') : '')
+      const res = await fetch('/api/save-chat-session', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
       if (res.ok) {
         const data = await res.json()
         if (Array.isArray(data.sessions)) {

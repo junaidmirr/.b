@@ -17,17 +17,21 @@ export type AutofillResult = {
 export async function generateProjectFromGithub(
   repoUrl: string,
   customInstructions?: string,
-  readmeContent?: string
+  readmeContent?: string,
+  authToken?: string
 ): Promise<AutofillResult> {
   const trimmedUrl = repoUrl.trim()
   if (!trimmedUrl && !readmeContent) {
     throw new Error('Please enter a GitHub repository URL or paste README text.')
   }
 
+  const token = authToken || (typeof window !== 'undefined' ? window.localStorage?.getItem('junaid_admin_token') : '')
+
   const response = await fetch('/api/ai-project-autofill', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify({
       repoUrl: trimmedUrl,

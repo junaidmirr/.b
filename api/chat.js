@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { getClientIp, checkRateLimit, sanitizeString } from './_security.js'
 
 function unwrapFirestoreValue(val) {
   if (!val || typeof val !== 'object') return val
@@ -811,15 +812,35 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed.' })
   }
 
+  const clientIp = getClientIp(req)
+
+  // 1. IP Rate Limiting: Max 25 requests per minute per IP to prevent DoS / quota exhaustion
+  const rate = checkRateLimit(clientIp, 'chat-assistant', 25, 60 * 1000)
+  if (!rate.allowed) {
+    return res.status(429).json({
+      error: 'Rate limit exceeded. Please wait a moment before sending more messages.',
+    })
+  }
+
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {}
-    const { message, history } = body
+    const rawMessage = body.message
+    const rawHistory = body.history
 
-    if (!message || typeof message !== 'string' || !message.trim()) {
+    if (!rawMessage || typeof rawMessage !== 'string' || !rawMessage.trim()) {
       return res.status(400).json({ error: 'Message is required.' })
     }
 
-    // 1. FAST-PATH DETERMINISTIC GUARDRAIL
+    // Input Sanitization & Payload Cap (prevents memory explosion / injection)
+    const message = sanitizeString(rawMessage, 1000)
+    const history = Array.isArray(rawHistory)
+      ? rawHistory.slice(-8).map((h) => ({
+          role: h?.role === 'user' ? 'user' : 'assistant',
+          content: sanitizeString(h?.content || '', 1000),
+        }))
+      : []
+
+    // 2. FAST-PATH DETERMINISTIC GUARDRAIL
     // Catches greetings, disinterest, identity leaks, and out-of-scope tasks with zero upstream latency
     const guard = classifyGuardrailIntent(message)
     if (guard && guard.response) {
@@ -832,7 +853,7 @@ export default async function handler(req, res) {
       return res.end()
     }
 
-    // 2. LOAD PORTFOLIO & RUN RELEVANT TOOLS (LIVE FIRESTORE + GITHUB README)
+    // 3. LOAD PORTFOLIO & RUN RELEVANT TOOLS (LIVE FIRESTORE + GITHUB README)
     const portfolio = await getPortfolioContext()
     const { executedTools, intent, active } = await resolveTools(message, history, portfolio)
 

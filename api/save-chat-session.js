@@ -7,6 +7,8 @@
  * Guarantees real-time synchronization across PC, phone, Instagram, and Firebase Console.
  */
 
+import { getClientIp, checkRateLimit, verifyAdminAuthorization, sanitizeString } from './_security.js'
+
 if (!globalThis.__cachedChatSessions) {
   globalThis.__cachedChatSessions = []
 }
@@ -207,8 +209,13 @@ export default async function handler(req, res) {
 
   const { apiKey, projectId } = getFirebaseConfig()
 
-  // 1. GET: Return all chat sessions merged from Firestore 'ai_chats', GitHub, and memory
+  // 1. GET: Return all chat sessions merged from Firestore 'ai_chats', GitHub, and memory (ADMIN ONLY)
   if (req.method === 'GET') {
+    const adminSession = verifyAdminAuthorization(req)
+    if (!adminSession) {
+      return res.status(401).json({ error: 'Unauthorized. Admin authentication required to view chat sessions.' })
+    }
+
     const mergedMap = new Map()
 
     // A. Read from Firestore REST API (under 'ai_chats' collection)
@@ -286,34 +293,39 @@ export default async function handler(req, res) {
     })
   }
 
-  // 2. POST: Save incoming chat session from any browser
+  // 2. POST: Save incoming chat session from any browser (Rate Limited & Sanitized)
   if (req.method === 'POST') {
+    const clientIp = getClientIp(req)
+    const rate = checkRateLimit(clientIp, 'save-chat', 20, 60 * 1000)
+    if (!rate.allowed) {
+      return res.status(429).json({ error: 'Too many session updates. Please slow down.' })
+    }
+
     const session = await parseRequestBody(req)
 
     if (!session || !session.id) {
       return res.status(400).json({ error: 'Missing session ID or invalid body' })
     }
 
-    const userAgent = session.userAgent || req.headers['user-agent'] || ''
-    const detectedBrowser = session.browser || detectBrowser(userAgent)
-    const sessionId = String(session.id)
+    const userAgent = sanitizeString(session.userAgent || req.headers['user-agent'] || '', 200)
+    const detectedBrowser = sanitizeString(session.browser || detectBrowser(userAgent), 50)
+    const sessionId = sanitizeString(String(session.id), 100)
 
+    const rawMessages = Array.isArray(session.messages) ? session.messages.slice(-50) : []
     const normalizedSession = {
       id: sessionId,
       createdAt: session.createdAt || new Date().toISOString(),
       updatedAt: session.updatedAt || new Date().toISOString(),
-      summary: String(session.summary || 'Visitor conversation').slice(0, 150),
-      messageCount: Number(session.messageCount) || (Array.isArray(session.messages) ? session.messages.length : 0),
+      summary: sanitizeString(String(session.summary || 'Visitor conversation'), 150),
+      messageCount: Number(session.messageCount) || rawMessages.length,
       browser: detectedBrowser,
-      userAgent: userAgent.slice(0, 200),
-      messages: Array.isArray(session.messages)
-        ? session.messages.map((m) => ({
-            id: String(m.id || Date.now()),
-            role: m.role === 'user' ? 'user' : 'assistant',
-            content: String(m.content || ''),
-            timestamp: m.timestamp || new Date().toISOString(),
-          }))
-        : [],
+      userAgent: userAgent,
+      messages: rawMessages.map((m) => ({
+        id: sanitizeString(String(m.id || Date.now()), 50),
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: sanitizeString(String(m.content || ''), 2000),
+        timestamp: m.timestamp || new Date().toISOString(),
+      })),
     }
 
     // A. Sync directly into Firestore REST API under 'ai_chats' collection
@@ -380,8 +392,13 @@ export default async function handler(req, res) {
     })
   }
 
-  // 3. DELETE: Remove a chat session
+  // 3. DELETE: Remove a chat session (ADMIN ONLY)
   if (req.method === 'DELETE') {
+    const adminSession = verifyAdminAuthorization(req)
+    if (!adminSession) {
+      return res.status(401).json({ error: 'Unauthorized. Admin authentication required to delete chat sessions.' })
+    }
+
     const rawId = req.query.id || (typeof req.body === 'object' && req.body?.id)
     if (!rawId) {
       return res.status(400).json({ error: 'Missing session ID to delete' })

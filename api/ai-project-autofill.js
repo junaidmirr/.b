@@ -1,7 +1,9 @@
+import { getClientIp, checkRateLimit, verifyAdminAuthorization, sanitizeString } from './_security.js'
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-token')
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end()
@@ -11,11 +13,26 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed. Use POST.' })
   }
 
+  // 1. Admin Authentication Check
+  const session = verifyAdminAuthorization(req)
+  if (!session) {
+    return res.status(401).json({ error: 'Unauthorized. Admin login required to use AI autofill.' })
+  }
+
+  // 2. Rate Limiting: Max 10 requests per minute per IP
+  const clientIp = getClientIp(req)
+  const rate = checkRateLimit(clientIp, 'ai-autofill', 10, 60 * 1000)
+  if (!rate.allowed) {
+    return res.status(429).json({ error: 'Rate limit exceeded. Please wait a minute before generating more projects.' })
+  }
+
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {}
-    const { repoUrl, readmeContent, customInstructions } = body
+    const rawRepoUrl = sanitizeString(body.repoUrl, 250)
+    const rawReadme = typeof body.readmeContent === 'string' ? body.readmeContent.slice(0, 15000) : ''
+    const customInstructions = sanitizeString(body.customInstructions, 1000)
 
-    if (!repoUrl && !readmeContent) {
+    if (!rawRepoUrl && !rawReadme) {
       return res.status(400).json({
         error: 'Please provide either a GitHub repository URL or README content.',
       })
@@ -25,11 +42,11 @@ export default async function handler(req, res) {
     let repo = ''
     let cleanRepoUrl = ''
     let repoMetadata = null
-    let fetchedReadme = readmeContent || ''
+    let fetchedReadme = rawReadme || ''
 
     // Parse GitHub repository URL if provided
-    if (repoUrl && typeof repoUrl === 'string') {
-      const trimmed = repoUrl.trim().replace(/\/+$/, '')
+    if (rawRepoUrl) {
+      const trimmed = rawRepoUrl.trim().replace(/\/+$/, '')
       cleanRepoUrl = trimmed.startsWith('http') ? trimmed : `https://github.com/${trimmed}`
 
       const match = cleanRepoUrl.match(/github\.com\/([^/]+)\/([^/]+)/i) || trimmed.match(/^([^/]+)\/([^/]+)$/)
