@@ -1,5 +1,28 @@
 [
   {
+    "id": "sess_1794633988446_79gm6",
+    "createdAt": "2026-11-14T05:26:28.446Z",
+    "updatedAt": "2026-11-14T05:26:28.449Z",
+    "summary": "which ai modal are you?",
+    "messageCount": 2,
+    "browser": "Chrome Mobile",
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36",
+    "messages": [
+      {
+        "id": "user-1794633987578",
+        "role": "user",
+        "content": "which ai modal are you?",
+        "timestamp": "2026-11-14T05:26:28.451Z"
+      },
+      {
+        "id": "assistant-1794633987578",
+        "role": "assistant",
+        "content": "I am Junaid Mir's personal portfolio AI assistant. I am built exclusively to help visitors explore Junaid's software engineering projects, technical essays, skills, and background.",
+        "timestamp": "2026-11-14T05:26:28.451Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1794600708444_fc7p2",
     "createdAt": "2026-11-13T20:11:48.444Z",
     "updatedAt": "2026-11-13T20:13:09.353Z",
