@@ -1,5 +1,28 @@
 [
   {
+    "id": "sess_1794647611951_xzql7",
+    "createdAt": "2026-11-14T09:13:31.951Z",
+    "updatedAt": "2026-11-14T09:13:31.954Z",
+    "summary": "what's ai assistant app",
+    "messageCount": 2,
+    "browser": "Chrome Mobile",
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36",
+    "messages": [
+      {
+        "id": "user-1794647607226",
+        "role": "user",
+        "content": "what's ai assistant app",
+        "timestamp": "2026-11-14T09:13:31.956Z"
+      },
+      {
+        "id": "assistant-1794647607226",
+        "role": "assistant",
+        "content": "Fipper AI (on-screen AI assistant) can be installed by cloning the repository and setting up the environment in Android Studio:\n\n1. Clone the repository:\n   git clone https://github.com/junaidmirr/on-screen-Ai-assistant.git\n\n2. Open the project in Android Studio.\n\n3. Sync Gradle and ensure your Gemini API key is configured in your build environment.\n\nThe app uses a floating service architecture via the MediaProjection API and WindowManager to overlay an AI interface on top of active applications. It leverages Kotlin and Jetpack Compose, relying on the Gemini 1.5-flash SDK for real-time screen analysis, voice processing, and image editing capabilities. All data is managed offline-first using the Room database.",
+        "timestamp": "2026-11-14T09:13:31.956Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1794635937899_1c7i5",
     "createdAt": "2026-11-14T05:58:57.899Z",
     "updatedAt": "2026-11-14T06:26:19.021Z",
