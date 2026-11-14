@@ -2,9 +2,9 @@
   {
     "id": "sess_1794635937899_1c7i5",
     "createdAt": "2026-11-14T05:58:57.899Z",
-    "updatedAt": "2026-11-14T06:24:05.450Z",
+    "updatedAt": "2026-11-14T06:24:10.012Z",
     "summary": "hi",
-    "messageCount": 2,
+    "messageCount": 4,
     "browser": "Firefox",
     "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:159.0) Gecko/20100101 Firefox/159.0",
     "messages": [
@@ -12,13 +12,25 @@
         "id": "user-1794637445029",
         "role": "user",
         "content": "hi",
-        "timestamp": "2026-11-14T06:24:05.450Z"
+        "timestamp": "2026-11-14T06:24:10.012Z"
       },
       {
         "id": "assistant-1794637445029",
         "role": "assistant",
         "content": "Hello! I am Junaid Mir's portfolio AI assistant. How can I help you explore his software projects, technical essays, or engineering background?",
-        "timestamp": "2026-11-14T06:24:05.450Z"
+        "timestamp": "2026-11-14T06:24:10.012Z"
+      },
+      {
+        "id": "user-1794637449638",
+        "role": "user",
+        "content": "who are you?",
+        "timestamp": "2026-11-14T06:24:10.012Z"
+      },
+      {
+        "id": "assistant-1794637449638",
+        "role": "assistant",
+        "content": "I am Junaid Mir's personal portfolio AI assistant. I am built exclusively to help visitors explore Junaid's software engineering projects, technical essays, skills, and background.",
+        "timestamp": "2026-11-14T06:24:10.012Z"
       }
     ]
   },
