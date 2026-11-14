@@ -1,5 +1,28 @@
 [
   {
+    "id": "sess_1794635937899_1c7i5",
+    "createdAt": "2026-11-14T05:58:57.899Z",
+    "updatedAt": "2026-11-14T05:58:57.899Z",
+    "summary": "how to setup and use doc-engine?",
+    "messageCount": 2,
+    "browser": "Firefox",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:159.0) Gecko/20100101 Firefox/159.0",
+    "messages": [
+      {
+        "id": "user-1794635933790",
+        "role": "user",
+        "content": "how to setup and use doc-engine?",
+        "timestamp": "2026-11-14T05:58:57.899Z"
+      },
+      {
+        "id": "assistant-1794635933790",
+        "role": "assistant",
+        "content": "doc-engine is Junaid's high-performance library for generating vector-based PDFs directly in React and TypeScript. He architected it to eliminate the heavy dependencies typical of document generation, such as headless Chromium (Puppeteer) or server-side Python daemons.\n\nInstead of rasterizing content, the engine calculates layout coordinates in pure TypeScript and serializes them into native PDF 1.7 operators. It provides a real-time 60 FPS preview via HTML5 Canvas. By handling coordinate transformations internally—mapping web-standard top-left origins to the bottom-left PDF specification—it ensures accurate vector output. Published as @worklabs05/doc-engine, it supports multi-page flows and automatic pagination, providing a lightweight, browser-native alternative for complex document rendering.",
+        "timestamp": "2026-11-14T05:58:57.899Z"
+      }
+    ]
+  },
+  {
     "id": "sess_1794633988446_79gm6",
     "createdAt": "2026-11-14T05:26:28.446Z",
     "updatedAt": "2026-11-14T05:27:03.090Z",
